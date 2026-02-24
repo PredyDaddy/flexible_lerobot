@@ -1,0 +1,1194 @@
+# LeRobot 数据格式解析（v2.1）
+
+> 本文档综合了 LeRobot v2.1 版本的数据格式规范，涵盖目录结构、元数据、数据存储、API 使用等完整技术细节。
+
+## 目录
+1. [概述](#概述)
+2. [数据集目录结构](#数据集目录结构)
+3. [元数据文件详解](#元数据文件详解)
+4. [特征类型系统](#特征类型系统)
+5. [数据存储格式](#数据存储格式)
+6. [时间戳与同步机制](#时间戳与同步机制)
+7. [Python API 使用](#python-api-使用)
+8. [统计信息](#统计信息)
+9. [版本兼容性](#版本兼容性)
+10. [最佳实践](#最佳实践)
+11. [常见问题](#常见问题)
+
+## 概述
+
+LeRobot 数据集是 Hugging Face 专为机器人学习设计的标准化数据格式，旨在：
+
+- **高效存储**：使用 Parquet 列式存储和 MP4 视频压缩
+- **多模态支持**：同时支持数值、图像、视频等多种数据类型
+- **时间序列**：内置时间戳和帧索引，支持精确的时间对齐
+- **可扩展性**：模块化设计，易于添加新的传感器或任务类型
+- **版本兼容**：支持向前兼容，提供版本转换工具
+
+**当前版本**: `v2.1`
+
+**核心概念**：元数据存储在 `meta/`，帧级数据存储在 `data/`（Parquet），视觉模态存储在 `videos/` 或 `images/`，目录按 episode 分块（chunk），默认每 1000 个 episode 一个 chunk。
+
+## 数据集目录结构
+
+### v2.1 完整结构
+
+```
+dataset_root/
+├── data/                          # Parquet 数据文件
+│   ├── chunk-000/                 # 数据块 0 (episodes 0-999)
+│   │   ├── episode_000000.parquet
+│   │   ├── episode_000001.parquet
+│   │   └── ...
+│   ├── chunk-001/                 # 数据块 1 (episodes 1000-1999)
+│   │   └── ...
+│   └── ...
+├── meta/                          # 元数据文件
+│   ├── info.json                  # 数据集基本信息
+│   ├── episodes.jsonl             # Episode 信息列表
+│   ├── episodes_stats.jsonl       # 每个 episode 的统计信息 (v2.1+)
+│   ├── stats.json                 # 全局统计信息 (v2.0 兼容)
+│   └── tasks.jsonl                # 任务定义列表
+├── videos/                        # 视频文件 (use_videos=True 时存在)
+│   ├── chunk-000/
+│   │   ├── observation.images.cam1/
+│   │   │   ├── episode_000000.mp4
+│   │   │   └── ...
+│   │   └── observation.images.cam2/
+│   │       └── ...
+│   └── ...
+├── images/                        # 图像文件 (use_videos=False 时存在，临时)
+│   └── {image_key}/
+│       └── episode_{index:06d}/
+│           └── frame_{index:06d}.png
+└── .gitignore                     # 忽略视频和 parquet 文件
+```
+
+### 路径模板
+
+| 文件类型 | 路径模板 |
+|---------|---------|
+| Parquet | `data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet` |
+| Video | `videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4` |
+| Image | `images/{image_key}/episode_{episode_index:06d}/frame_{frame_index:06d}.png` |
+
+### Chunk 机制
+
+- **默认 chunk_size = 1000**：每个 chunk 最多存储 1000 个 episodes
+- **计算公式**：`chunk_idx = episode_index // chunk_size`
+- **设计目的**：
+  - 性能：避免单个目录文件数过多
+  - 可管理性：便于数据管理和迁移
+  - 并行化：支持按 chunk 并行处理
+
+## 元数据文件详解
+
+### 1. info.json
+
+`meta/info.json` 是数据集的核心配置文件，包含数据集的完整定义。
+
+```json
+{
+    "codebase_version": "v2.1",
+    "robot_type": "so100",
+    "env_type": "pusht",
+    "total_episodes": 565,
+    "total_frames": 169500,
+    "total_tasks": 1,
+    "total_videos": 565,
+    "total_chunks": 1,
+    "chunks_size": 1000,
+    "fps": 30,
+    "splits": {
+        "train": "0:452",
+        "val": "452:509",
+        "test": "509:565"
+    },
+    "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
+    "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
+    "encoding": {
+        "video.codec": "h264",
+        "video.pixel_format": "yuv420p",
+        "video.width": 640,
+        "video.height": 480,
+        "video.fps": 30
+    },
+    "features": {
+        "observation.state": {
+            "dtype": "float32",
+            "shape": [7],
+            "names": ["joint_0", "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
+        },
+        "observation.images.top": {
+            "dtype": "video",
+            "shape": [480, 640, 3],
+            "names": ["height", "width", "channels"],
+            "info": {
+                "video.height": 480,
+                "video.width": 640,
+                "video.fps": 30,
+                "video.codec": "h264",
+                "video.pix_fmt": "yuv420p",
+                "video.is_depth_map": false,
+                "has_audio": false
+            }
+        },
+        "action": {
+            "dtype": "float32",
+            "shape": [2],
+            "names": ["x", "y"]
+        }
+    }
+}
+```
+
+#### info.json 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `codebase_version` | string | 数据集版本，当前为 "v2.1" |
+| `robot_type` | string \| null | 机器人类型（如 "so100", "aloha", "koch", "xarm"） |
+| `env_type` | string \| null | 环境类型（如 "pusht", "aloha", "xarm"） |
+| `total_episodes` | int | 总 episode 数量 |
+| `total_frames` | int | 总帧数 |
+| `total_tasks` | int | 任务数量 |
+| `total_videos` | int | 视频文件总数 |
+| `total_chunks` | int | chunk 数量 |
+| `chunks_size` | int | 每个 chunk 的最大 episode 数，默认 1000 |
+| `fps` | int | 数据采集帧率 |
+| `splits` | dict | 数据集分割，指定各集合的 episode 范围 |
+| `data_path` | string | parquet 文件路径模板 |
+| `video_path` | string \| null | 视频文件路径模板，无视频时为 null |
+| `encoding` | dict | 视频编码参数 |
+| `features` | dict | 特征定义字典 |
+
+### 2. episodes.jsonl
+
+每行一个 JSON 对象，记录每个 episode 的元信息。
+
+```jsonl
+{"episode_index": 0, "tasks": ["Pick up the red block"], "length": 300, "file": "data/chunk-000/episode_000000.parquet"}
+{"episode_index": 1, "tasks": ["Pick up the red block"], "length": 285}
+{"episode_index": 2, "tasks": ["Place block in box"], "length": 320}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `episode_index` | int | Episode 唯一索引 |
+| `tasks` | list[str] \| list[int] | 该 episode 包含的任务描述或索引 |
+| `length` | int | Episode 帧数 |
+| `file` | string | Parquet 文件路径（可选） |
+
+### 3. tasks.jsonl
+
+任务定义文件，每行一个任务（v2.0+ 推荐）。
+
+```jsonl
+{"task_index": 0, "task": "Push the T-shaped block to the target"}
+{"task_index": 1, "task": "Move the block to the green area"}
+{"task_index": 2, "task": "Stack two blocks"}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `task_index` | int | 任务唯一索引 |
+| `task` | string | 任务的自然语言描述 |
+
+### 4. episodes_stats.jsonl (v2.1+)
+
+每个 episode 的统计信息，用于归一化和分析。
+
+```jsonl
+{"episode_index": 0, "stats": {"observation.state": {"mean": [...], "std": [...], "min": [...], "max": [...], "count": [300]}, "action": {"mean": [...], "std": [...], "min": [...], "max": [...], "count": [300]}}}
+{"episode_index": 1, "stats": {"observation.state": {"mean": [...], "std": [...], "min": [...], "max": [...], "count": [285]}}}
+```
+
+### 5. stats.json (v2.0 兼容)
+
+全局统计信息，v2.1 版本会根据 `episodes_stats.jsonl` 动态聚合。
+
+```json
+{
+    "observation.state": {
+        "mean": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "std": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+        "q01": [-1.5, -1.5, -1.5, -1.5, -1.5, -1.5],
+        "q99": [1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+        "min": [-1.57, -1.57, -1.57, -1.57, -1.57, -1.57],
+        "max": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+        "count": [15000]
+    },
+    "action": {
+        "mean": [...],
+        "std": [...],
+        "min": [...],
+        "max": [...],
+        "count": [...]
+    }
+}
+```
+
+统计字段说明：
+- `mean`: 均值
+- `std`: 标准差
+- `min`: 最小值
+- `max`: 最大值
+- `q01`, `q99`: 1% 和 99% 分位数
+- `count`: 样本数量
+
+## 特征类型系统
+
+### Feature 定义格式
+
+```json
+{
+    "feature_name": {
+        "dtype": "数据类型",
+        "shape": [维度1, 维度2, ...],
+        "names": ["维度名称1", ...] 或 null,
+        "info": { /* 额外信息（视频特征） */ }
+    }
+}
+```
+
+### 支持的数据类型 (dtype)
+
+| dtype | 说明 | 存储位置 | 示例 |
+|-------|------|---------|------|
+| `float32` | 32位浮点数 | Parquet | 关节角度、动作 |
+| `float64` | 64位浮点数 | Parquet | 高精度数值 |
+| `int64` | 64位整数 | Parquet | 索引、计数 |
+| `int32` | 32位整数 | Parquet | 分类标签 |
+| `bool` | 布尔值 | Parquet | 完成标志 |
+| `string` | 字符串 | Parquet | 文本描述 |
+| `image` | 图像数据 | Parquet (内嵌) | 小图像 |
+| `video` | 视频帧 | 外部 .mp4 文件 | 相机数据 |
+
+### 默认特征
+
+以下特征由系统自动添加，无需手动定义：
+
+```python
+DEFAULT_FEATURES = {
+    "timestamp": {"dtype": "float32", "shape": (1,), "names": None},
+    "frame_index": {"dtype": "int64", "shape": (1,), "names": None},
+    "episode_index": {"dtype": "int64", "shape": (1,), "names": None},
+    "index": {"dtype": "int64", "shape": (1,), "names": None},
+    "task_index": {"dtype": "int64", "shape": (1,), "names": None},
+}
+```
+
+| 特征 | 说明 |
+|------|------|
+| `timestamp` | 当前帧在 episode 中的时间戳（秒），起始为 0.0 |
+| `frame_index` | 当前帧在 episode 中的索引（从 0 开始） |
+| `episode_index` | Episode 索引 |
+| `index` | 全局帧索引（整个数据集唯一） |
+| `task_index` | 任务索引，对应 tasks.jsonl 中的任务 |
+
+### 特征类型示例
+
+**机器人状态**（关节角度）：
+```json
+{
+    "observation.state": {
+        "dtype": "float32",
+        "shape": [6],
+        "names": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+    }
+}
+```
+
+**视频存储**（相机数据）：
+```json
+{
+    "observation.images.cam_high": {
+        "dtype": "video",
+        "shape": [480, 640, 3],
+        "names": ["height", "width", "channels"],
+        "info": {
+            "video.height": 480,
+            "video.width": 640,
+            "video.fps": 30,
+            "video.codec": "h264",
+            "video.pix_fmt": "yuv420p",
+            "video.is_depth_map": false,
+            "has_audio": false
+        }
+    }
+}
+```
+
+**图像存储**（内嵌像素）：
+```json
+{
+    "observation.images.small": {
+        "dtype": "image",
+        "shape": [32, 32, 3],
+        "names": ["height", "width", "channels"]
+    }
+}
+```
+
+**动作指令**：
+```json
+{
+    "action": {
+        "dtype": "float32",
+        "shape": [2],
+        "names": ["x", "y"]
+    }
+}
+```
+
+**嵌套特征**（字典形式）：
+```json
+{
+    "observation.state.arm": {
+        "dtype": "float32",
+        "shape": [6],
+        "names": ["joint_0", "joint_1", "joint_2", "joint_3", "joint_4", "joint_5"]
+    },
+    "observation.state.gripper": {
+        "dtype": "float32",
+        "shape": [1],
+        "names": ["gripper_position"]
+    }
+}
+```
+
+### 特征名称约定
+
+| 前缀 | 类型 | 示例 |
+|------|------|------|
+| `observation.state` | 机器人状态 | 关节角度、末端位置、速度 |
+| `observation.images.*` | 相机图像 | `observation.images.cam_high`, `observation.images.wrist` |
+| `observation.environment_state` | 环境状态 | 物体位置、场景描述 |
+| `action` | 动作指令 | 目标关节角度、末端速度 |
+| `action.state` | 动作状态 | 当前动作执行状态 |
+
+## 数据存储格式
+
+### Parquet 文件
+
+#### 文件组织
+
+每个 episode 对应一个独立的 parquet 文件，文件名格式：`episode_{episode_index:06d}.parquet`
+
+**优势**：
+- 按需下载特定 episodes
+- 支持增量式数据收集
+- 便于并行处理
+- 列式存储节省 I/O
+- Snappy 压缩节省空间
+
+#### 列结构示例
+
+一个典型的 episode parquet 文件包含以下列：
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `index` | int64 | 全局帧索引（跨所有 episodes 唯一） |
+| `episode_index` | int64 | 所属 episode 索引 |
+| `frame_index` | int64 | Episode 内帧索引（从 0 开始） |
+| `timestamp` | float32 | 时间戳（秒，相对于 episode 开始） |
+| `task_index` | int64 | 任务索引 |
+| `observation.state` | Sequence[float32] | 机器人状态（关节角度等） |
+| `observation.images.cam` | string | 视频文件路径（dtype=video） |
+| `action` | Sequence[float32] | 动作指令 |
+| `next.reward` | float32 | 奖励（可选，用于 RL） |
+| `next.done` | bool | 终止标志（可选） |
+| `next.success` | bool | 成功标志（可选） |
+
+#### 示例数据
+
+```python
+import pandas as pd
+
+df = pd.read_parquet("data/chunk-000/episode_000000.parquet")
+print(df.head())
+
+# 输出示例：
+#    index  episode_index  frame_index  timestamp  observation.state  \
+# 0      0              0            0     0.0000  [0.1, -0.2, 0.3, ...]
+# 1      1              0            1     0.0333  [0.1, -0.2, 0.3, ...]
+# 2      2              0            2     0.0667  [0.1, -0.2, 0.3, ...]
+# 3      3              0            3     0.1000  [0.1, -0.2, 0.3, ...]
+# 4      4              0            4     0.1333  [0.1, -0.2, 0.3, ...]
+#
+#   observation.images.cam  action  \
+# 0  videos/chunk-000/obs...  [0.0, 0.1, -0.1, ...]
+# 1  videos/chunk-000/obs...  [0.0, 0.1, -0.1, ...]
+# 2  videos/chunk-000/obs...  [0.0, 0.1, -0.1, ...]
+# 3  videos/chunk-000/obs...  [0.0, 0.1, -0.1, ...]
+# 4  videos/chunk-000/obs...  [0.0, 0.1, -0.1, ...]
+```
+
+### 视频文件
+
+#### 视频编码
+
+LeRobot 使用 ffmpeg（通过 PyAV）进行视频编码，默认参数：
+
+```python
+{
+    "codec": "libsvtav1",  # AV1 编码器（推荐）
+    "pix_fmt": "yuv420p",   # 像素格式
+    "g": 2,                  # GOP 大小（关键帧间隔）
+    "crf": 30,              # 质量因子（0-51，越小质量越高）
+    "preset": "medium",     # 编码速度/质量权衡
+    "fps": 30,
+    "width": 640,
+    "height": 480
+}
+```
+
+#### 支持的编码器
+
+| 编码器 | 压缩率 | 编码速度 | 解码速度 | CPU 占用 | 推荐使用场景 |
+|--------|--------|----------|----------|----------|--------------|
+| H.264 (`libx264`) | 1.0x | 快 | 快 | 低 | 通用，兼容性最好 |
+| H.265 (`libx265`) | 1.5-2.0x | 中等 | 中等 | 中等 | 存储优化 |
+| AV1 (`libsvtav1`) | 2.0-3.0x | 慢 | 中等 | 高 | Archival，长期存储 |
+
+#### 硬件加速编码（可选）
+
+```python
+# NVIDIA GPU 加速
+{
+    "codec": "h264_nvenc",
+    "preset": "p4",
+    "cq": 28
+}
+
+# Intel Quick Sync
+{
+    "codec": "h264_qsv",
+    "preset": "medium"
+}
+
+# Apple Silicon
+{
+    "codec": "h264_videotoolbox",
+    "preset": "medium"
+}
+```
+
+#### VideoFrame 类型
+
+视频帧在数据集中以 `VideoFrame` 类型表示，存储在 Parquet 中：
+
+```python
+@dataclass
+class VideoFrame:
+    pa_type: ClassVar[Any] = pa.struct({
+        "path": pa.string(),          # 视频文件路径
+        "timestamp": pa.float32()     # 帧时间戳
+    })
+```
+
+### 视频 vs 图像存储对比
+
+| 特性 | 视频存储 (`dtype: video`) | 图像存储 (`dtype: image`) |
+|------|------------------------|------------------------|
+| 文件大小 | 小（帧间压缩） | 大（无压缩） |
+| 随机访问 | 较慢（需要解码） | 快（直接读取） |
+| 存储位置 | 外部 MP4 文件 | Parquet 内嵌 |
+| 适用场景 | 训练数据集、长期存储 | 实时推理、调试 |
+| 编码开销 | 有（压缩时间） | 无 |
+
+## 时间戳与同步机制
+
+### 时间戳规则
+
+- **精度**：微秒级（1e-6 秒）
+- **起始**：Episode 第一帧 timestamp = 0.0
+- **间隔**：通常为 1/FPS（如 30 FPS 对应 0.0333 秒）
+- **验证**：加载时验证时间戳连续性，容差 1e-4 秒
+
+### delta_timestamps 机制
+
+`delta_timestamps` 用于加载历史帧或预测未来帧，支持时间序列模型。
+
+```python
+# 示例：加载当前帧、100ms 前的历史帧、未来 3 帧的动作
+delta_timestamps = {
+    "observation.state": [-0.1, 0],        # 当前帧和 100ms 前
+    "action": [0, 0.033, 0.066, 0.1]       # 未来 4 帧动作
+}
+
+# 在数据集加载时使用
+dataset = LeRobotDataset(
+    repo_id="lerobot/aloha_sim_transfer_cube_human",
+    delta_timestamps=delta_timestamps
+)
+
+# 数据访问时会自动加载相对时间的帧
+sample = dataset[0]
+# sample['observation.state'] 形状: [2, state_dim]
+# sample['action'] 形状: [4, action_dim]
+```
+
+**约束**：
+- 必须是 `1/fps` 的整数倍
+- 时间精度容差 `tolerance_s = 1e-4`
+- 转换为帧索引：`delta_indices = round(delta * fps)`
+
+### 时间戳验证
+
+数据集加载时会自动验证时间戳同步：
+
+```python
+check_timestamps_sync(
+    timestamps=timestamps,
+    episode_indices=episode_indices,
+    episode_data_index=ep_data_index,
+    fps=30,
+    tolerance_s=1e-4
+)
+```
+
+验证内容包括：
+- 同一 episode 内时间戳严格递增
+- 时间戳间隔符合 FPS 设定
+- Episode 之间时间戳连续性
+
+## Python API 使用
+
+### 加载数据集
+
+```python
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+# 从 Hugging Face Hub 加载
+dataset = LeRobotDataset(
+    repo_id="lerobot/aloha_sim_transfer_cube_human",
+    episodes=[0, 1, 2],  # 可选：只加载特定 episodes
+    delta_timestamps={   # 可选：加载历史/未来帧
+        "observation.state": [-0.1, 0],
+        "action": [0, 0.033, 0.066]
+    },
+    image_transforms=None,  # 可选：图像变换
+    download_videos=True    # 是否下载视频文件
+)
+
+# 访问数据
+sample = dataset[0]
+print(sample.keys())
+# ['observation.state', 'observation.images.laptop', 'action',
+#  'timestamp', 'frame_index', 'episode_index', 'index', 'task_index', 'task']
+
+# 获取 episode 索引
+print(dataset.episode_data_index)
+# {'from': tensor([0, 300, 585]), 'to': tensor([300, 585, 900])}
+```
+
+### 创建新数据集
+
+```python
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+import numpy as np
+
+# 定义特征
+features = {
+    "observation.state": {
+        "dtype": "float32",
+        "shape": (6,),
+        "names": ["j1", "j2", "j3", "j4", "j5", "gripper"]
+    },
+    "observation.images.cam": {
+        "dtype": "video",
+        "shape": (480, 640, 3),
+        "names": ["height", "width", "channels"]
+    },
+    "action": {
+        "dtype": "float32",
+        "shape": (6,),
+        "names": ["j1", "j2", "j3", "j4", "j5", "gripper"]
+    }
+}
+
+# 创建数据集
+dataset = LeRobotDataset.create(
+    repo_id="user/my_dataset",
+    fps=30,
+    features=features,
+    robot_type="so100",
+    use_videos=True,  # 使用视频存储
+    image_writer_processes=6  # 视频编码进程数
+)
+
+# 添加帧（逐帧采集）
+for t in range(num_timesteps):
+    dataset.add_frame(
+        frame={
+            "observation.state": np.array([...], dtype=np.float32),
+            "observation.images.cam": image_array,  # HWC uint8 或 CHW float32
+            "action": np.array([...], dtype=np.float32)
+        },
+        task="Pick up the object"
+    )
+
+# 保存 episode（完成一个 episode 后）
+dataset.save_episode()
+
+# 计算统计信息并保存
+dataset.consolidate()  # 整合数据
+dataset.save()
+
+# 推送到 Hugging Face Hub
+dataset.push_to_hub(
+    tags=["so100", "pick-and-place"],
+    private=False
+)
+```
+
+### 批量添加 Episode
+
+```python
+# 一次性添加整个 episode
+dataset.add_episode(
+    episode_data={
+        "observation.state": states,  # shape: (T, state_dim)
+        "observation.images.cam": frames,  # shape: (T, H, W, 3)
+        "action": actions,  # shape: (T, action_dim)
+        "timestamp": timestamps
+    },
+    task=task
+)
+```
+
+### 多数据集合并
+
+```python
+from lerobot.datasets.lerobot_dataset import MultiLeRobotDataset
+
+multi_dataset = MultiLeRobotDataset(
+    repo_ids=["lerobot/dataset1", "lerobot/dataset2"],
+    episodes={
+        "lerobot/dataset1": [0, 1],
+        "lerobot/dataset2": [0, 1, 2]
+    }
+)
+
+# 只保留所有数据集共有的特征（自动禁用不兼容特征）
+print(multi_dataset.disabled_features)
+```
+
+### 核心类结构
+
+```
+LeRobotDataset (torch.utils.data.Dataset)
+├── meta: LeRobotDatasetMetadata
+│   ├── info: dict (from info.json)
+│   ├── tasks: dict (from tasks.jsonl)
+│   ├── episodes: dict (from episodes.jsonl)
+│   ├── stats: dict (from stats.jsonl)
+│   └── episodes_stats: dict (from episodes_stats.jsonl)
+├── hf_dataset: datasets.Dataset (from parquet files)
+├── episode_data_index: dict
+│   ├── from: Tensor  # 每个 episode 的起始帧索引
+│   └── to: Tensor    # 每个 episode 的结束帧索引
+└── episode_buffer: dict (录制时使用)
+```
+
+### 数据加载器配置
+
+**顺序加载（Sequential）**：
+```python
+from torch.utils.data import DataLoader
+
+dataloader = DataLoader(
+    dataset,
+    batch_size=32,
+    shuffle=False,
+    num_workers=4,      # 根据 CPU 核心数调整
+    pin_memory=True,    # 加速 GPU 传输
+    prefetch_factor=2
+)
+```
+
+**随机加载（Random）**：
+```python
+dataloader = DataLoader(
+    dataset,
+    batch_size=32,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+```
+
+**Episode 采样（保持时间连续性）**：
+```python
+dataloader = DataLoader(
+    dataset,
+    batch_size=1,  # Episode 级别
+    collate_fn=episode_collate_fn,
+    num_workers=4
+)
+```
+
+## 统计信息
+
+### 计算统计信息
+
+```python
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.datasets.compute_stats import compute_stats
+
+# 创建数据集
+dataset = LeRobotDataset.create(
+    "my_dataset",
+    fps=30,
+    robot_type="koch"
+)
+
+# 添加所有数据...
+
+# 计算统计信息（会智能采样，避免内存溢出）
+dataset.stats = compute_stats(dataset)
+
+# 保存统计信息
+dataset.save()
+```
+
+### 统计信息内容
+
+**数值特征**包含：
+- `mean`: 均值
+- `std`: 标准差
+- `min`: 最小值
+- `max`: 最大值
+- `q01`, `q99`: 1% 和 99% 分位数
+- `count`: 样本数量
+
+**图像特征**：
+- 智能采样：每 1000 帧采样 1 帧计算统计
+- 计算像素值的均值和标准差
+- 内存优化：避免加载所有图像到内存
+
+### 使用统计信息进行归一化
+
+```python
+import torch
+
+class NormalizeTransform:
+    """使用预计算的统计信息归一化数据"""
+    def __init__(self, stats):
+        self.stats = stats
+
+    def __call__(self, data):
+        for key in data:
+            if key in self.stats:
+                mean = torch.tensor(self.stats[key]["mean"], dtype=torch.float32)
+                std = torch.tensor(self.stats[key]["std"], dtype=torch.float32)
+                data[key] = (data[key] - mean) / std
+        return data
+
+# 应用到数据集
+dataset.image_transforms = NormalizeTransform(dataset.stats)
+```
+
+## 版本兼容性
+
+### 支持的版本
+
+当前支持的格式版本：
+
+```python
+SUPPORTED_VERSIONS = ["v1.6", "v2.0", "v2.1"]
+```
+
+### 版本对比
+
+| 特性 | v1.6 | v2.0 | v2.1 |
+|------|------|------|------|
+| 统计信息格式 | safetensors | JSON | JSON |
+| 统计粒度 | 全局 | 全局 | 全局 + per-episode |
+| Parquet 组织 | 单文件 | 按 chunk 分文件 | 按 chunk 分文件 |
+| 视频路径格式 | 扁平结构 | 按 chunk 分层 | 按 chunk 分层 |
+| 任务存储 | parquet 列 | tasks.jsonl | tasks.jsonl |
+| Episode 信息 | parquet 列 | episodes.jsonl | episodes.jsonl |
+| 多任务支持 | 有限 | 完整支持 | 完整支持 |
+| 兼容性 | 旧版本 | 稳定版本 | 推荐版本 |
+
+### 版本检测
+
+```python
+from lerobot.datasets.lerobot_dataset_metadata import LeRobotDatasetMetadata
+
+metadata = LeRobotDatasetMetadata.from_hub("lerobot/dataset")
+print(f"Dataset version: {metadata.codebase_version}")
+```
+
+### 版本迁移
+
+从 v1.6 迁移到 v2.0+：
+
+```python
+from lerobot.datasets.v2.convert_dataset_v1_to_v2 import convert_dataset
+
+convert_dataset(
+    "path/to/v1/dataset",
+    "path/to/v2/dataset"
+)
+```
+
+### 向前/向后兼容
+
+**向前兼容**（加载旧版本）：
+自动透明转换，内部处理版本差异
+
+```python
+# v1.6 -> v2.0 自动转换
+dataset = LeRobotDataset("lerobot/old_dataset")
+# 内部自动处理版本转换
+```
+
+**向后不兼容**（新版本代码加载旧数据集）：
+
+```
+ValueError: Dataset uses format v1.5, but this version of LeRobot
+only supports v1.6+. Please upgrade your dataset using:
+    from lerobot.datasets.v2.convert_dataset_v1_to_v2 import convert_dataset
+    convert_dataset("old/path", "new/path")
+```
+
+## 最佳实践
+
+### 创建数据集的推荐流程
+
+```python
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+# 1. 创建数据集
+dataset = LeRobotDataset.create(
+    repo_id="lerobot/my_dataset",
+    fps=30,
+    robot_type="koch",
+    use_videos=True,           # 使用视频存储
+    image_writer_processes=6,  # 视频编码进程数
+    video=True
+)
+
+# 2. 采集数据
+for episode_idx in range(num_episodes):
+    # 采集一个 episode 的数据
+    episode_data = {
+        "observation.state": states,  # shape: (T, state_dim)
+        "observation.images.cam": frames,  # shape: (T, H, W, 3)
+        "action": actions,  # shape: (T, action_dim)
+        "timestamp": timestamps  # shape: (T,)
+    }
+
+    # 添加 episode
+    dataset.add_episode(episode_data, task=task)
+
+# 3. 整合数据
+dataset.consolidate()
+
+# 4. 计算统计信息（可选但推荐）
+from lerobot.datasets.compute_stats import compute_stats
+dataset.stats = compute_stats(dataset)
+
+# 5. 保存到本地
+dataset.save()
+
+# 6. 推送到 Hub
+dataset.push_to_hub(
+    tags=["koch", "pick-and-place", "v2.1"],
+    private=False
+)
+```
+
+### 优化视频编码
+
+1. **选择合适的编码器**：
+   - 通用场景：H.264 (libx264)
+   - 存储优化：H.265 (libx265)
+   - 长期归档：AV1 (libsvtav1)
+
+2. **使用硬件加速**（如果可用）：
+   - NVIDIA GPU: `h264_nvenc`
+   - Intel CPU: `h264_qsv`
+   - Apple Silicon: `h264_videotoolbox`
+
+3. **调整质量参数**：
+   ```python
+   encoding = {
+       "codec": "libx264",
+       "crf": 23,  # 18-28 推荐，越小质量越高
+       "preset": "medium"  # ultrafast, fast, medium, slow
+   }
+   ```
+
+### 高效数据加载
+
+```python
+from torch.utils.data import DataLoader
+
+# 使用多进程加载
+dataloader = DataLoader(
+    dataset,
+    batch_size=32,
+    num_workers=8,      # 根据 CPU 核心数调整
+    pin_memory=True,    # 加速 GPU 传输
+    prefetch_factor=2,
+    persistent_workers=True  # 保持 worker 进程
+)
+
+# 使用 episode 采样（保持时间连续性）
+from lerobot.datasets.utils import EpisodeSampler
+
+dataloader = DataLoader(
+    dataset,
+    batch_sampler=EpisodeSampler(dataset, batch_size=32),
+    num_workers=4
+)
+```
+
+### 数据验证
+
+```python
+from lerobot.datasets.utils import verify_checksum, validate_timestamps
+
+# 验证数据集完整性
+if not verify_checksum(dataset):
+    raise ValueError("Dataset checksum mismatch!")
+
+# 验证时间戳连续性
+issues = validate_timestamps(dataset)
+if issues:
+    print(f"Found {len(issues)} timestamp issues")
+    for issue in issues:
+        print(f"  - {issue}")
+```
+
+### 故障排除
+
+**视频加载慢**：
+- 使用 TorchCodec 后端（比 PyAV 更快）
+- 减少 num_workers（避免 I/O 竞争）
+- 检查磁盘性能（SSD 推荐）
+- 预加载视频到内存（小数据集）
+
+**内存不足**：
+- 使用视频存储而非图像存储
+- 减少 batch_size
+- 降低视频分辨率
+- 使用 data loader 的 pin_memory
+
+**时间戳不匹配**：
+- 检查摄像头同步
+- 调整 tolerance 参数（默认 1e-4）
+- 验证视频帧率一致性
+- 检查时序数据采集逻辑
+
+## 常见问题
+
+### Q1: 如何选择视频存储还是图像存储？
+
+**视频存储（推荐用于训练）**：
+- 优点：文件大小小 50-80%（帧间压缩）
+- 缺点：随机访问较慢（需要解码）
+- 适用：训练数据集、长期存储
+
+**图像存储**：
+- 优点：随机访问快（直接读取）
+- 缺点：占用空间大（无压缩）
+- 适用：实时推理、调试、小数据集
+
+### Q2: delta_timestamps 如何工作？
+
+`delta_timestamps` 允许加载相对于当前帧的时间偏移帧，用于时间序列模型。
+
+```python
+# 示例：加载当前帧、100ms 前的状态、未来 5 帧的动作
+delta_timestamps = {
+    "observation.state": [-0.1, 0],
+    "action": [0, 0.033, 0.066, 0.099, 0.132, 0.165]
+}
+
+# 数据访问时自动加载相对帧
+sample = dataset[idx]
+# sample['observation.state'] 形状: [2, state_dim]
+# sample['action'] 形状: [6, action_dim]
+```
+
+内部实现：
+1. 转换为帧索引：`delta_indices = round(delta * fps)`
+2. 根据索引从视频或 parquet 加载对应帧
+3. 验证时间戳在容差范围内
+
+### Q3: episode_data_index 是什么？
+
+`episode_data_index` 记录了每个 episode 在数据集中的帧范围：
+
+```python
+episode_data_index = {
+    "from": tensor([0, 300, 585]),   # 每个 episode 的起始帧索引
+    "to": tensor([300, 585, 900])    # 每个 episode 的结束帧索引
+}
+
+# Episode 0: frames 0-299
+# Episode 1: frames 300-584
+# Episode 2: frames 585-899
+
+# 获取 Episode 1 的所有帧索引
+indices = range(episode_data_index["from"][1], episode_data_index["to"][1])
+# [300, 301, ..., 584]
+```
+
+### Q4: 如何处理多任务？
+
+LeRobot v2.1 完整支持多任务：
+
+```python
+# tasks.jsonl
+{"task_index": 0, "task": "Pick up the red block"}
+{"task_index": 1, "task": "Place block in box"}
+
+# episodes.jsonl
+{"episode_index": 0, "tasks": [0], "length": 300}
+{"episode_index": 1, "tasks": [1], "length": 250}
+{"episode_index": 2, "tasks": [0, 1], "length": 400}  # 多任务 episode
+
+# 在数据中使用
+dataset.add_frame(
+    frame={...},
+    task_index=0  # 或 task="Pick up the red block"
+)
+```
+
+### Q5: 如何离线使用数据集？
+
+```python
+# 设置本地缓存目录
+import os
+os.environ["HF_LEROBOT_HOME"] = "/path/to/local/cache"
+
+# 从本地加载（已下载）
+dataset = LeRobotDataset(
+    repo_id="lerobot/aloha_sim_transfer_cube_human",
+    root="/path/to/local/cache"
+)
+
+# 或者直接加载本地数据集
+dataset = LeRobotDataset(
+    repo_id="user/local_dataset",
+    root="/path/to/dataset"
+)
+```
+
+### Q6: 视频解码慢怎么办？
+
+1. **更换解码后端**（推荐 TorchCodec）：
+```python
+import os
+os.environ["VIDEO_BACKEND"] = "torchcodec"  # 或 "pyav", "video_reader"
+```
+
+2. **预解码（训练前）**：
+```python
+# 将视频预解码为张量并缓存
+dataset.predecode_videos(cache_dir="./video_cache")
+```
+
+3. **降低视频分辨率**：
+```python
+# 在创建数据集时指定较小的分辨率
+encoding = {
+    "codec": "libx264",
+    "width": 320,
+    "height": 240
+}
+```
+
+4. **使用多个 DataLoader worker**：
+```python
+dataloader = DataLoader(
+    dataset,
+    batch_size=32,
+    num_workers=8,  # 根据 CPU 核心数调整
+    prefetch_factor=2
+)
+```
+
+## 技术细节补充
+
+### HuggingFace Features 映射
+
+LeRobot features 到 HuggingFace datasets.Features 的映射规则：
+
+```python
+def get_hf_features_from_features(features: dict) -> datasets.Features:
+    hf_features = {}
+    for key, ft in features.items():
+        if ft["dtype"] == "video":
+            continue  # 视频不存储在 parquet
+        elif ft["dtype"] == "image":
+            hf_features[key] = datasets.Image()
+        elif ft["shape"] == (1,):
+            hf_features[key] = datasets.Value(dtype=ft["dtype"])
+        elif len(ft["shape"]) == 1:
+            hf_features[key] = datasets.Sequence(
+                length=ft["shape"][0],
+                feature=datasets.Value(dtype=ft["dtype"])
+            )
+        elif len(ft["shape"]) == 2:
+            hf_features[key] = datasets.Array2D(
+                shape=ft["shape"],
+                dtype=ft["dtype"]
+            )
+        # ... 支持到 Array5D
+    return datasets.Features(hf_features)
+```
+
+### 视频时间戳对齐算法
+
+```python
+def find_nearest_frame(video_timestamps, target_timestamp, tolerance=1e-4):
+    """
+    找到最接近目标时间戳的帧索引
+    """
+    differences = np.abs(video_timestamps - target_timestamp)
+    nearest_idx = np.argmin(differences)
+
+    if differences[nearest_idx] > tolerance:
+        raise TimestampMismatchError(
+            f"No frame within tolerance {tolerance} of timestamp {target_timestamp}"
+        )
+
+    return nearest_idx
+```
+
+### 内存映射（Memory Mapping）
+
+对于大数据集：
+- 使用 memory-mapped Parquet 读取
+- 延迟加载视频帧（on-demand decoding）
+- 避免一次性加载整个数据集到内存
+- 使用 Dask 进行分布式处理
+
+### 数据完整性
+
+- **Checksum**：计算重要文件的哈希值
+- **验证**：加载时验证数据完整性
+- **恢复**：损坏数据的恢复机制
+- **备份**：建议保留原始数据采集文件
+
+## 参考资料
+
+- [LeRobot GitHub](https://github.com/huggingface/lerobot)
+- [Hugging Face Datasets](https://huggingface.co/docs/datasets)
+- [LeRobot 数据集示例](https://huggingface.co/lerobot)
+- [Parquet 格式文档](https://parquet.apache.org/)
+- [PyAV 文档](https://pyav.org/)
+
+---
+
+**文档版本**: v1.0
+**最后更新**: 2025-12-01
+**适用 LeRobot 版本**: v2.1+
+**作者**: LeRobot Team
