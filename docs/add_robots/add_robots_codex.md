@@ -48,7 +48,7 @@ src/lerobot/
 
 1. **声明型特征描述**：`observation_features` / `action_features` 提供平坦字典结构定义（键名通常为 `<joint>.pos`），使数据记录和策略编码保持一致。
 2. **面向硬件异常的显式错误处理**：统一使用 `DeviceAlreadyConnectedError`、`DeviceNotConnectedError` 等异常（来自 `lerobot.utils.errors`），便于上层脚本退避。
-3. **可复现性**：校准文件和配置均为可序列化 dataclass，配合 `lerobot/configs/parser.py` 的 CLI 解析，支持 `python -m lerobot.scripts ... --robot.id=my_arm` 等命令。
+3. **可复现性**：校准文件和配置均为可序列化 dataclass，配合 `lerobot/configs/parser.py` 的 CLI 解析，支持 `lerobot-record --robot.id=my_arm ...` 或 `python -m lerobot.scripts.lerobot_record --robot.id=my_arm ...` 等命令。
 4. **可测试性**：所有公开机器人都对应 pytest 基准，如 `tests/robots/test_so100_follower.py` 通过 mock 模拟 Feetech 总线；`tests/robots/test_reachy2.py` 则模拟 SDK 与摄像头。
 
 ---
@@ -82,8 +82,8 @@ pre-commit install
 ### 阅读参考实现
 
 重点阅读下列文件以掌握通用模式：
-- `src/lerobot/robots/so100_follower/so100_follower.py`：典型 Feetech 六轴机械臂，覆盖连接、校准、动作限幅与相机读流。
-- `src/lerobot/robots/so101_follower/so101_follower.py`：结构与 SO100 类似，但具备不同的运动范围流程。
+- `src/lerobot/robots/so_follower/so_follower.py`：典型 Feetech 六轴机械臂，覆盖连接、校准、动作限幅与相机读流。
+- `src/lerobot/robots/so_follower/so_follower.py`：同一文件内包含 SO101 变体（`SO101Follower`），具备不同的运动范围流程。
 - `src/lerobot/robots/reachy2/robot_reachy2.py`：演示如何包装外部 SDK 并同时驱动移动底盘。
 - `src/lerobot/robots/hope_jr/*`：展示多路总线（arm/hand）与 GUI 校准 (`RangeFinderGUI`) 的使用方式。
 - `src/lerobot/motors/motors_bus.py`：理解 `MotorsBus` 抽象提供的 `connect/sync_read/sync_write/configure_motors` 等 API 及扫描、校准辅助函数。
@@ -125,7 +125,7 @@ src/lerobot/robots/my_robot/
 - 明确硬件端口/IP、相机配置、可选参数（扭矩释放、单位、最大移动量等）。
 - 如果需要多模块（如 `HopeJrArm` + `HopeJrHand`），可以创建多个配置类并共享基础字段。
 
-示例参见 `SO100FollowerConfig`（`src/lerobot/robots/so100_follower/config_so100_follower.py`）。
+示例参见 `SO100FollowerConfig`（`src/lerobot/robots/so_follower/config_so_follower.py`）。
 
 ### 3. 构造函数
 
@@ -249,7 +249,7 @@ cameras = {
 ## 遥操作支持与闭环采集
 
 - 所有 teleoperator 需继承 `teleoperators/teleoperator.py`，实现与 `Robot` 对应的 `action_features/get_action`、`feedback_features/send_feedback` 等接口。
-- 示例：`so100_leader/so100_leader.py` 与 `SO100Follower` 搭配，二者的关节键名完全一致，使 `teleoperate.py` 示例可以直接映射 leader/follower。
+- 示例：`so_leader/so_leader.py` 与 `SO100Follower` 搭配，二者的关节键名完全一致，使 `teleoperate.py` 示例可以直接映射 leader/follower。
 - `Reachy2Teleoperator`（`teleoperators/reachy2_teleoperator/`) 展示了如何使用同一个 SDK 控制不同驱动（移动底盘/手臂）。
 - 若新增 teleoperator：
   1. 创建 `src/lerobot/teleoperators/my_teleop/`；
@@ -435,7 +435,7 @@ class MyRobot(Robot):
 ### 真实硬件验收
 
 1. 运行 `python examples/<...>/record.py --robot.type=my_robot ...` 检查实时动作。
-2. 使用 `lerobot-find-port.py`（`MotorsBus` 文档提供）确定串口并测试波特率。
+2. 使用 `lerobot-find-port`（或 `python -m lerobot.scripts.lerobot_find_port`）确定串口并测试波特率。
 3. 执行 `pytest tests/robots/test_my_robot.py -k connect -s` 确认基本行为。
 4. 若涉及遥操作，运行 `examples/<...>/teleoperate.py` 验证闭环采集。
 

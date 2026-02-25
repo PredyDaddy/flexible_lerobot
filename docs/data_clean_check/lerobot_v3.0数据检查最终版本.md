@@ -205,13 +205,13 @@ count == info['total_frames']
 
 ## 附录：检查脚本（推荐）
 
-本目录提供 `check_dataset.py` 作为参考实现，覆盖本清单 1–8，并且实现时**不假设** parquet/data 行已经按 `episode_index/index/frame_index` 排好序（避免误报）。
+本目录提供 `check_lerobot_v3_dataset_final.py` 作为参考实现，覆盖本清单 1–8，并且实现时**不假设** parquet/data 行已经按 `episode_index/index/frame_index` 排好序（避免误报）。
 
 **使用方式**:
 ```bash
 # 支持任意路径
-python3 check_dataset.py /path/to/dataset
-python3 check_dataset.py ~/.cache/huggingface/lerobot/cqy/agilex_left_banana_final
+python3 check_lerobot_v3_dataset_final.py /path/to/dataset
+python3 check_lerobot_v3_dataset_final.py ~/.cache/huggingface/lerobot/cqy/agilex_left_banana_final
 ```
 
 ---

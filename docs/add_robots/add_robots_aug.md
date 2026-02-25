@@ -147,7 +147,7 @@ pip install pyrealsense2
 ### 3.3 理解现有实现
 
 建议先阅读以下文件理解模式：
-- `src/lerobot/robots/so100_follower/so100_follower.py` - 标准机械臂实现
+- `src/lerobot/robots/so_follower/so_follower.py` - 标准机械臂实现
 - `src/lerobot/robots/lekiwi/lekiwi.py` - 移动机器人实现
 - `src/lerobot/robots/reachy2/robot_reachy2.py` - 外部 SDK 集成示例
 
@@ -678,7 +678,7 @@ class MyTeleoperator(Teleoperator):
 
 ### 7.2 Leader 臂示例
 
-参考 `src/lerobot/teleoperators/so100_leader/`:
+参考 `src/lerobot/teleoperators/so_leader/`:
 
 ```python
 class SO100Leader(Teleoperator):
@@ -1192,8 +1192,8 @@ lerobot/configs/robot/
 
 | 机器人 | 类型 | 特点 | 文件位置 |
 |--------|------|------|----------|
-| SO100Follower | 机械臂 | 标准 6-DoF 臂 | `so100_follower/` |
-| SO101Follower | 机械臂 | 带腕关节扩展 | `so101_follower/` |
+| SO100Follower | 机械臂 | 标准 6-DoF 臂 | `so_follower/` |
+| SO101Follower | 机械臂 | 带腕关节扩展 | `so_follower/` |
 | LeKiwi | 移动机器人 | 全向底盘 + 臂 | `lekiwi/` |
 | HopeJrArm | 机械臂 | 7-DoF 高精度臂 | `hope_jr/` |
 | Reachy2Robot | 人形机器人 | 外部 SDK 集成 | `reachy2/` |
@@ -1204,4 +1204,3 @@ lerobot/configs/robot/
 - [Dynamixel SDK 文档](https://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_sdk/overview/)
 - [Feetech 电机文档](https://www.feetechrc.com/)
 - [Intel RealSense SDK](https://github.com/IntelRealSense/librealsense)
-

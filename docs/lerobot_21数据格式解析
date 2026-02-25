@@ -1,6 +1,9 @@
 # LeRobot 数据格式解析（v2.1）
 
 > 本文档综合了 LeRobot v2.1 版本的数据格式规范，涵盖目录结构、元数据、数据存储、API 使用等完整技术细节。
+>
+> **兼容性说明 (lerobot 0.4.3 baseline)**  
+> 当前 lerobot 0.4.3 的主流数据集格式为 `v3.0`。本文保留 v2.1 细节作为历史参考；如需 v3.0 请优先参考 `docs/source/lerobot-dataset-v3.mdx` 与 `docs/source/porting_datasets_v3.mdx`。
 
 ## 目录
 1. [概述](#概述)
@@ -816,22 +819,23 @@ SUPPORTED_VERSIONS = ["v1.6", "v2.0", "v2.1"]
 ### 版本检测
 
 ```python
-from lerobot.datasets.lerobot_dataset_metadata import LeRobotDatasetMetadata
+from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
 
-metadata = LeRobotDatasetMetadata.from_hub("lerobot/dataset")
-print(f"Dataset version: {metadata.codebase_version}")
+metadata = LeRobotDatasetMetadata("lerobot/dataset")
+print(f"Dataset version: {metadata.info['codebase_version']}")
 ```
 
 ### 版本迁移
 
-从 v1.6 迁移到 v2.0+：
+从 v2.1 迁移到 v3.0：
 
 ```python
-from lerobot.datasets.v2.convert_dataset_v1_to_v2 import convert_dataset
+from lerobot.datasets.v30.convert_dataset_v21_to_v30 import convert_dataset
 
 convert_dataset(
-    "path/to/v1/dataset",
-    "path/to/v2/dataset"
+    repo_id="lerobot/my_dataset",
+    root="/path/to/local/datasets/root",
+    push_to_hub=False,
 )
 ```
 
@@ -851,8 +855,8 @@ dataset = LeRobotDataset("lerobot/old_dataset")
 ```
 ValueError: Dataset uses format v1.5, but this version of LeRobot
 only supports v1.6+. Please upgrade your dataset using:
-    from lerobot.datasets.v2.convert_dataset_v1_to_v2 import convert_dataset
-    convert_dataset("old/path", "new/path")
+    from lerobot.datasets.v30.convert_dataset_v21_to_v30 import convert_dataset
+    convert_dataset(repo_id=\"lerobot/my_dataset\", root=\"/path/to/local/datasets/root\", push_to_hub=False)
 ```
 
 ## 最佳实践

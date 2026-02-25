@@ -196,7 +196,8 @@ print(new_ds.root, new_ds.meta.total_episodes, new_ds.meta.total_frames)
 ```bash
 lerobot-dataset-viz \
   --repo-id "cqy/agilex_vla_demo_ee_pinocchio_apple_grasp" \
-  --episode-index 0
+  --episode-index 0 \
+  --display-compressed-images false
 ```
 
 脚本实现：`src/lerobot/scripts/lerobot_dataset_viz.py`。
@@ -211,4 +212,4 @@ lerobot-dataset-viz \
    - 目前 `lerobot-edit-dataset`/`dataset_tools.remove_feature` 做不到（它只能移除整个 feature，比如 `observation.images.*`）。
    - 需要单独脚本按 `meta/info.json -> features["observation.state"]["names"]` 重建 `observation.state`、同步更新 `stats.json`。
 
-EE 字段与录制语义的更完整说明见：`docs/ee_data_descriptions/EE_DATASET_SPEC.md`。
+EE 字段与录制语义的更完整说明见：`docs/legacy/ee_data_descriptions/EE_DATASET_SPEC.md`（历史文档，供参考）。

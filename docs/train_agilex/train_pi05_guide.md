@@ -138,7 +138,7 @@ HF_ENDPOINT=https://hf-mirror.com lerobot-train \
 ## 6. 重要提醒：单臂数据集与真实双臂机器人
 
 `cqy/agilex_left_box` 的 `action` 只有 7 维左臂关节（且是**绝对关节位置**）。如果你把该策略直接跑在真实 AgileX 双臂机器人上：
-- `AgileXRobot.send_action()` 需要同时包含 `left_*` 和 `right_*` 的目标关节位置；
+- 如果你的真实机器人实现的 `Robot.send_action()` 需要同时包含 `left_*` 和 `right_*` 的目标关节位置；
 - 只输出左臂会导致缺键报错，或你自行补零会让右臂被命令到 0 位姿（不安全）。
 
 如果你的目标是“只训左臂但真实右臂保持不动”，建议：

@@ -162,8 +162,8 @@ sudo chmod 666 /dev/ttyUSB*
 
 | 文件 | 说明 |
 |------|------|
-| `src/lerobot/robots/so100_follower/so100_follower.py` | 标准 Feetech 六轴机械臂实现 |
-| `src/lerobot/robots/so101_follower/so101_follower.py` | 带不同运动范围流程的变体 |
+| `src/lerobot/robots/so_follower/so_follower.py` | 标准 Feetech 六轴机械臂实现 |
+| `src/lerobot/robots/so_follower/so_follower.py` | 带不同运动范围流程的变体 |
 | `src/lerobot/robots/lekiwi/lekiwi.py` | 移动机器人（底盘+机械臂）实现 |
 | `src/lerobot/robots/reachy2/robot_reachy2.py` | 外部 SDK 集成示例 |
 | `src/lerobot/robots/hope_jr/*` | 多路总线与 GUI 校准示例 |
@@ -1256,7 +1256,7 @@ ls -la /dev/ttyUSB*
 ls -la /dev/ttyACM*
 
 # 使用 lerobot 工具查找端口
-python -m lerobot.scripts.find_port
+python -m lerobot.scripts.lerobot_find_port
 
 # 检查串口是否被占用
 fuser /dev/ttyUSB0
@@ -1474,8 +1474,8 @@ lerobot/configs/robot/
 
 | 机器人 | 类型 | 特点 | 文件位置 |
 |--------|------|------|----------|
-| SO100Follower | 机械臂 | 标准 6-DoF 臂，Feetech 电机 | `so100_follower/` |
-| SO101Follower | 机械臂 | 带腕关节扩展 | `so101_follower/` |
+| SO100Follower | 机械臂 | 标准 6-DoF 臂，Feetech 电机 | `so_follower/` |
+| SO101Follower | 机械臂 | 带腕关节扩展 | `so_follower/` |
 | LeKiwi | 移动机器人 | 全向底盘 + 机械臂 | `lekiwi/` |
 | HopeJrArm | 机械臂 | 7-DoF，GUI 校准 | `hope_jr/` |
 | Reachy2Robot | 人形机器人 | 外部 SDK 集成 | `reachy2/` |
@@ -1519,4 +1519,3 @@ lerobot/configs/robot/
 > **文档版本**: 1.0
 > **最后更新**: 2024年
 > **基于**: LeRobot 项目现有实现（SO100/SO101、Reachy2、HopeJr、LeKiwi 等）
-

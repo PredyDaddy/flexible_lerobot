@@ -14,7 +14,8 @@ LeRobot 提供了一套完整的数据集编辑工具，支持以下操作：
 
 ```bash
 conda activate my_lerobot
-cd /home/agilex/cqy/my_lerobot
+# 可选：如果你以 editable 方式安装 lerobot（`pip install -e .`），建议在仓库根目录执行
+cd /path/to/flexible_lerobot
 ```
 
 ## 3. 删除Episodes
@@ -40,7 +41,7 @@ python -m lerobot.scripts.lerobot_edit_dataset \
 ### 自己的删除案例
 #### 仓库内路径下数据
 ```bash
-HF_LEROBOT_HOME=/home/agilex/cqy/my_lerobot/outputs/split_datasets \
+HF_LEROBOT_HOME=/path/to/split_datasets \
 python -m lerobot.scripts.lerobot_edit_dataset \
 --repo_id agilex_vla_demo_ee_pinocchio_Bowl_on_Plate_Placement_test_joint \
 --new_repo_id \
@@ -51,14 +52,12 @@ agilex_vla_demo_ee_pinocchio_Bowl_on_Plate_Placement_test_joint_cleaned \
 
 #### huggingface 缓存数据
 ```bash
-HF_HUB_OFFLINE=1 python -m lerobot.scripts.lerobot_edit_dataset --root /home/
-  agilex/.cache/huggingface/lerobot --repo_id cqy/
-  agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution --new_repo_id cqy/
-  agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution_cleaned --operation.type
-  delete_episodes --operation.episode_indices "[6, 17, 70, 77, 98, 101, 102, 103, 104, 105,
-  106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
-  124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141,
-  142, 143, 144, 145, 146, 147, 148, 149, 150, 201, 211, 239]"
+HF_HUB_OFFLINE=1 python -m lerobot.scripts.lerobot_edit_dataset \
+  --root /home/agilex/.cache/huggingface/lerobot \
+  --repo_id cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution \
+  --new_repo_id cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution_cleaned \
+  --operation.type delete_episodes \
+  --operation.episode_indices "[6, 17, 70, 77, 98, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 201, 211, 239]"
 ```
 
 ### 保存到新数据集

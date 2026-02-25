@@ -1,17 +1,28 @@
 ## 数据检查
 ```bash
-python3 check_lerobot_v3_dataset_final.py /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Bowl_on_Plate_Placement_test
+# 从仓库根目录执行（脚本在 docs/data_clean_check/ 下）
+python3 docs/data_clean_check/check_lerobot_v3_dataset_final.py \
+  /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Bowl_on_Plate_Placement_test
 ```
 
 ## 数据可视化
-生成各种文件
+0.4.3 baseline 推荐使用内置的 `lerobot-dataset-viz`（基于 Rerun）逐条查看 episode：
+
 ```bash
-python -m vis.scripts.render_episodes \
-      --root ~/.cache/huggingface/lerobot \
-      --repo-id cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution1 \
-      --episodes all \
-      --out-dir ./lerobot_rendered \
-      --overwrite  
+lerobot-dataset-viz \
+    --repo-id cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution1 \
+    --episode-index 0 \
+    --display-compressed-images false
+```
+
+如果数据在本地路径（不走 HF repo_id），也可以直接传 `--root`：
+
+```bash
+lerobot-dataset-viz \
+    --repo-id local \
+    --root /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution1 \
+    --episode-index 0 \
+    --display-compressed-images false
 ```
 
 ## 数据清洗
@@ -27,9 +38,8 @@ python -m lerobot.scripts.lerobot_edit_dataset \
 ```bash
 python docs/split_datasets_joint_ee/split_ee_or_joint_dataset.py \
     --input-root /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution_clean \
-    --output-base /home/agilex/cqy/my_lerobot/outputs/split_datasets_custom \
+    --output-base outputs/split_datasets_custom \
     --spaces both \
     --video-mode auto \
     --overwrite
 ```
-

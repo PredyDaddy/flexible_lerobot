@@ -80,8 +80,8 @@ pre-commit install
 ### 阅读参考实现
 
 重点阅读以下文件以掌握通用模式：
-- `src/lerobot/robots/so100_follower/so100_follower.py` - 典型Feetech六轴机械臂
-- `src/lerobot/robots/so101_follower/so101_follower.py` - 类似结构，不同运动范围
+- `src/lerobot/robots/so_follower/so_follower.py` - 典型Feetech六轴机械臂
+- `src/lerobot/robots/so_follower/so_follower.py` - 类似结构，不同运动范围
 - `src/lerobot/robots/reachy2/robot_reachy2.py` - 如何包装外部SDK并驱动移动底盘
 - `src/lerobot/robots/hope_jr/*` - 多路总线（arm/hand）与GUI校准
 
@@ -570,7 +570,7 @@ class MyTeleop(Teleoperator):
 ```
 
 参考实现：
-- `src/lerobot/teleoperators/so101_leader/`
+- `src/lerobot/teleoperators/so_leader/`
 - `src/lerobot/teleoperators/reachy2_teleoperator/`
 
 ---
@@ -592,9 +592,12 @@ class MyRobotConfig(RobotConfig):
 在 `src/lerobot/robots/utils.py` 的 `make_robot_from_config()` 中添加：
 ```python
 def make_robot_from_config(config: RobotConfig) -> Robot:
-    if config.type == "so100":
-        from lerobot.robots.so100_follower import SO100Follower
+    if config.type == "so100_follower":
+        from lerobot.robots.so_follower import SO100Follower
         return SO100Follower(config)
+    elif config.type == "so101_follower":
+        from lerobot.robots.so_follower import SO101Follower
+        return SO101Follower(config)
     elif config.type == "my_robot":
         from lerobot.robots.my_robot import MyRobot
         return MyRobot(config)
@@ -1068,11 +1071,11 @@ feat(robots): add MyRobot support
 
 - **官方文档**：`docs/source/integrate_hardware.mdx`
 - **现有实现**：
-  - `src/lerobot/robots/so100_follower/` - Feetech机械臂
+  - `src/lerobot/robots/so_follower/` - Feetech机械臂
   - `src/lerobot/robots/reachy2/` - 外部SDK示例
   - `src/lerobot/robots/hope_jr/` - 多总线+GUI校准
 - **测试示例**：`tests/robots/test_so100_follower.py`
-- **遥操作**：`src/lerobot/teleoperators/so101_leader/`
+- **遥操作**：`src/lerobot/teleoperators/so_leader/`
 
 ---
 

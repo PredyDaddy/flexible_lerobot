@@ -13,7 +13,7 @@ LeRobot v3.0 数据集完整检查脚本
 8. 数据质量检查 [建议]
 
 使用方法:
-    python3 check_dataset.py /path/to/dataset
+    python3 check_lerobot_v3_dataset_final.py /path/to/dataset
     python3 check_lerobot_v3_dataset_final.py /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Bowl_on_Plate_Placement_test
 """
 
@@ -175,7 +175,7 @@ def check_info_json(root: Path) -> Tuple[CheckResult, Optional[Dict]]:
     if version != 'v3.0':
         result.add_warning(f"codebase_version={version}, 期望 v3.0")
 
-    # 检查必需字段（与 src/lerobot/datasets/utils.create_empty_dataset_info 对齐）
+    # 检查必需字段（与 `src/lerobot/datasets/utils.py` 的 `create_empty_dataset_info()` 对齐）
     required_fields = [
         'total_episodes',
         'total_frames',
@@ -1154,11 +1154,11 @@ def main():
     parser = argparse.ArgumentParser(
         description='LeRobot v3.0 数据集完整检查工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
+        epilog="""
 示例:
-    python3 check_dataset.py /path/to/dataset
-    python3 check_dataset.py ~/.cache/huggingface/lerobot/cqy/agilex_left_banana_final
-        '''
+    python3 check_lerobot_v3_dataset_final.py /path/to/dataset
+    python3 check_lerobot_v3_dataset_final.py ~/.cache/huggingface/lerobot/cqy/agilex_left_banana_final
+        """
     )
     parser.add_argument('dataset_path', help='数据集完整路径')
 

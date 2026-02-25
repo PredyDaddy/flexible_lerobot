@@ -2,8 +2,8 @@
 
 """
 python docs/split_datasets_joint_ee/split_ee_or_joint_dataset.py \
-    --input-root /home/agilex/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution_clean \
-    --output-base /home/agilex/cqy/my_lerobot/outputs/split_datasets_custom \
+    --input-root ~/.cache/huggingface/lerobot/cqy/agilex_vla_demo_ee_pinocchio_Dual_Arm_Simultaneous_Execution_clean \
+    --output-base outputs/split_datasets_custom \
     --spaces both \
     --video-mode auto \
     --overwrite
