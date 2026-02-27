@@ -107,3 +107,7 @@ mypy src/lerobot/configs/ src/lerobot/envs/  # 仅对部分模块强制执行
 - 导入风格：`isort`，`lerobot` 为第一方包
 - Mypy 仅对 `configs/`、`envs/`、`optim/`、`model/`、`cameras/`、`transport/` 严格执行，其他模块设置 `ignore_errors = true`
 - `T201`（print 语句）被忽略，脚本中允许使用 print
+
+
+## 开发规范
+lerobot_flex 必须使用这个conda环境开发代码 任何代码的测试运行都必须使用这个环境。

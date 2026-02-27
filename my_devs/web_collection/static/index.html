@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web 数据采集</title>
+    <link rel="stylesheet" href="/static/style.css?v=3" />
+  </head>
+  <body>
+    <div id="overlay" class="overlay hidden" aria-hidden="true">
+      <div class="overlay-card">
+        <div class="overlay-title">准备开始</div>
+        <div id="countdown" class="countdown">3</div>
+        <div class="overlay-sub">倒计时结束后自动开始录制</div>
+      </div>
+    </div>
+    <main class="wrap">
+      <header class="top">
+        <h1>数据采集</h1>
+        <div class="sub">ROS 话题录制为 HDF5，然后转换为 LeRobot 数据集。</div>
+        <div id="status" class="status">状态加载中...</div>
+      </header>
+
+      <section class="card">
+        <h2>录制</h2>
+        <div class="grid">
+          <label>
+            <div class="label">数据目录</div>
+            <input id="rec_dataset_dir" type="text" placeholder="/tmp/web_collection_data" />
+          </label>
+
+          <label>
+            <div class="label">配置</div>
+            <select id="rec_config"></select>
+          </label>
+
+          <label>
+            <div class="label">任务名</div>
+            <input id="rec_task_name" type="text" placeholder="aloha_mobile_dummy" />
+          </label>
+
+          <label>
+            <div class="label">片段名（可选）</div>
+            <input id="rec_episode_name" type="text" placeholder="episode_000123（留空自动递增）" />
+          </label>
+
+          <label>
+            <div class="label">录制条数（episode 数）</div>
+            <input id="rec_num_episodes" type="number" min="1" step="1" value="1" list="rec_num_episodes_presets" />
+            <datalist id="rec_num_episodes_presets">
+              <option value="1"></option>
+              <option value="10"></option>
+              <option value="20"></option>
+              <option value="50"></option>
+              <option value="100"></option>
+            </datalist>
+          </label>
+
+          <label>
+            <div class="label">重置等待（秒）</div>
+            <input id="rec_reset_time_s" type="number" min="0" step="0.1" placeholder="3" list="rec_reset_time_s_presets" />
+            <datalist id="rec_reset_time_s_presets">
+              <option value="0"></option>
+              <option value="2"></option>
+              <option value="3"></option>
+              <option value="5"></option>
+              <option value="10"></option>
+            </datalist>
+          </label>
+
+          <label>
+            <div class="label">FPS（可选）</div>
+            <input id="rec_fps" type="number" min="1" step="1" placeholder="30（留空用配置值）" />
+          </label>
+
+          <label>
+            <div class="label">最大帧数（可选，0=手动停止）</div>
+            <input id="rec_max_frames" type="number" min="0" step="1" placeholder="300（留空用配置值）" />
+          </label>
+        </div>
+
+        <label class="row">
+          <input id="rec_use_depth" type="checkbox" />
+          <span>录制深度图（depth）</span>
+        </label>
+
+        <label>
+          <div class="label">指令 / 任务（必填，用于 VLA）</div>
+          <textarea id="rec_instruction" rows="2" placeholder="例如：把黑色杯子放到托盘里"></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="rec_start" class="primary">开始录制</button>
+          <button id="rec_stop">停止</button>
+        </div>
+
+        <div class="hint" id="rec_out"></div>
+        <pre class="logs" id="rec_logs"></pre>
+      </section>
+
+      <section class="card">
+        <h2>转换</h2>
+        <div class="grid">
+          <label>
+            <div class="label">任务目录（整目录合并转换）</div>
+            <input
+              id="conv_input_dataset_dir"
+              type="text"
+              placeholder="/home/agilex/cqy/flexible_lerobot/datasets/hdf5_datasets/aloha_mobile_dummy"
+            />
+          </label>
+
+          <label>
+            <div class="label">输出目录（LeRobot，不会修改原始 HDF5）</div>
+            <input id="conv_output_dir" type="text" placeholder="/tmp/web_collection_lerobot" />
+          </label>
+
+          <label>
+            <div class="label">repo_id（数据集名）</div>
+            <input id="conv_repo_id" type="text" placeholder="local/web_collection_demo" />
+          </label>
+
+          <label>
+            <div class="label">FPS（可选）</div>
+            <input id="conv_fps" type="number" min="1" step="1" placeholder="30（留空读 HDF5）" />
+          </label>
+        </div>
+
+        <div class="sub">会读取该目录下所有 <code>episode_*.hdf5</code>，并合并为一个 LeRobot 数据集。</div>
+
+        <div class="row">
+          <label class="row">
+            <input id="conv_use_videos" type="checkbox" />
+            <span>编码为视频（mp4）</span>
+          </label>
+          <label class="row">
+            <input id="conv_swap_rb" type="checkbox" />
+            <span>交换 R/B 通道</span>
+          </label>
+        </div>
+
+        <label>
+          <div class="label">指令覆盖（可选）</div>
+          <input id="conv_instruction" type="text" placeholder="留空则严格使用 HDF5 中保存的非空 instruction（为空会报错）" />
+        </label>
+
+        <div class="actions">
+          <button id="conv_start" class="primary">开始转换</button>
+          <button id="conv_stop">停止</button>
+        </div>
+
+        <pre class="logs" id="conv_logs"></pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=5"></script>
+  </body>
+</html>

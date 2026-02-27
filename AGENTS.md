@@ -48,3 +48,7 @@
 
 - 不要提交密钥；`pre-commit` 中包含 `gitleaks`。令牌通过环境变量提供（如 `HF_TOKEN`、`WANDB_API_KEY`）。
 - 大文件避免直接进入 git 历史；需要时使用 Git LFS 存放工件。
+
+## 开发规范
+## 开发规范
+lerobot_flex 必须使用这个conda环境开发代码 任何代码的测试运行都必须使用这个环境。

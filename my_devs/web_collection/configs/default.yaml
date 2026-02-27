@@ -1,0 +1,29 @@
+# Minimal default config for a 3-camera + dual-arm setup.
+# Adjust topic names to match your ROS graph.
+
+fps: 30
+max_frames: 300          # 0 means "until stopped"
+use_depth: false
+reset_time_s: 3          # Seconds to wait between episodes for environment reset (only used when recording multiple episodes)
+
+task_name: aloha_mobile_dummy
+instruction: ""          # Optional. If set, will be stored and used as LeRobot "task".
+
+topics:
+  rgb_images:
+    cam_high: /camera_f/color/image_raw
+    cam_left_wrist: /camera_l/color/image_raw
+    cam_right_wrist: /camera_r/color/image_raw
+
+  depth_images:
+    cam_high: /camera_f/depth/image_raw
+    cam_left_wrist: /camera_l/depth/image_raw
+    cam_right_wrist: /camera_r/depth/image_raw
+
+  joints:
+    puppet_left: /puppet/joint_left
+    puppet_right: /puppet/joint_right
+    master_left: /master/joint_left
+    master_right: /master/joint_right
+
+  base_odom: /odom

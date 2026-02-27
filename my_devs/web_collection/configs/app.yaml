@@ -1,0 +1,31 @@
+# Web UI + pipeline defaults (editable)
+#
+# This file controls the default paths/values shown in the web UI and used by the API
+# when the client does not provide explicit values.
+#
+# Notes:
+# - Recording writes HDF5 episodes under: {dataset_dir}/{task_name}/episode_*.hdf5
+# - Converting will NEVER modify the original HDF5. It writes a new LeRobot dataset
+#   under {lerobot_output_dir}.
+
+defaults:
+  dataset_dir: /home/agilex/cqy/flexible_lerobot/datasets/hdf5_datasets
+  lerobot_output_dir: /home/agilex/cqy/flexible_lerobot/datasets/lerobot_datasets
+
+  # Web UI defaults
+  config_name: default.yaml
+  task_name: aloha_mobile_dummy
+  repo_id: local/web_collection_demo
+
+  # Recording defaults
+  num_episodes: 1
+  reset_time_s: 3
+
+sounds:
+  enabled: true
+  volume: 1.0
+  files:
+    ready: ready.wav
+    start_record: start_record.wav
+    reset_env: reset_env.wav
+    finish: finish.wav

@@ -177,3 +177,7 @@ outputs/
 *.urdf
 *.xml
 *.part
+
+datasets
+
+media/sounds
