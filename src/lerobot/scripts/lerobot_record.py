@@ -555,7 +555,12 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             listener.stop()
 
         if cfg.dataset.push_to_hub:
-            dataset.push_to_hub(tags=cfg.dataset.tags, private=cfg.dataset.private)
+            if dataset is not None:
+                dataset.push_to_hub(tags=cfg.dataset.tags, private=cfg.dataset.private)
+            else:
+                logging.warning(
+                    "Skip push_to_hub because dataset is not initialized. Check earlier errors in the log."
+                )
 
         log_say("Exiting", cfg.play_sounds)
     return dataset
