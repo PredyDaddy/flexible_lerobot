@@ -183,3 +183,9 @@ datasets
 media/sounds
 
 assets
+
+*.zip
+
+my_devs/docs/gr00t_trt/Isaac-GR00T-n1.5-release
+
+google
