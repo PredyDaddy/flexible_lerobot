@@ -109,7 +109,7 @@ class GrootPolicy(PreTrainedPolicy):
         cache_dir: str | Path | None = None,
         local_files_only: bool = False,
         revision: str | None = None,
-        strict: bool = True,
+        strict: bool = False,
         **kwargs,
     ) -> T:
         """Load Groot policy from pretrained model.
@@ -128,7 +128,12 @@ class GrootPolicy(PreTrainedPolicy):
             cache_dir: Cache directory path
             local_files_only: Only use local files
             revision: Specific model revision
-            strict: Strict state dict loading
+            strict: Strict state dict loading.
+
+                Note: `safetensors.torch.save_model(...)` drops duplicated tensors when weights are tied
+                (e.g. `embed_tokens.weight` tied with `lm_head.weight`). Fine-tuned checkpoints produced by
+                LeRobot may therefore legitimately miss some tied-weight keys. Using `strict=False` keeps
+                the base weights already loaded from `base_model_path` and applies the fine-tuned deltas.
             **kwargs: Additional arguments (passed to config)
 
         Returns:

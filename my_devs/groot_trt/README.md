@@ -22,11 +22,12 @@ conda run -n lerobot_flex python my_devs/groot_trt/export_action_head_onnx.py \
   --device cuda
 ```
 
-2) Build action-head engines (requires `trtexec`):
+2) Build action-head engines (TensorRT Python API):
 
 ```bash
 cd outputs/trt/my_artifact
-VIDEO_VIEWS=2 VIT_DTYPE=fp16 LLM_DTYPE=fp16 DIT_DTYPE=fp16 MAX_BATCH=8 \
+ONNX_DIR=gr00t_onnx ENGINE_DIR=gr00t_engine_api_trt1013 \
+VIDEO_VIEWS=2 MAX_BATCH=2 \
 bash /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/build_engine.sh
 ```
 
@@ -36,7 +37,7 @@ bash /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/build_engine.sh
 conda run -n lerobot_flex python my_devs/train/groot/run_groot_infer.py \
   --policy-path /path/to/pretrained_model \
   --backend tensorrt \
-  --trt-engine-path outputs/trt/my_artifact/gr00t_engine \
+  --trt-engine-path outputs/trt/my_artifact/gr00t_engine_api_trt1013 \
   --trt-action-head-only true \
   --vit-dtype fp16 --llm-dtype fp16 --dit-dtype fp16
 ```
@@ -74,4 +75,20 @@ conda run -n lerobot_flex python my_devs/groot_trt/compare_torch_onnx.py \
   --onnx-dir outputs/trt/my_artifact/gr00t_onnx \
   --seq-len 296 \
   --video-views 1
+```
+
+Then build TensorRT engines (Python API) and compare Torch vs TRT consistency:
+
+```bash
+cd outputs/trt/my_artifact
+ONNX_DIR=gr00t_onnx ENGINE_DIR=gr00t_engine_api_trt1013 \
+VIDEO_VIEWS=2 MAX_BATCH=2 \
+bash /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/build_engine.sh
+
+conda run -n lerobot_flex env TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35 \
+  python /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/compare_torch_trt.py \
+    --policy-path /path/to/pretrained_model \
+    --engine-dir outputs/trt/my_artifact/gr00t_engine_api_trt1013 \
+    --seq-len 568 \
+    --video-views 2
 ```
