@@ -36,6 +36,7 @@ def import_tensorrt(trt_py_dir: str | Path | None = None) -> Any:
     This helper makes scripts under `my_devs/` runnable without needing users to remember env exports.
     """
 
+    # 1) Fast path: regular import works (installed into the active environment).
     try:
         import tensorrt as trt  # type: ignore
 
@@ -43,35 +44,50 @@ def import_tensorrt(trt_py_dir: str | Path | None = None) -> Any:
     except Exception:
         pass
 
-    py_dir = Path(trt_py_dir) if trt_py_dir is not None else Path(os.environ.get("TENSORRT_PY_DIR", ""))
-    if not py_dir:
-        py_dir = DEFAULT_TENSORRT_PY_DIR
-    py_dir = py_dir.expanduser().resolve()
+    # 2) Fallback path: try a list of candidate `pip --target` install dirs.
+    # We intentionally keep going if one candidate is wrong (e.g. `TENSORRT_PY_DIR=.`).
+    env_py_dir = os.environ.get("TENSORRT_PY_DIR", "")
+    candidates: list[Path] = []
+    if trt_py_dir is not None and str(trt_py_dir).strip():
+        candidates.append(Path(trt_py_dir))
+    if env_py_dir.strip():
+        candidates.append(Path(env_py_dir))
+    candidates.append(DEFAULT_TENSORRT_PY_DIR)
 
-    if py_dir.is_dir() and py_dir.as_posix() not in sys.path:
-        sys.path.insert(0, py_dir.as_posix())
+    tried: list[str] = []
+    last_exc: Exception | None = None
+    for candidate in candidates:
+        py_dir = candidate.expanduser().resolve()
+        tried.append(py_dir.as_posix())
 
-    libs_dir = py_dir / "tensorrt_libs"
-    if libs_dir.is_dir():
-        _prepend_env_path("LD_LIBRARY_PATH", libs_dir)
+        if py_dir.is_dir() and py_dir.as_posix() not in sys.path:
+            sys.path.insert(0, py_dir.as_posix())
 
-    try:
-        import tensorrt as trt  # type: ignore
+        libs_dir = py_dir / "tensorrt_libs"
+        if libs_dir.is_dir():
+            _prepend_env_path("LD_LIBRARY_PATH", libs_dir)
 
-        return trt
-    except Exception as exc:
-        raise RuntimeError(
-            "Failed to import TensorRT.\n"
-            "Tried repo-local install dir:\n"
-            f"  - {py_dir}\n\n"
-            "Fix options:\n"
-            "1) Install into a shared /data location:\n"
-            "   `python -m pip install --target /data/<you>/third_party/tensorrt_10_13_0_35 tensorrt==10.13.0.35`\n"
-            "2) Then run with env:\n"
-            "   `env TENSORRT_PY_DIR=/data/<you>/third_party/tensorrt_10_13_0_35 ...`\n"
-            "3) Or export paths explicitly:\n"
-            "   `PYTHONPATH=<dir>:$PYTHONPATH LD_LIBRARY_PATH=<dir>/tensorrt_libs:$LD_LIBRARY_PATH`\n"
-        ) from exc
+        try:
+            import tensorrt as trt  # type: ignore
+
+            return trt
+        except Exception as exc:
+            last_exc = exc
+            continue
+
+    tried_lines = "\n".join(f"  - {p}" for p in tried)
+    raise RuntimeError(
+        "Failed to import TensorRT.\n"
+        "Tried candidate install dirs (in order):\n"
+        f"{tried_lines}\n\n"
+        "Fix options:\n"
+        "1) Install into a shared /data location:\n"
+        "   `python -m pip install --target /data/<you>/third_party/tensorrt_10_13_0_35 tensorrt==10.13.0.35`\n"
+        "2) Then run with env:\n"
+        "   `env TENSORRT_PY_DIR=/data/<you>/third_party/tensorrt_10_13_0_35 ...`\n"
+        "3) Or export paths explicitly:\n"
+        "   `PYTHONPATH=<dir>:$PYTHONPATH LD_LIBRARY_PATH=<dir>/tensorrt_libs:$LD_LIBRARY_PATH`\n"
+    ) from last_exc
 
 
 def torch_dtype_from_trt(trt: Any, dtype: Any) -> torch.dtype:
@@ -167,4 +183,3 @@ class TrtSession:
         if not self.context.execute_async_v3(stream):
             raise RuntimeError(f"TensorRT execute_async_v3 failed: {self.engine_path}")
         return outputs
-

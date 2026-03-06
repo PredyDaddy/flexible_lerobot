@@ -5,7 +5,7 @@
 1. `src/lerobot/async_inference/` 这套异步推理（PolicyServer/RobotClient）怎么用，适合解决什么问题？
 2. `src/lerobot/policies/rtc/` 这套 Real-Time Chunking（RTC）怎么用，适合解决什么问题？
 
-并且会结合你的脚本 `my_devs/train/groot/run_groot_infer.py` 来解释：它为什么是同步/单线程的，怎么迁移/替换为异步方案。
+并且会结合你的脚本 `my_devs/train/groot/so101/run_groot_infer.py` 来解释：它为什么是同步/单线程的，怎么迁移/替换为异步方案。
 
 注意：本文偏“工程落地 + 读代码”，会比官方文档更啰嗦一些。官方对应文档也在：
 
@@ -563,6 +563,6 @@ RTC：
 
 结合 Groot：
 
-- `my_devs/train/groot/run_groot_infer.py`
+- `my_devs/train/groot/so101/run_groot_infer.py`
 - `src/lerobot/policies/groot/modeling_groot.py`
 - `src/lerobot/policies/groot/trt_runtime/patch.py`

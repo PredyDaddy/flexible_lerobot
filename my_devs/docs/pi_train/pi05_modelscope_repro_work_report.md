@@ -3,7 +3,7 @@
 ## 1. 任务目标
 
 基于文档：
-- `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/pi0_pi05_modelscope_training.md`
+- `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/pi0_pi05_modelscope_training.md`
 
 目标：
 - 在 `lerobot_flex` 环境中完成 PI0.5 训练复刻。
@@ -64,12 +64,12 @@
 ## 4. 新增/使用的脚本
 
 - ModelScope 下载脚本：
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/download_modelscope_model.py`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/download_modelscope_model.py`
 - PI0.5 训练脚本（支持 smoke/full）：
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/run_pi05_modelscope_train.sh`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/run_pi05_modelscope_train.sh`
 - 监控脚本（阶段性使用）：
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/monitor_pi_training.sh`
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/monitor_pi_training.py`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/monitor_pi_training.sh`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/monitor_pi_training.py`
 
 ---
 
@@ -170,9 +170,9 @@ python src/lerobot/scripts/lerobot_train.py \
 ## 10. 关键文件总览
 
 - 文档模板：
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/pi0_pi05_modelscope_training.md`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/pi0_pi05_modelscope_training.md`
 - 本工作报告：
-  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/pi05_modelscope_repro_work_report.md`
+  - `/data/cqy_workspace/flexible_lerobot/my_devs/train/pi/so101/pi05_modelscope_repro_work_report.md`
 - 正式训练日志：
   - `/data/cqy_workspace/flexible_lerobot/outputs/train/pi05_grasp_block_in_bin1_repro_20260303_170727/bs8_20260303_170727.log`
 - 当前断点 checkpoint：
@@ -184,4 +184,3 @@ python src/lerobot/scripts/lerobot_train.py \
 - tokenizer 资产：
   - `/data/cqy_workspace/flexible_lerobot/assets/modelscope/google/paligemma-3b-pt-224`
   - `/data/cqy_workspace/flexible_lerobot/google/paligemma-3b-pt-224`
-

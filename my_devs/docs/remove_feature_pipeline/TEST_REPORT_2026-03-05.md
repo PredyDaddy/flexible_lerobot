@@ -302,7 +302,7 @@ python my_devs/remove_feature_pipeline/single_arm_pipeline.py \
 训练命令（使用仓库自带 smoke 脚本，限制 episode 数以加速）：
 
 ```bash
-cd /home/agilex/cqy/flexible_lerobot/my_devs/train/act
+cd /home/agilex/cqy/flexible_lerobot/my_devs/train/act/so101
 mkdir -p /tmp/hf_home /tmp/hf_datasets
 
 HF_HOME=/tmp/hf_home \

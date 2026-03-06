@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
-"""Run SO101 policy-driven evaluation recording via LeRobot Python APIs.
+"""Run SO101 ACT policy-driven evaluation recording via LeRobot Python APIs.
 
-This script is the Python/API equivalent of `run_groot_eval_record.sh`.
+This script is the Python/API equivalent of `run_act_eval_record.sh`.
 It builds a `RecordConfig` in code and calls `lerobot.scripts.lerobot_record.record`.
+
+Compared with the shell wrapper, this version exposes ACT-specific deployment
+overrides directly in Python so you can safely adjust `n_action_steps` or
+enable temporal ensembling during real-robot evaluation.
 """
 
 from __future__ import annotations
@@ -20,13 +24,14 @@ from lerobot.configs.policies import PreTrainedConfig
 from lerobot.robots.so_follower.config_so_follower import SOFollowerRobotConfig
 from lerobot.scripts.lerobot_record import DatasetRecordConfig, RecordConfig, record
 from lerobot.utils.import_utils import register_third_party_plugins
+from lerobot.utils.utils import auto_select_torch_device
 
 DEFAULT_POLICY_PATH = (
     "/data/cqy_workspace/flexible_lerobot/outputs/train/"
-    "groot_grasp_block_in_bin1_repro_20260302_223413/bs32_20260302_223447/"
+    "20260305_190147_act_grasp_block_in_bin1_e15/"
     "checkpoints/last/pretrained_model"
 )
-DEFAULT_CACHE_GLOB = "/home/cqy/.cache/huggingface/lerobot/admin123/eval_run_*"
+DEFAULT_CACHE_GLOB = "/home/cqy/.cache/huggingface/lerobot/admin123/eval_act_*"
 
 
 def parse_bool(value: str | bool) -> bool:
@@ -50,6 +55,36 @@ def maybe_path(path_str: str | None) -> Path | None:
     return None if not path_str else Path(path_str).expanduser()
 
 
+def parse_optional_float(value: str | None) -> float | None:
+    if value is None:
+        return None
+    lowered = value.strip().lower()
+    if lowered in {"", "none", "null"}:
+        return None
+    return float(value)
+
+
+def parse_optional_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    lowered = value.strip().lower()
+    if lowered in {"", "none", "null", "0"}:
+        return None
+    return int(value)
+
+
+def resolve_policy_device(requested: str | None, config_device: str | None) -> str:
+    if requested is not None and requested.strip().lower() in {"", "none", "null"}:
+        requested = None
+    if config_device is None or str(config_device).lower() in {"", "none", "null"}:
+        config_device = auto_select_torch_device().type
+    if requested is None:
+        return str(config_device)
+    if requested == "auto":
+        return auto_select_torch_device().type
+    return requested
+
+
 def cleanup_eval_cache(pattern: str) -> list[Path]:
     removed: list[Path] = []
     for item in sorted(glob(pattern)):
@@ -65,7 +100,7 @@ def cleanup_eval_cache(pattern: str) -> list[Path]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Record policy-driven SO101 evaluation dataset using LeRobot Python APIs."
+        description="Record ACT policy-driven SO101 evaluation dataset using LeRobot Python APIs."
     )
 
     parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "my_so101"))
@@ -85,8 +120,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fps", type=int, default=int(os.getenv("FPS", "30")))
 
     parser.add_argument("--policy-path", default=os.getenv("POLICY_PATH", DEFAULT_POLICY_PATH))
+    parser.add_argument(
+        "--policy-device",
+        default=os.getenv("POLICY_DEVICE_OVERRIDE"),
+        help="Override checkpoint device with one of cpu/cuda/mps/xpu/auto.",
+    )
+    parser.add_argument(
+        "--policy-n-action-steps",
+        type=int,
+        default=parse_optional_int(os.getenv("POLICY_N_ACTION_STEPS")),
+        help="Optional ACT deployment override. Must be in [1, chunk_size].",
+    )
+    parser.add_argument(
+        "--policy-temporal-ensemble-coeff",
+        type=parse_optional_float,
+        default=parse_optional_float(os.getenv("POLICY_TEMPORAL_ENSEMBLE_COEFF")),
+        help="Optional ACT deployment override. If set, requires policy-n-action-steps=1.",
+    )
 
-    parser.add_argument("--dataset-repo-id", default=os.getenv("DATASET_REPO_ID", "admin123/eval_run_03"))
+    parser.add_argument(
+        "--dataset-repo-id",
+        default=os.getenv("DATASET_REPO_ID", "admin123/eval_act_grasp_block_in_bin1_01"),
+    )
     parser.add_argument("--dataset-task", default=os.getenv("DATASET_TASK", "Put the block in the bin"))
     parser.add_argument("--dataset-root", default=os.getenv("DATASET_ROOT"))
     parser.add_argument("--num-episodes", type=int, default=int(os.getenv("NUM_EPISODES", "5")))
@@ -119,7 +174,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_bool,
         nargs="?",
         const=True,
-        default=env_bool("CLEANUP_EVAL_CACHE", True),
+        default=env_bool("CLEANUP_EVAL_CACHE", False),
         help="If true, remove old cached eval datasets before recording.",
     )
     parser.add_argument(
@@ -139,6 +194,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def apply_act_runtime_overrides(
+    policy_cfg: PreTrainedConfig,
+    policy_n_action_steps: int | None,
+    policy_temporal_ensemble_coeff: float | None,
+) -> None:
+    if policy_cfg.type != "act":
+        raise ValueError(f"Expected ACT policy, got {policy_cfg.type!r}")
+
+    chunk_size = int(policy_cfg.chunk_size)
+
+    if policy_n_action_steps is not None:
+        if not 1 <= policy_n_action_steps <= chunk_size:
+            raise ValueError(
+                f"--policy-n-action-steps must be within [1, {chunk_size}], got {policy_n_action_steps}"
+            )
+        policy_cfg.n_action_steps = policy_n_action_steps
+
+    if policy_temporal_ensemble_coeff is not None:
+        if policy_cfg.n_action_steps != 1:
+            raise ValueError(
+                "ACT temporal ensembling requires n_action_steps == 1. "
+                f"Current value: {policy_cfg.n_action_steps}"
+            )
+        policy_cfg.temporal_ensemble_coeff = policy_temporal_ensemble_coeff
+
+
 def main() -> None:
     register_third_party_plugins()
     args = build_parser().parse_args()
@@ -156,9 +237,6 @@ def main() -> None:
             f"Unsupported robot_type={args.robot_type!r}. "
             "This API script currently supports so100_follower/so101_follower."
         )
-
-    if args.robot_type != "so101_follower":
-        print(f"[WARN] robot_type={args.robot_type}. Current implementation reuses SO follower config.")
 
     cameras = {
         "top": OpenCVCameraConfig(
@@ -184,6 +262,12 @@ def main() -> None:
 
     policy_cfg = PreTrainedConfig.from_pretrained(str(policy_path))
     policy_cfg.pretrained_path = policy_path
+    policy_cfg.device = resolve_policy_device(args.policy_device, policy_cfg.device)
+    apply_act_runtime_overrides(
+        policy_cfg=policy_cfg,
+        policy_n_action_steps=args.policy_n_action_steps,
+        policy_temporal_ensemble_coeff=args.policy_temporal_ensemble_coeff,
+    )
 
     dataset_cfg = DatasetRecordConfig(
         repo_id=args.dataset_repo_id,
@@ -209,6 +293,13 @@ def main() -> None:
     print(f"[INFO] Robot port: {args.robot_port}")
     print(f"[INFO] Policy path: {policy_path}")
     print(f"[INFO] Policy type: {policy_cfg.type}")
+    print(f"[INFO] Policy device: {policy_cfg.device}")
+    print(
+        "[INFO] ACT runtime config: "
+        f"chunk_size={policy_cfg.chunk_size}, "
+        f"n_action_steps={policy_cfg.n_action_steps}, "
+        f"temporal_ensemble_coeff={policy_cfg.temporal_ensemble_coeff}"
+    )
     print(f"[INFO] Dataset repo_id: {args.dataset_repo_id}")
     print(
         f"[INFO] Episodes: {args.num_episodes}, "

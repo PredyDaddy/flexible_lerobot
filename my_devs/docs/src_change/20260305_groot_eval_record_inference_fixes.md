@@ -5,7 +5,7 @@
 在 `lerobot_flex` conda 环境下运行评估录制脚本：
 
 ```bash
-bash my_devs/train/groot/run_groot_eval_record.sh
+bash my_devs/train/groot/so101/run_groot_eval_record.sh
 ```
 
 脚本内部实际调用的是 `lerobot-record`，并加载 fine-tune 后的 Groot policy：
@@ -181,7 +181,7 @@ rm -rf ~/.cache/huggingface/modules/transformers_modules/eagle2hg-processor-groo
 1. 在 `lerobot_flex` 环境下运行：
 
    ```bash
-   bash my_devs/train/groot/run_groot_eval_record.sh
+   bash my_devs/train/groot/so101/run_groot_eval_record.sh
    ```
 
 2. 预期现象：

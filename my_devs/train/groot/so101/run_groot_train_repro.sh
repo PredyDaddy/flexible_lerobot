@@ -4,18 +4,34 @@ set -euo pipefail
 # Reproduce GROOT training used in the previous successful run.
 #
 # Fresh run example:
-#   DRY_RUN=true bash my_devs/train/groot/run_groot_train_repro.sh
-#   bash my_devs/train/groot/run_groot_train_repro.sh
+#   DRY_RUN=true bash my_devs/train/groot/so101/run_groot_train_repro.sh
+#   bash my_devs/train/groot/so101/run_groot_train_repro.sh
 #
 # Resume example:
 #   RESUME=true \
 #   CONFIG_PATH=/data/cqy_workspace/flexible_lerobot/outputs/train/groot_grasp_block_in_bin1_repro_20260302_223413/bs32_20260302_223447/checkpoints/010000/pretrained_model/train_config.json \
-#   bash my_devs/train/groot/run_groot_train_repro.sh
+#   bash my_devs/train/groot/so101/run_groot_train_repro.sh
+
+find_repo_root() {
+  local dir="$1"
+  while [[ "${dir}" != "/" ]]; do
+    if [[ -f "${dir}/pyproject.toml" && -d "${dir}/src/lerobot" ]]; then
+      printf '%s\n' "${dir}"
+      return 0
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  return 1
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR_DEFAULT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || true)"
 if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
-  REPO_DIR_DEFAULT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  REPO_DIR_DEFAULT="$(find_repo_root "${SCRIPT_DIR}" || true)"
+fi
+if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
+  echo "[ERROR] failed to locate repo root from script dir: ${SCRIPT_DIR}" >&2
+  exit 1
 fi
 REPO_DIR="${REPO_DIR:-${REPO_DIR_DEFAULT}}"
 cd "${REPO_DIR}"
@@ -151,4 +167,3 @@ if [[ "${DRY_RUN:-false}" == "true" ]]; then
 fi
 
 exec "${CMD[@]}"
-

@@ -1,94 +1,186 @@
-# GROOT TensorRT Tooling (Local Dev)
+# GROOT ONNX/TRT 工具（本仓库本地脚本）
 
-This folder hosts **repo-local** scripts for exporting ONNX and building TensorRT engines for the
-LeRobot GROOT (GR00T N1.5) policy.
+这个目录 `my_devs/groot_trt/` 放的是 GR00T N1.5（LeRobot Groot policy）在本仓库里做工程化的脚本，覆盖：
 
-Design goals:
+- 导出 ONNX（backbone: ViT + LLM，action head: 5 个子模块）
+- Torch vs ONNX 一致性对比（模块级 + 端到端 denoising pipeline）
+- 用 TensorRT **Python API** 构建 `.engine`（不依赖 `trtexec`）
+- Torch vs TensorRT 一致性对比（模块级 + 端到端 denoising pipeline）
 
-- Keep day-to-day export/build work under `my_devs/` (your request).
-- Keep `src/lerobot/...` clean and focused on runtime integration.
-- Start with **FP16 baseline** and **action-head-only** acceleration, then expand to full-chain
-  ViT + LLM + ActionHead.
+我们已经按这套流程完整跑通过一轮，示例产物在：
 
-## Quick Start (Action Head Only, FP16)
+- `outputs/trt/consistency_rerun_20260305_102931/`
 
-1) Export action-head ONNX:
+## 0. 前置条件
 
-```bash
-conda run -n lerobot_flex python my_devs/groot_trt/export_action_head_onnx.py \
-  --policy-path /path/to/pretrained_model \
-  --onnx-out-dir outputs/trt/my_artifact/gr00t_onnx \
-  --seq-len 568 \
-  --device cuda
-```
+- 必须使用 conda 环境：`lerobot_flex`
+- 需要 CUDA 可用（Torch 在 GPU 上跑参考输出，TRT 引擎也在 GPU 上跑）
+- 本流程是 FP16 baseline（量化不在这里展开）
 
-2) Build action-head engines (TensorRT Python API):
+建议在 repo 根目录执行：
 
 ```bash
-cd outputs/trt/my_artifact
-ONNX_DIR=gr00t_onnx ENGINE_DIR=gr00t_engine_api_trt1013 \
-VIDEO_VIEWS=2 MAX_BATCH=2 \
-bash /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/build_engine.sh
+cd /data/cqy_workspace/flexible_lerobot
 ```
 
-3) Run robot inference using TRT action head only:
+准备统一的输出目录（推荐）：
 
 ```bash
-conda run -n lerobot_flex python my_devs/train/groot/run_groot_infer.py \
-  --policy-path /path/to/pretrained_model \
-  --backend tensorrt \
-  --trt-engine-path outputs/trt/my_artifact/gr00t_engine_api_trt1013 \
-  --trt-action-head-only true \
-  --vit-dtype fp16 --llm-dtype fp16 --dit-dtype fp16
+RUN_ID=consistency_rerun_$(date +%Y%m%d_%H%M%S)
+RUN_DIR=outputs/trt/$RUN_ID
+mkdir -p $RUN_DIR/logs
+echo $RUN_DIR
 ```
 
-Notes:
+准备 policy 权重路径：
 
-- `--seq-len` should match the typical `eagle_attention_mask.shape[1]` you see at runtime.
-- The action head engines still require `vlln_vl_self_attention.engine`, not just `DiT_fp16.engine`.
+```bash
+POLICY_PATH=/path/to/pretrained_model
+```
 
-## Full Chain (ViT + LLM + Action Head)
+## 1. 导出 ONNX（7 个文件）
 
-The full-chain export (ViT + LLM ONNX) is more complex (Qwen3 ONNX export + optional quantization).
-Use upstream `Isaac-GR00T` scripts as reference:
-
-- `my_devs/docs/gr00t_trt/Isaac-GR00T-n1.5-release/deployment_scripts/export_onnx.py`
-- `my_devs/docs/gr00t_trt/Isaac-GR00T-n1.5-release/deployment_scripts/build_engine.sh`
-- `my_devs/docs/gr00t_trt/playbook_vla_trt_deployment.md`
-- `my_devs/docs/gr00t_trt/lerobot_groot_tensorrt_integration_solution.md`
-
-For repo-local workflows, you can use:
+1) 导出 backbone（ViT + LLM）：
 
 ```bash
 conda run -n lerobot_flex python my_devs/groot_trt/export_backbone_onnx.py \
-  --policy-path /path/to/pretrained_model \
-  --onnx-out-dir outputs/trt/my_artifact/gr00t_onnx \
+  --policy-path $POLICY_PATH \
+  --onnx-out-dir $RUN_DIR/gr00t_onnx \
   --seq-len 296 \
-  --video-views 1
+  --video-views 1 \
+  --vit-dtype fp16 \
+  --llm-dtype fp16 \
+  --device cuda \
+  > $RUN_DIR/logs/export_backbone.log 2>&1
 ```
 
-Then compare Torch vs ONNX consistency:
+2) 导出 action head（5 个子模块）：
+
+```bash
+conda run -n lerobot_flex python my_devs/groot_trt/export_action_head_onnx.py \
+  --policy-path $POLICY_PATH \
+  --onnx-out-dir $RUN_DIR/gr00t_onnx \
+  --seq-len 296 \
+  --device cuda \
+  > $RUN_DIR/logs/export_action_head.log 2>&1
+```
+
+导出完成后，目录里应该有 7 个 ONNX：
+
+- `$RUN_DIR/gr00t_onnx/eagle2/vit_fp16.onnx`
+- `$RUN_DIR/gr00t_onnx/eagle2/llm_fp16.onnx`
+- `$RUN_DIR/gr00t_onnx/action_head/vlln_vl_self_attention.onnx`
+- `$RUN_DIR/gr00t_onnx/action_head/state_encoder.onnx`
+- `$RUN_DIR/gr00t_onnx/action_head/action_encoder.onnx`
+- `$RUN_DIR/gr00t_onnx/action_head/DiT_fp16.onnx`
+- `$RUN_DIR/gr00t_onnx/action_head/action_decoder.onnx`
+
+## 2. Torch vs ONNX 一致性对比（推荐做 1-view + 2-view）
+
+说明：
+
+- `compare_torch_onnx.py` 会打印每个模块/流程的 cosine、rmse、mean_abs、max_abs
+- 同时把完整结果写入 JSON
+
+1) 1-view（`seq_len=296, video_views=1`）：
 
 ```bash
 conda run -n lerobot_flex python my_devs/groot_trt/compare_torch_onnx.py \
-  --policy-path /path/to/pretrained_model \
-  --onnx-dir outputs/trt/my_artifact/gr00t_onnx \
+  --policy-path $POLICY_PATH \
+  --onnx-dir $RUN_DIR/gr00t_onnx \
   --seq-len 296 \
-  --video-views 1
+  --video-views 1 \
+  --vit-dtype fp16 --llm-dtype fp16 --dit-dtype fp16 \
+  --device cuda \
+  --json-out $RUN_DIR/gr00t_onnx/compare_metrics_1view.json \
+  > $RUN_DIR/logs/compare_onnx_1view.log 2>&1
 ```
 
-Then build TensorRT engines (Python API) and compare Torch vs TRT consistency:
+2) 2-view（`seq_len=568, video_views=2`）：
 
 ```bash
-cd outputs/trt/my_artifact
-ONNX_DIR=gr00t_onnx ENGINE_DIR=gr00t_engine_api_trt1013 \
-VIDEO_VIEWS=2 MAX_BATCH=2 \
-bash /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/build_engine.sh
-
-conda run -n lerobot_flex env TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35 \
-  python /data/cqy_workspace/flexible_lerobot/my_devs/groot_trt/compare_torch_trt.py \
-    --policy-path /path/to/pretrained_model \
-    --engine-dir outputs/trt/my_artifact/gr00t_engine_api_trt1013 \
-    --seq-len 568 \
-    --video-views 2
+conda run -n lerobot_flex python my_devs/groot_trt/compare_torch_onnx.py \
+  --policy-path $POLICY_PATH \
+  --onnx-dir $RUN_DIR/gr00t_onnx \
+  --seq-len 568 \
+  --video-views 2 \
+  --vit-dtype fp16 --llm-dtype fp16 --dit-dtype fp16 \
+  --device cuda \
+  --json-out $RUN_DIR/gr00t_onnx/compare_metrics_2view.json \
+  > $RUN_DIR/logs/compare_onnx_2view.log 2>&1
 ```
+
+## 3. 构建 TensorRT 引擎（Python API）
+
+我们用的是 TensorRT Python API（不是 `trtexec`）。默认 TensorRT 安装目录是：
+
+- `/data/cqy_workspace/third_party/tensorrt_10_13_0_35`
+
+如果你自己装在别的地方，运行时传 `TENSORRT_PY_DIR=/your/path` 即可。
+
+构建引擎（默认 profile 按 2-view 的长度设置，覆盖 1-view/2-view）：
+
+```bash
+ONNX_DIR=$RUN_DIR/gr00t_onnx \
+ENGINE_DIR=$RUN_DIR/gr00t_engine_api_trt1013 \
+VIDEO_VIEWS=2 MAX_BATCH=2 WORKSPACE_GB=8 \
+bash my_devs/groot_trt/build_engine.sh \
+  > $RUN_DIR/logs/build_trt_engine.log 2>&1
+```
+
+构建完成后，目录里应该有 7 个 engine：
+
+- `$RUN_DIR/gr00t_engine_api_trt1013/vit_fp16.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/llm_fp16.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/vlln_vl_self_attention.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/state_encoder.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/action_encoder.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/DiT_fp16.engine`
+- `$RUN_DIR/gr00t_engine_api_trt1013/action_decoder.engine`
+
+可选：如果你需要自定义动态 shape profile，可以额外设置：
+
+- `MIN_LEN`、`OPT_LEN`、`MAX_LEN`
+
+## 4. Torch vs TensorRT 一致性对比（推荐做 1-view + 2-view）
+
+说明：
+
+- `compare_torch_trt.py` 会加载上一步的 `.engine`，用同一套合成输入对比 Torch 输出
+- 结果同样会打印到 stdout，并写入 JSON
+- 建议设置 `TMPDIR` 到 `/data`，避免 `/tmp` 空间不足
+
+1) 1-view（`seq_len=296, video_views=1`）：
+
+```bash
+TMPDIR=/data/cqy_workspace/tmp \
+conda run -n lerobot_flex env TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35 \
+  python my_devs/groot_trt/compare_torch_trt.py \
+    --policy-path $POLICY_PATH \
+    --engine-dir $RUN_DIR/gr00t_engine_api_trt1013 \
+    --seq-len 296 \
+    --video-views 1 \
+    --device cuda \
+    --json-out $RUN_DIR/gr00t_engine_api_trt1013/compare_metrics_trt_1view.json \
+    > $RUN_DIR/logs/compare_trt_1view.log 2>&1
+```
+
+2) 2-view（`seq_len=568, video_views=2`）：
+
+```bash
+TMPDIR=/data/cqy_workspace/tmp \
+conda run -n lerobot_flex env TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35 \
+  python my_devs/groot_trt/compare_torch_trt.py \
+    --policy-path $POLICY_PATH \
+    --engine-dir $RUN_DIR/gr00t_engine_api_trt1013 \
+    --seq-len 568 \
+    --video-views 2 \
+    --device cuda \
+    --json-out $RUN_DIR/gr00t_engine_api_trt1013/compare_metrics_trt_2view.json \
+    > $RUN_DIR/logs/compare_trt_2view.log 2>&1
+```
+
+## 5. 产物目录总览（你只需要记住这两个）
+
+- ONNX：`$RUN_DIR/gr00t_onnx/`
+- TensorRT engine：`$RUN_DIR/gr00t_engine_api_trt1013/`

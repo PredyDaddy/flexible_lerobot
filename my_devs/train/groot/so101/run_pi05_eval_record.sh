@@ -5,15 +5,31 @@ set -euo pipefail
 # This script is only generated for user-side execution.
 #
 # Example:
-#   DRY_RUN=true bash my_devs/train/pi/run_pi05_eval_record.sh
+#   DRY_RUN=true bash my_devs/train/groot/so101/run_pi05_eval_record.sh
 #   ROBOT_PORT=/dev/ttyACM0 TOP_CAM_INDEX=4 WRIST_CAM_INDEX=6 \
 #   POLICY_PATH=/data/cqy_workspace/flexible_lerobot/outputs/train/pi05_grasp_block_in_bin1_repro_20260303_170727/bs8_20260303_170727/checkpoints/011000/pretrained_model \
-#   bash my_devs/train/pi/run_pi05_eval_record.sh
+#   bash my_devs/train/groot/so101/run_pi05_eval_record.sh
+
+find_repo_root() {
+  local dir="$1"
+  while [[ "${dir}" != "/" ]]; do
+    if [[ -f "${dir}/pyproject.toml" && -d "${dir}/src/lerobot" ]]; then
+      printf '%s\n' "${dir}"
+      return 0
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  return 1
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR_DEFAULT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || true)"
 if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
-  REPO_DIR_DEFAULT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  REPO_DIR_DEFAULT="$(find_repo_root "${SCRIPT_DIR}" || true)"
+fi
+if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
+  echo "[ERROR] failed to locate repo root from script dir: ${SCRIPT_DIR}" >&2
+  exit 1
 fi
 REPO_DIR="${REPO_DIR:-${REPO_DIR_DEFAULT}}"
 cd "${REPO_DIR}"

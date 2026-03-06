@@ -12,7 +12,7 @@ NOTE:
 本方案基于两套代码：
 
 1. 上游参考实现（只作“参考与对齐”）：`my_devs/docs/gr00t_trt/Isaac-GR00T-n1.5-release/`
-2. 本仓库真实推理实现（我们已经在用）：`src/lerobot/policies/groot/*` + 你的推理脚本 `my_devs/train/groot/run_groot_infer.py`
+2. 本仓库真实推理实现（我们已经在用）：`src/lerobot/policies/groot/*` + 你的推理脚本 `my_devs/train/groot/so101/run_groot_infer.py`
 
 你已经写的 playbook：`my_devs/docs/gr00t_trt/playbook_vla_trt_deployment.md` 是非常好的“运行手册草稿”。本方案会：
 
@@ -32,7 +32,7 @@ NOTE:
   - `src/lerobot/policies/groot/trt_runtime/engine.py`
   - `src/lerobot/policies/groot/trt_runtime/patch.py`
 - 机器人推理脚本支持一行参数切换 torch/TRT：
-  - `my_devs/train/groot/run_groot_infer.py --backend {pytorch|tensorrt}`
+  - `my_devs/train/groot/so101/run_groot_infer.py --backend {pytorch|tensorrt}`
   - 支持 `--trt-engine-path`、`--vit-dtype/--llm-dtype/--dit-dtype`、`--trt-action-head-only`
 - 导出/构建脚手架（先从 action head FP16 开始）：
   - `my_devs/groot_trt/export_action_head_onnx.py`
@@ -46,12 +46,12 @@ NOTE:
   - `export_action_head_onnx.py`（已提供：先导出 action head ONNX，最容易先跑通）
   - `build_engine.sh`（已提供：从 ONNX 构建 engines，支持可配置 `ONNX_DIR/ENGINE_DIR/TRTEXEC`）
   - `README.md`（说明如何从 action-head-only 起步）
-- 验收：`my_devs/train/groot/run_groot_infer.py --backend=tensorrt --trt-action-head-only=true` 能出 action，
+- 验收：`my_devs/train/groot/so101/run_groot_infer.py --backend=tensorrt --trt-action-head-only=true` 能出 action，
   且循环频率提升明显（至少 action head 侧 latency 下降）。
 
 ### 阶段 B：集成到本仓库推理（推荐，开始动 `src/`）
 
-目的：让你现在已经能跑的推理脚本（比如 `my_devs/train/groot/run_groot_infer.py`）**一行参数切换** torch/TRT。
+目的：让你现在已经能跑的推理脚本（比如 `my_devs/train/groot/so101/run_groot_infer.py`）**一行参数切换** torch/TRT。
 
 - 在 `src/lerobot/policies/groot/` 加一个 **可选依赖** 的 TRT runtime（lazy import tensorrt），核心是：
   - Engine wrapper（等价于上游 `deployment_scripts/trt_torch.py`）
@@ -507,7 +507,7 @@ bash "${REPO_ROOT}/my_devs/groot_trt/build_engine.sh"
 当阶段 B 完成后（TRT runtime 集成进 `src/`），你应该能这样切换：
 
 ```bash
-python my_devs/train/groot/run_groot_infer.py \
+python my_devs/train/groot/so101/run_groot_infer.py \
   --policy-path /path/to/pretrained_model \
   --task "Put the block in the bin" \
   --backend tensorrt \
@@ -548,7 +548,7 @@ python my_devs/train/groot/run_groot_infer.py \
   - monkey patch `action_head.get_action` 走 TRT engines（同时可选 patch backbone）
 - `my_devs/groot_trt/export_action_head_onnx.py`：导出 action head ONNX（FP16）
 - `my_devs/groot_trt/build_engine.sh`：用 `trtexec` 构建 engines（缺失 ViT/LLM ONNX 时会自动跳过）
-- `my_devs/train/groot/run_groot_infer.py`：`--backend=tensorrt` 一行切换
+- `my_devs/train/groot/so101/run_groot_infer.py`：`--backend=tensorrt` 一行切换
 
 验收：
 
@@ -589,7 +589,7 @@ python my_devs/train/groot/run_groot_infer.py \
 
 ## 附录 A：现有推理/录制脚本怎么用（以及“运行时间”在哪设置）
 
-### A.1 纯推理（不录数据）：`my_devs/train/groot/run_groot_infer.py`
+### A.1 纯推理（不录数据）：`my_devs/train/groot/so101/run_groot_infer.py`
 
 - 运行时长（你问的“运行时间”）：`--run-time-s` 或环境变量 `RUN_TIME_S`
   - `--run-time-s <= 0` 表示一直跑到 `Ctrl+C`
@@ -602,7 +602,7 @@ python my_devs/train/groot/run_groot_infer.py \
 示例：
 
 ```bash
-conda run -n lerobot_flex python my_devs/train/groot/run_groot_infer.py \
+conda run -n lerobot_flex python my_devs/train/groot/so101/run_groot_infer.py \
   --robot-port /dev/ttyACM0 \
   --top-cam-index 4 --wrist-cam-index 6 \
   --policy-path /path/to/pretrained_model \
@@ -610,7 +610,7 @@ conda run -n lerobot_flex python my_devs/train/groot/run_groot_infer.py \
   --run-time-s 120
 ```
 
-### A.2 录制评测数据（policy 驱动）：`my_devs/train/groot/run_groot_eval_record.py`
+### A.2 录制评测数据（policy 驱动）：`my_devs/train/groot/so101/run_groot_eval_record.py`
 
 - 每个 episode 录制时长：`--episode-time-s`（或 `EPISODE_TIME_S`）
 - episode 数量：`--num-episodes`（或 `NUM_EPISODES`）
@@ -619,7 +619,7 @@ conda run -n lerobot_flex python my_devs/train/groot/run_groot_infer.py \
 示例：
 
 ```bash
-conda run -n lerobot_flex python my_devs/train/groot/run_groot_eval_record.py \
+conda run -n lerobot_flex python my_devs/train/groot/so101/run_groot_eval_record.py \
   --policy-path /path/to/pretrained_model \
   --dataset-repo-id admin123/eval_run_03 \
   --dataset-task "Put the block in the bin" \
@@ -628,7 +628,7 @@ conda run -n lerobot_flex python my_devs/train/groot/run_groot_eval_record.py \
   --reset-time-s 10
 ```
 
-### A.3 Bash 版本录制：`my_devs/train/groot/run_groot_eval_record.sh`
+### A.3 Bash 版本录制：`my_devs/train/groot/so101/run_groot_eval_record.sh`
 
 这份脚本最终会执行 `lerobot-record`。运行时间相关参数是：
 

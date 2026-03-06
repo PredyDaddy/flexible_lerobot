@@ -1,19 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run policy-driven recording for SO101 with the current PI0.5 checkpoint.
-# This script is only generated for user-side execution.
+# Run policy-driven recording for SO101 with a trained GROOT checkpoint.
+# This copy is intended to live under my_devs/train/groot/so101.
 #
 # Example:
-#   DRY_RUN=true bash my_devs/train/pi/run_pi05_eval_record.sh
+#   DRY_RUN=true bash my_devs/train/groot/so101/run_groot_eval_record.sh
 #   ROBOT_PORT=/dev/ttyACM0 TOP_CAM_INDEX=4 WRIST_CAM_INDEX=6 \
-#   POLICY_PATH=/data/cqy_workspace/flexible_lerobot/outputs/train/pi05_grasp_block_in_bin1_repro_20260303_170727/bs8_20260303_170727/checkpoints/011000/pretrained_model \
-#   bash my_devs/train/pi/run_pi05_eval_record.sh
+#   bash my_devs/train/groot/so101/run_groot_eval_record.sh
+
+find_repo_root() {
+  local dir="$1"
+  while [[ "${dir}" != "/" ]]; do
+    if [[ -f "${dir}/pyproject.toml" && -d "${dir}/src/lerobot" ]]; then
+      printf '%s\n' "${dir}"
+      return 0
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  return 1
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR_DEFAULT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || true)"
 if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
-  REPO_DIR_DEFAULT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  REPO_DIR_DEFAULT="$(find_repo_root "${SCRIPT_DIR}" || true)"
+fi
+if [[ -z "${REPO_DIR_DEFAULT}" ]]; then
+  echo "[ERROR] failed to locate repo root from script dir: ${SCRIPT_DIR}" >&2
+  exit 1
 fi
 REPO_DIR="${REPO_DIR:-${REPO_DIR_DEFAULT}}"
 cd "${REPO_DIR}"
@@ -32,10 +47,9 @@ IMG_WIDTH="${IMG_WIDTH:-640}"
 IMG_HEIGHT="${IMG_HEIGHT:-480}"
 FPS="${FPS:-30}"
 
-# Current PI0.5 run checkpoint (uses latest via `last` symlink by default)
-POLICY_PATH="${POLICY_PATH:-/data/cqy_workspace/flexible_lerobot/outputs/train/pi05_grasp_block_in_bin1_repro_20260303_170727/bs8_20260303_170727/checkpoints/last/pretrained_model}"
+POLICY_PATH="${POLICY_PATH:-/data/cqy_workspace/flexible_lerobot/outputs/train/groot_grasp_block_in_bin1_repro_20260302_223413/bs32_20260302_223447/checkpoints/last/pretrained_model}"
 
-DATASET_REPO_ID="${DATASET_REPO_ID:-admin123/eval_pi05_run_01}"
+DATASET_REPO_ID="${DATASET_REPO_ID:-admin123/eval_run_03}"
 DATASET_TASK="${DATASET_TASK:-Put the block in the bin}"
 NUM_EPISODES="${NUM_EPISODES:-5}"
 EPISODE_TIME_S="${EPISODE_TIME_S:-40}"
@@ -66,8 +80,6 @@ if ! command -v lerobot-record >/dev/null 2>&1; then
   echo "[ERROR] lerobot-record not found in env ${CONDA_ENV}" >&2
   exit 1
 fi
-
-export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
 
 CMD=(
   lerobot-record

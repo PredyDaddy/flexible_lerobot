@@ -155,7 +155,7 @@ python -m lerobot.scripts.lerobot_edit_dataset \
 
 ## 5.3 阶段 B：动作/状态裁剪（14->7）
 
-本阶段建议用一个专用“数据重写脚本”执行以下逻辑（放在 `my_devs/docs/remove_feature_pipeline` 或 `my_devs/train/act` 均可）：
+本阶段建议用一个专用“数据重写脚本”执行以下逻辑（放在 `my_devs/docs/remove_feature_pipeline` 或 `my_devs/train/act/so101` 均可）：
 
 1. 读取中间集 parquet
 2. 覆盖写回：
@@ -204,7 +204,7 @@ STEPS=20000 \
 BATCH_SIZE=8 \
 NUM_WORKERS=2 \
 WANDB_ENABLE=false \
-bash my_devs/train/act/train_full.sh
+bash my_devs/train/act/so101/train_full.sh
 ```
 
 左臂训练同理，只替换 `DATASET_REPO_ID/ROOT/JOB_NAME`。
@@ -271,4 +271,3 @@ bash my_devs/train/act/train_full.sh
 4. 跑 `train_full.sh` 做 1k smoke，再到 20k full
 
 如果需要，我下一步可以把“阶段 B 的重写脚本”按这个文档直接实现成可执行脚本，并附一键命令（左/右臂各一条）。
-

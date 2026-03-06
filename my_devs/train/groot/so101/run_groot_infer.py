@@ -8,7 +8,7 @@ This script performs:
 3) send action to robot
 in a real-time loop.
 
-  python my_devs/train/groot/run_groot_infer.py \
+python my_devs/train/groot/so101/run_groot_infer.py \
     --robot-port /dev/ttyACM0 \
     --top-cam-index 4 \
     --wrist-cam-index 6 \
@@ -20,9 +20,23 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+
+def resolve_repo_root(script_path: Path) -> Path:
+    resolved_path = script_path.resolve()
+    for candidate in resolved_path.parents:
+        if (candidate / "pyproject.toml").is_file() and (candidate / "src/lerobot").is_dir():
+            return candidate
+    raise RuntimeError(f"Could not locate repository root from script path: {script_path}")
+
+
+REPO_ROOT = resolve_repo_root(Path(__file__))
+if REPO_ROOT.as_posix() not in sys.path:
+    sys.path.insert(0, REPO_ROOT.as_posix())
 
 from lerobot import policies  # noqa: F401  # Register policy config classes.
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
@@ -189,6 +203,7 @@ def load_pre_post_processors(
 def main() -> None:
     register_third_party_plugins()
     args = build_parser().parse_args()
+    os.chdir(REPO_ROOT)
 
     policy_path = Path(args.policy_path).expanduser()
     if not policy_path.is_dir():

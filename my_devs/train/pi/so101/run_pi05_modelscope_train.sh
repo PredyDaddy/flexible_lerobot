@@ -1,10 +1,42 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate lerobot_flex
+find_repo_root() {
+  local dir="$1"
+  while [[ "${dir}" != "/" ]]; do
+    if [[ -f "${dir}/pyproject.toml" && -d "${dir}/src/lerobot" ]]; then
+      printf '%s\n' "${dir}"
+      return 0
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  return 1
+}
 
-PROJECT_ROOT=${PROJECT_ROOT:-/data/cqy_workspace/flexible_lerobot}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_DEFAULT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "${PROJECT_ROOT_DEFAULT}" ]]; then
+  PROJECT_ROOT_DEFAULT="$(find_repo_root "${SCRIPT_DIR}" || true)"
+fi
+if [[ -z "${PROJECT_ROOT_DEFAULT}" ]]; then
+  echo "[ERROR] failed to locate repo root from script dir: ${SCRIPT_DIR}" >&2
+  exit 1
+fi
+
+PROJECT_ROOT=${PROJECT_ROOT:-${PROJECT_ROOT_DEFAULT}}
+cd "${PROJECT_ROOT}"
+
+CONDA_SH="${CONDA_SH:-$HOME/miniconda3/etc/profile.d/conda.sh}"
+CONDA_ENV="${CONDA_ENV:-lerobot_flex}"
+
+if [[ ! -f "${CONDA_SH}" ]]; then
+  echo "[ERROR] conda init script not found: ${CONDA_SH}" >&2
+  exit 1
+fi
+
+source "${CONDA_SH}"
+conda activate "${CONDA_ENV}"
+
 DATASET_REPO_ID=${DATASET_REPO_ID:-admin123/grasp_block_in_bin1}
 DATASET_ROOT=${DATASET_ROOT:-/home/cqy/.cache/huggingface/lerobot/admin123/grasp_block_in_bin1}
 MODEL_DIR=${MODEL_DIR:-${PROJECT_ROOT}/assets/modelscope/lerobot/pi05_base}
