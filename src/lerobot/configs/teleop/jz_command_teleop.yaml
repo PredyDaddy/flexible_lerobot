@@ -1,0 +1,34 @@
+# JZCommandTeleop 配置
+# 用途：
+# 1. 从外部 ROS2 JointState 命令 topic 读取双臂目标
+# 2. 作为 lerobot-teleoperate / lerobot-record 的 teleop 端配置
+
+type: jz_command_teleop
+id: jz_command_teleop
+
+left_joint_names:
+  - left_joint1
+  - left_joint2
+  - left_joint3
+  - left_joint4
+  - left_joint5
+  - left_joint6
+  - left_joint7
+
+right_joint_names:
+  - right_joint1
+  - right_joint2
+  - right_joint3
+  - right_joint4
+  - right_joint5
+  - right_joint6
+  - right_joint7
+
+left_command_topic: telecon/arm_left/joint_commands_input
+right_command_topic: telecon/arm_right/joint_commands_input
+
+qos_depth: 10
+connect_timeout_s: 5.0
+
+# 如果希望外部命令断流时报错，可以设置为正数秒；默认关闭 stale 检查。
+command_timeout_s: null

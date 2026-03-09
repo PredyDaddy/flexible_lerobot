@@ -54,6 +54,7 @@ from lerobot.teleoperators import (  # noqa: F401
     TeleoperatorConfig,
     bi_so_leader,
     gamepad,
+    jz_command_teleop,
     koch_leader,
     make_teleoperator_from_config,
     omx_leader,

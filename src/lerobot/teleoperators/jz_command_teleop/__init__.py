@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2025 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2026 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config import RobotConfig
-from .robot import Robot
-from .utils import make_robot_from_config
-from . import jz_robot as jz_robot
+from .config_jz_command_teleop import JZCommandTeleopConfig
+from .jz_command_teleop import JZCommandTeleop
+
+__all__ = ["JZCommandTeleop", "JZCommandTeleopConfig"]
