@@ -96,6 +96,8 @@ from lerobot.utils.import_utils import register_third_party_plugins
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import init_logging, move_cursor_up
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
+from lerobot.robots import agilex  # noqa: F401
+from lerobot.teleoperators import agilex_teleoperator  # noqa: F401
 
 
 @dataclass

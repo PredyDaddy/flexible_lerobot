@@ -56,6 +56,8 @@ from lerobot.teleoperators import (  # noqa: F401
 )
 from lerobot.utils.import_utils import register_third_party_plugins
 from lerobot.utils.utils import init_logging
+from lerobot.robots import agilex  # noqa: F401
+from lerobot.teleoperators import agilex_teleoperator  # noqa: F401
 
 
 @dataclass

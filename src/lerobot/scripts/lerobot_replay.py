@@ -70,6 +70,7 @@ from lerobot.utils.utils import (
     init_logging,
     log_say,
 )
+from lerobot.robots import agilex  # noqa: F401
 
 
 @dataclass

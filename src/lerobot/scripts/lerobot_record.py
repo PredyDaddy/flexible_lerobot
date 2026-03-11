@@ -136,6 +136,8 @@ from lerobot.utils.utils import (
     log_say,
 )
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
+from lerobot.robots import agilex  # noqa: F401
+from lerobot.teleoperators import agilex_teleoperator  # noqa: F401
 
 
 @dataclass
@@ -488,6 +490,12 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         with VideoEncodingManager(dataset):
             recorded_episodes = 0
             while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
+                episode_idx = recorded_episodes + 1
+                print(
+                    f"[record] Start episode {episode_idx}/{cfg.dataset.num_episodes} "
+                    f"for {cfg.dataset.episode_time_s:.1f}s",
+                    flush=True,
+                )
                 log_say(f"Recording episode {dataset.num_episodes}", cfg.play_sounds)
                 record_loop(
                     robot=robot,
@@ -506,12 +514,18 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     display_data=cfg.display_data,
                     display_compressed_images=display_compressed_images,
                 )
+                print(f"[record] Finished episode {episode_idx}/{cfg.dataset.num_episodes}", flush=True)
 
                 # Execute a few seconds without recording to give time to manually reset the environment
                 # Skip reset for the last episode to be recorded
                 if not events["stop_recording"] and (
                     (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
                 ):
+                    print(
+                        f"[record] Start reset after episode {episode_idx}/{cfg.dataset.num_episodes} "
+                        f"for {cfg.dataset.reset_time_s:.1f}s",
+                        flush=True,
+                    )
                     log_say("Reset the environment", cfg.play_sounds)
 
                     # reset g1 robot
@@ -530,6 +544,10 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                         single_task=cfg.dataset.single_task,
                         display_data=cfg.display_data,
                     )
+                    print(
+                        f"[record] Finished reset after episode {episode_idx}/{cfg.dataset.num_episodes}",
+                        flush=True,
+                    )
 
                 if events["rerecord_episode"]:
                     log_say("Re-record episode", cfg.play_sounds)
@@ -538,7 +556,9 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     dataset.clear_episode_buffer()
                     continue
 
+                print(f"[record] Saving episode {episode_idx}/{cfg.dataset.num_episodes}", flush=True)
                 dataset.save_episode()
+                print(f"[record] Saved episode {episode_idx}/{cfg.dataset.num_episodes}", flush=True)
                 recorded_episodes += 1
     finally:
         log_say("Stop recording", cfg.play_sounds, blocking=True)
