@@ -29,7 +29,7 @@ EFFORT_SUFFIX = "effort"
 LEFT_PREFIX = "left"
 RIGHT_PREFIX = "right"
 ARM_PREFIXES = (LEFT_PREFIX, RIGHT_PREFIX)
-CAMERA_KEYS = ("cam_high", "cam_left_wrist", "cam_right_wrist")
+CAMERA_KEYS = ("camera_front", "camera_left", "camera_right")
 SUPPORTED_COLOR_ENCODINGS = {"rgb8", "bgr8"}
 
 
@@ -205,11 +205,10 @@ class AgileXRosBridge:
         left_sample = self._require_joint_sample(LEFT_PREFIX)
         right_sample = self._require_joint_sample(RIGHT_PREFIX)
         state: dict[str, float] = {}
+        # Record only follower joint positions in observation.state to match the reference dataset schema.
         for arm, sample in ((LEFT_PREFIX, left_sample), (RIGHT_PREFIX, right_sample)):
             for idx in range(7):
                 state[f"{arm}_joint{idx}.{POSITION_SUFFIX}"] = sample.position[idx]
-                state[f"{arm}_joint{idx}.{VELOCITY_SUFFIX}"] = sample.velocity[idx]
-                state[f"{arm}_joint{idx}.{EFFORT_SUFFIX}"] = sample.effort[idx]
         return state
 
     def get_action_features(self) -> dict[str, float]:

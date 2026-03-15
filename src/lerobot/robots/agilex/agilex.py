@@ -23,10 +23,8 @@ from ..robot import Robot
 from .agilex_ros_bridge import (
     ACTION_FEATURE_NAMES,
     BridgeTopics,
-    EFFORT_FEATURE_NAMES,
     ImageTopicConfig,
     POSITION_FEATURE_NAMES,
-    VELOCITY_FEATURE_NAMES,
     AgileXRosBridge,
 )
 from .config_agilex import AgileXRobotConfig
@@ -63,7 +61,8 @@ class AgileXRobot(Robot):
     @cached_property
     def observation_features(self) -> dict[str, type | tuple[int, int, int]]:
         features: dict[str, type | tuple[int, int, int]] = {}
-        for key in POSITION_FEATURE_NAMES + VELOCITY_FEATURE_NAMES + EFFORT_FEATURE_NAMES:
+        # Keep observation.state aligned with reference datasets: 14-dim follower joint positions only.
+        for key in POSITION_FEATURE_NAMES:
             features[key] = float
         for key in self.cameras:
             features[key] = (self.config.image_height, self.config.image_width, 3)

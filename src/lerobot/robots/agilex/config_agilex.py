@@ -18,6 +18,16 @@ from dataclasses import dataclass, field
 
 from ..config import RobotConfig
 
+LEGACY_CAMERA_KEY_ALIASES = {
+    "cam_high": "camera_front",
+    "cam_left_wrist": "camera_left",
+    "cam_right_wrist": "camera_right",
+}
+
+
+def _normalize_camera_key(key: str) -> str:
+    return LEGACY_CAMERA_KEY_ALIASES.get(key, key)
+
 
 @RobotConfig.register_subclass("agilex")
 @dataclass(kw_only=True)
@@ -30,9 +40,9 @@ class AgileXRobotConfig(RobotConfig):
     front_camera_topic: str = "/camera_f/color/image_raw"
     left_camera_topic: str = "/camera_l/color/image_raw"
     right_camera_topic: str = "/camera_r/color/image_raw"
-    front_camera_key: str = "cam_high"
-    left_camera_key: str = "cam_left_wrist"
-    right_camera_key: str = "cam_right_wrist"
+    front_camera_key: str = "camera_front"
+    left_camera_key: str = "camera_left"
+    right_camera_key: str = "camera_right"
     image_height: int = 480
     image_width: int = 640
     observation_timeout_s: float = 2.0
@@ -45,3 +55,15 @@ class AgileXRobotConfig(RobotConfig):
             raise ValueError(f"Unsupported control_mode: {self.control_mode}")
         if len(self.joint_names) != 7:
             raise ValueError("AgileX expects exactly 7 joint names per arm")
+
+        self.front_camera_key = _normalize_camera_key(self.front_camera_key)
+        self.left_camera_key = _normalize_camera_key(self.left_camera_key)
+        self.right_camera_key = _normalize_camera_key(self.right_camera_key)
+
+        camera_keys = (
+            self.front_camera_key,
+            self.left_camera_key,
+            self.right_camera_key,
+        )
+        if len(set(camera_keys)) != len(camera_keys):
+            raise ValueError("AgileX camera keys must be distinct after alias normalization")

@@ -14,12 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from unittest.mock import patch
 
 from lerobot.scripts.lerobot_calibrate import CalibrateConfig, calibrate
-from lerobot.scripts.lerobot_record import DatasetRecordConfig, RecordConfig, record
+from lerobot.scripts.lerobot_record import (
+    DatasetRecordConfig,
+    RecordConfig,
+    _align_episode_actions_with_next_observation_state,
+    record,
+)
 from lerobot.scripts.lerobot_replay import DatasetReplayConfig, ReplayConfig, replay
 from lerobot.scripts.lerobot_teleoperate import TeleoperateConfig, teleoperate
+from lerobot.utils.constants import ACTION, OBS_STATE
 from tests.fixtures.constants import DUMMY_REPO_ID
 from tests.mocks.mock_robot import MockRobotConfig
 from tests.mocks.mock_teleop import MockTeleopConfig
@@ -81,6 +88,40 @@ def test_record_and_resume(tmp_path):
     assert dataset.meta.total_episodes == dataset.num_episodes == 2
     assert dataset.meta.total_frames == dataset.num_frames == 6
     assert dataset.meta.total_tasks == 1
+
+
+def test_align_episode_actions_with_next_observation_state():
+    episode_buffer = {
+        "size": 3,
+        ACTION: [
+            np.array([-1.0, -1.0], dtype=np.float32),
+            np.array([-1.0, -1.0], dtype=np.float32),
+            np.array([-1.0, -1.0], dtype=np.float32),
+        ],
+        OBS_STATE: [
+            np.array([0.0, 10.0, 100.0], dtype=np.float32),
+            np.array([1.0, 11.0, 101.0], dtype=np.float32),
+            np.array([2.0, 12.0, 102.0], dtype=np.float32),
+        ],
+    }
+    features = {
+        ACTION: {
+            "dtype": "float32",
+            "shape": (2,),
+            "names": ["motor_2.pos", "motor_1.pos"],
+        },
+        OBS_STATE: {
+            "dtype": "float32",
+            "shape": (3,),
+            "names": ["motor_1.pos", "motor_2.pos", "temperature"],
+        },
+    }
+
+    _align_episode_actions_with_next_observation_state(episode_buffer, features)
+
+    np.testing.assert_array_equal(episode_buffer[ACTION][0], np.array([11.0, 1.0], dtype=np.float32))
+    np.testing.assert_array_equal(episode_buffer[ACTION][1], np.array([12.0, 2.0], dtype=np.float32))
+    np.testing.assert_array_equal(episode_buffer[ACTION][2], np.array([12.0, 2.0], dtype=np.float32))
 
 
 def test_record_and_replay(tmp_path):

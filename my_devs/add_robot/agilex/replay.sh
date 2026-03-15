@@ -18,13 +18,16 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 CONDA_ENV="${CONDA_ENV:-lerobot_flex}"
 # 数据集根目录。默认就是当前目录下的 outputs。
 HF_LEROBOT_HOME="${HF_LEROBOT_HOME:-${SCRIPT_DIR}/outputs}"
-# 自动生成的配置文件路径，一般不用改。
-CONFIG_PATH="${CONFIG_PATH:-${SCRIPT_DIR}/outputs/replay_config.json}"
+# 自动生成的配置文件路径。默认会按数据集名字区分，避免互相覆盖。
+CONFIG_PATH="${CONFIG_PATH:-}"
 
 # 数据集名字。命令第 1 个参数。
 DATASET_NAME="${1:-agilex_record_demo_video}"
 # LeRobot 内部使用的数据集 repo_id，一般不用改。
 DATASET_REPO_ID="${DATASET_REPO_ID:-dummy/${DATASET_NAME}}"
+if [[ -z "${CONFIG_PATH}" ]]; then
+  CONFIG_PATH="${SCRIPT_DIR}/outputs/replay_config_${DATASET_NAME}.json"
+fi
 # 回放第几个 episode。命令第 2 个参数，从 0 开始。
 EPISODE_INDEX="${2:-0}"
 # 是否播放语音提示。

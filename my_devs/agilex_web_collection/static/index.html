@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>AgileX 采集工作台</title>
+    <link rel="stylesheet" href="/static/style.css?v=6" />
+  </head>
+  <body>
+    <div id="feedbackBanner" class="feedback-banner hidden" role="status" aria-live="polite"></div>
+
+    <div id="confirmOverlay" class="modal-backdrop hidden" aria-hidden="true">
+      <section class="modal-card" aria-labelledby="confirmTitle" aria-modal="true" role="dialog">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">开始前确认</p>
+            <h2 id="confirmTitle">请在现场完成最后一次安全确认</h2>
+          </div>
+          <button id="confirmCloseBtn" class="icon-button" type="button" aria-label="关闭确认弹窗">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-summary">
+            <div class="summary-row">
+              <span>命令</span>
+              <code id="confirmCommand"></code>
+            </div>
+            <div class="summary-row">
+              <span>输出目录</span>
+              <code id="confirmOutputDir"></code>
+            </div>
+            <div class="summary-row">
+              <span>数据集 Repo</span>
+              <code id="confirmRepoId"></code>
+            </div>
+            <div class="summary-row">
+              <span>执行语义</span>
+              <p id="confirmMode"></p>
+            </div>
+            <div class="summary-row">
+              <span>任务语义</span>
+              <p id="confirmTaskText"></p>
+            </div>
+          </div>
+
+          <div class="confirm-checks">
+            <label class="check-card">
+              <input id="confirmAckArea" type="checkbox" />
+              <span>已确认机器人周围无人处于危险区域。</span>
+            </label>
+            <label class="check-card">
+              <input id="confirmAckDevices" type="checkbox" />
+              <span>已确认相机、机械臂和 ROS 话题已正常工作。</span>
+            </label>
+            <label class="check-card">
+              <input id="confirmAckDataset" type="checkbox" />
+              <span>已确认 repo_prefix、数据集名称、输出目录和续录语义正确。</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="confirmCancelBtn" class="button secondary" type="button">返回检查</button>
+          <button id="confirmStartBtn" class="button primary" type="button" disabled>确认开始采集</button>
+        </div>
+      </section>
+    </div>
+
+    <main class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+            <p class="eyebrow">顶部身份区</p>
+            <h1>AgileX 采集工作台</h1>
+            <p class="hero-text">
+              页面封装 <code>record.sh</code> 的 7 个脚本参数，并补充一个 <code>repo_prefix</code> 命名空间参数。
+              负责预检查、命令预览、运行状态和结果回显，不改变脚本语义，不开放并发任务。
+            </p>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-pill">
+            <span>环境</span>
+            <strong id="heroEnv">读取中</strong>
+          </div>
+          <div class="meta-pill">
+            <span>服务</span>
+            <strong id="heroService">初始化中</strong>
+          </div>
+          <div class="meta-pill">
+            <span>模式</span>
+            <strong>单活跃任务</strong>
+          </div>
+          <button id="refreshButton" class="button tertiary" type="button">刷新状态</button>
+        </div>
+      </header>
+
+      <section class="card notice-card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">安全提示区</p>
+            <h2>开始前先把现场状态拉直</h2>
+          </div>
+        </div>
+        <div class="notice-grid">
+          <article class="notice-item">
+            <h3>机器人工作区</h3>
+            <p>确保机械臂运动范围内无人、无散落工具、无未固定线缆。</p>
+          </article>
+          <article class="notice-item">
+            <h3>设备与话题</h3>
+            <p>确认相机、机械臂、ROS 话题与录制依赖都已经启动且稳定。</p>
+          </article>
+          <article class="notice-item">
+            <h3>浏览器认知</h3>
+            <p>关闭页面或刷新页面不会停止后台任务，运行态以后端 job 为准。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">采集前检查区</p>
+            <h2>预检查与运行边界</h2>
+          </div>
+          <button id="preflightButton" class="button tertiary" type="button">重新预检查</button>
+        </div>
+        <div class="fact-grid">
+          <article class="fact-tile">
+            <span class="fact-label">脚本路径</span>
+            <code id="runtimeScriptPath">读取中</code>
+          </article>
+          <article class="fact-tile">
+            <span class="fact-label">Conda 环境</span>
+            <code id="runtimeCondaEnv">lerobot_flex</code>
+          </article>
+          <article class="fact-tile">
+              <span class="fact-label">输出根目录</span>
+              <code id="runtimeOutputRoot">读取中</code>
+            </article>
+          <article class="fact-tile">
+            <span class="fact-label">数据集 Repo</span>
+            <code id="runtimeRepoId">等待填写参数</code>
+          </article>
+          <article class="fact-tile">
+            <span class="fact-label">目标数据目录</span>
+            <code id="runtimeTargetDir">等待数据集名称</code>
+          </article>
+          <article class="fact-tile">
+            <span class="fact-label">目录状态</span>
+            <strong id="preflightDatasetStatus">等待预检查</strong>
+          </article>
+          <article class="fact-tile">
+            <span class="fact-label">预计总时长</span>
+            <strong id="preflightExpectedTime">-</strong>
+          </article>
+        </div>
+        <div class="status-strip">
+          <div class="status-badge" id="preflightBadge" data-tone="neutral">等待输入</div>
+          <p id="preflightMessage" class="status-text">输入合法参数后会自动执行预检查。</p>
+        </div>
+        <ul id="preflightWarnings" class="inline-list empty-state">
+          <li>当前没有额外警告。</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">快速模板区</p>
+            <h2>从一个克制的起点开始</h2>
+          </div>
+        </div>
+        <div class="template-grid">
+          <button class="template-card" type="button" data-template="first_trial">
+            <span class="template-tag">首次试录</span>
+            <strong>8s / 1 段 / 30 FPS</strong>
+            <p>适合第一次验证链路，自动锁定 reset=0，resume=false。</p>
+          </button>
+          <button class="template-card" type="button" data-template="script_defaults">
+            <span class="template-tag">脚本默认值</span>
+            <strong>8s / 1 段 / 10 FPS</strong>
+            <p>严格跟随脚本默认参数，不预填固定数据集名称。</p>
+          </button>
+          <button class="template-card" type="button" data-template="continue_append">
+            <span class="template-tag">继续追加</span>
+            <strong>8s / 1 段 / 30 FPS</strong>
+            <p>用于已存在目录的补录场景，resume=true。</p>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">参数表单区</p>
+            <h2>只保留 7 个脚本参数和 1 个 repo_prefix</h2>
+          </div>
+          <div id="formLockState" class="mini-state" data-tone="neutral">表单可编辑</div>
+        </div>
+        <form id="recordForm" novalidate>
+          <fieldset id="recordFieldset" class="form-grid">
+            <label class="field">
+              <span class="field-label">repo_prefix</span>
+              <input
+                id="repoPrefix"
+                name="repo_prefix"
+                type="text"
+                maxlength="64"
+                autocomplete="off"
+                placeholder="默认 dummy，例如 agilex_lab"
+              />
+              <span id="repoPrefixHint" class="field-hint">
+                默认值为 dummy。只填单段前缀，不要包含 /。
+              </span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">dataset_name</span>
+              <input
+                id="datasetName"
+                name="dataset_name"
+                type="text"
+                maxlength="64"
+                autocomplete="off"
+                placeholder="例如 demo_Data"
+              />
+              <span id="datasetHint" class="field-hint">
+                仅允许叶子名字；最终会和 repo_prefix 组合成 repo_prefix/dataset_name。
+              </span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">episode_time_s</span>
+              <input id="episodeTime" name="episode_time_s" type="number" min="0.1" max="3600" step="0.1" />
+              <span class="field-hint">单段录制时长，单位秒。</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">num_episodes</span>
+              <input id="numEpisodes" name="num_episodes" type="number" min="1" max="1000" step="1" />
+              <span class="field-hint">正整数。为 1 时会自动锁定 reset_time_s=0。</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">fps</span>
+              <input id="fps" name="fps" type="number" min="1" max="120" step="1" />
+              <span class="field-hint">帧率只允许整数。</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">reset_time_s</span>
+              <input id="resetTime" name="reset_time_s" type="number" min="0" max="600" step="0.1" />
+              <span id="resetHint" class="field-hint">多段录制时用于段间重置等待。</span>
+            </label>
+
+            <label class="field switch-field">
+              <span class="field-label">resume</span>
+              <button
+                id="resumeToggle"
+                class="switch"
+                type="button"
+                role="switch"
+                aria-checked="false"
+                aria-label="切换是否续录"
+              >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+                <span class="switch-copy">
+                  <strong id="resumeValue">false</strong>
+                  <small id="resumeHint">目标目录不存在时不允许开启续录。</small>
+                </span>
+              </button>
+            </label>
+
+            <label class="field wide-field task-field">
+              <span class="field-label">single_task_text</span>
+              <textarea
+                id="singleTaskText"
+                name="single_task_text"
+                rows="3"
+                placeholder="例如 Pick up the black cups and place them in the orange box."
+              ></textarea>
+              <span class="field-hint">
+                这段语义会写入数据集 task，用于语言条件训练；支持中文、英文和引号。
+              </span>
+            </label>
+          </fieldset>
+        </form>
+        <ul id="formIssues" class="inline-list empty-state">
+          <li>当前参数没有本地校验问题。</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">命令与输出预览区</p>
+            <h2>页面预览必须和后端执行一致</h2>
+          </div>
+        </div>
+        <div class="preview-grid">
+          <article class="preview-tile">
+            <span class="fact-label">完整命令</span>
+            <pre id="commandPreview" class="code-block"></pre>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">数据集 Repo</span>
+            <code id="repoPreview"></code>
+          </article>
+
+          <article class="preview-tile">
+            <span class="fact-label">输出目录预览</span>
+            <code id="outputPreview"></code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">采集摘要</span>
+            <p id="modePreview" class="preview-text"></p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">任务语义</span>
+            <p id="taskPreview" class="preview-text"></p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">预计总时长</span>
+            <p id="durationPreview" class="preview-text"></p>
+          </article>
+        </div>
+        <div class="action-row">
+          <button id="startButton" class="button primary" type="button" disabled>开始采集</button>
+          <button id="resetButton" class="button secondary" type="button">恢复默认参数</button>
+          <span id="actionHint" class="action-hint">开始按钮会在预检查通过后点亮。</span>
+        </div>
+      </section>
+
+      <section class="card runtime-card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">运行状态与日志区</p>
+            <h2>活跃任务会在这里持续更新</h2>
+          </div>
+          <div class="runtime-actions">
+            <div id="runtimeBadge" class="status-badge" data-tone="neutral">空闲</div>
+            <button id="stopButton" class="button danger" type="button" disabled>停止采集</button>
+          </div>
+        </div>
+        <div id="runtimeEmpty" class="empty-panel">
+          <p>当前没有活跃任务。开始一次采集后，这里会显示 job 状态、最近日志和停止入口。</p>
+        </div>
+        <div id="runtimePanel" class="runtime-grid hidden">
+          <article class="preview-tile">
+            <span class="fact-label">任务 ID</span>
+            <code id="runtimeJobId">-</code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">阶段</span>
+            <p id="runtimePhase" class="preview-text">-</p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">开始时间</span>
+            <p id="runtimeStartedAt" class="preview-text">-</p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">已运行 / 进度</span>
+            <p id="runtimeProgress" class="preview-text">-</p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">输出目录</span>
+            <code id="runtimeOutputDir">-</code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">日志文件</span>
+            <code id="runtimeLogPath">-</code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">任务语义</span>
+            <p id="runtimeTaskText" class="preview-text">-</p>
+          </article>
+          <article class="log-tile">
+            <div class="log-head">
+              <span class="fact-label">最近日志</span>
+              <small>页面刷新后会尝试恢复当前任务显示</small>
+            </div>
+            <pre id="runtimeLogs" class="log-block"></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">结果与下一步区</p>
+            <h2>给出收口结论，而不是把用户丢回终端</h2>
+          </div>
+        </div>
+        <div class="result-summary">
+          <div id="resultBadge" class="status-badge" data-tone="neutral">等待任务</div>
+          <div>
+            <h3 id="resultTitle">还没有采集结果</h3>
+            <p id="resultSummary" class="preview-text">完成一次任务后，这里会显示成功、失败或停止摘要。</p>
+          </div>
+        </div>
+        <div class="preview-grid">
+          <article class="preview-tile">
+            <span class="fact-label">数据集 Repo</span>
+            <code id="resultRepoId">-</code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">结果目录</span>
+            <code id="resultOutputDir">-</code>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">任务语义</span>
+            <p id="resultTaskText" class="preview-text">-</p>
+          </article>
+          <article class="preview-tile">
+            <span class="fact-label">下一步建议</span>
+            <ul id="nextSteps" class="inline-list">
+              <li>先完成预检查，再开始采集。</li>
+            </ul>
+          </article>
+        </div>
+        <div class="history-block">
+          <div class="history-head">
+            <h3>最近任务</h3>
+            <span id="historyHint">会读取 <code>GET /api/jobs</code>。</span>
+          </div>
+          <ul id="recentJobs" class="history-list">
+            <li class="history-empty">最近还没有可展示的任务。</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=6"></script>
+  </body>
+</html>

@@ -69,6 +69,8 @@ from pathlib import Path
 from pprint import pformat
 from typing import Any
 
+import numpy as np
+
 from lerobot.cameras import (  # noqa: F401
     CameraConfig,  # noqa: F401
 )
@@ -120,7 +122,7 @@ from lerobot.teleoperators import (  # noqa: F401
     so_leader,
 )
 from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop
-from lerobot.utils.constants import ACTION, OBS_STR
+from lerobot.utils.constants import ACTION, OBS_STATE, OBS_STR
 from lerobot.utils.control_utils import (
     init_keyboard_listener,
     is_headless,
@@ -255,6 +257,90 @@ class RecordConfig:
                                V
                   ( Rerun Log / Loop Wait )
 """
+
+
+def _get_action_alignment_indices(features: dict[str, dict]) -> np.ndarray | None:
+    action_ft = features.get(ACTION)
+    observation_state_ft = features.get(OBS_STATE)
+    if action_ft is None or observation_state_ft is None:
+        return None
+
+    if action_ft.get("dtype") != "float32" or observation_state_ft.get("dtype") != "float32":
+        return None
+
+    if len(action_ft.get("shape", ())) != 1 or len(observation_state_ft.get("shape", ())) != 1:
+        return None
+
+    action_names = action_ft.get("names") or []
+    observation_names = observation_state_ft.get("names") or []
+
+    if action_names and observation_names:
+        observation_index_by_name = {name: idx for idx, name in enumerate(observation_names)}
+        if all(name in observation_index_by_name for name in action_names):
+            return np.array([observation_index_by_name[name] for name in action_names], dtype=np.int64)
+        logging.warning(
+            "Skipping episode action alignment because '%s' names are not a subset of '%s' names "
+            "(action names=%s, observation names=%s).",
+            ACTION,
+            OBS_STATE,
+            action_names,
+            observation_names,
+        )
+        return None
+
+    action_dim = action_ft["shape"][0]
+    observation_dim = observation_state_ft["shape"][0]
+    if action_dim == observation_dim:
+        return np.arange(action_dim, dtype=np.int64)
+
+    logging.warning(
+        "Skipping episode action alignment because '%s' cannot be derived from '%s' "
+        "(action shape=%s, observation shape=%s).",
+        ACTION,
+        OBS_STATE,
+        action_ft.get("shape"),
+        observation_state_ft.get("shape"),
+    )
+    return None
+
+
+def _align_episode_actions_with_next_observation_state(
+    episode_buffer: dict[str, Any] | None, features: dict[str, dict]
+) -> None:
+    """Rewrite saved actions so each non-terminal frame targets the next observation state.
+
+    The final frame has no next observation within the episode, so we clamp it to the last
+    available observation state. This keeps episode length unchanged and makes the terminal
+    action a hold-position command during replay.
+    """
+
+    if episode_buffer is None or episode_buffer.get("size", 0) == 0:
+        return
+
+    if ACTION not in episode_buffer or OBS_STATE not in episode_buffer:
+        return
+
+    alignment_indices = _get_action_alignment_indices(features)
+    if alignment_indices is None:
+        return
+
+    observation_states = episode_buffer[OBS_STATE]
+    if len(observation_states) != episode_buffer["size"]:
+        raise ValueError(
+            f"Episode buffer for '{OBS_STATE}' has {len(observation_states)} frames, "
+            f"expected {episode_buffer['size']}."
+        )
+
+    aligned_actions: list[np.ndarray] = []
+    last_observation_state = np.asarray(observation_states[-1], dtype=np.float32)
+
+    for frame_idx in range(episode_buffer["size"]):
+        next_state_idx = min(frame_idx + 1, episode_buffer["size"] - 1)
+        next_observation_state = np.asarray(observation_states[next_state_idx], dtype=np.float32)
+        source_state = next_observation_state if frame_idx < episode_buffer["size"] - 1 else last_observation_state
+        aligned_actions.append(source_state[alignment_indices].copy())
+
+    episode_buffer[ACTION] = aligned_actions
 
 
 @safe_stop_image_writer
@@ -557,6 +643,11 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     continue
 
                 print(f"[record] Saving episode {episode_idx}/{cfg.dataset.num_episodes}", flush=True)
+                if robot.name == "agilex":
+                    _align_episode_actions_with_next_observation_state(
+                        getattr(dataset, "episode_buffer", None),
+                        getattr(dataset, "features", {}),
+                    )
                 dataset.save_episode()
                 print(f"[record] Saved episode {episode_idx}/{cfg.dataset.num_episodes}", flush=True)
                 recorded_episodes += 1
