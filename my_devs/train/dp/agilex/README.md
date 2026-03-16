@@ -10,6 +10,9 @@
    - 默认训练双臂数据集 `datasets/lerobot_datasets/first_test`
 2. `train_first_test_right.sh`
    - 默认训练右臂单臂数据集 `datasets/lerobot_datasets/first_test_right`
+3. `run_dp_single_arm_infer.py`
+   - 右臂单臂 Diffusion Policy 上机推理脚本
+   - 默认 checkpoint 指向 `outputs/train/20260315_214740_dp_agilex_first_test_right_full/checkpoints/100000/pretrained_model`
 
 训练脚本的调用风格、参数布局和环境变量覆盖方式，对齐 `my_devs/train/act/agilex`。
 
@@ -228,3 +231,39 @@ bash my_devs/train/dp/agilex/train_first_test_right.sh
 DRY_RUN=1 bash my_devs/train/dp/agilex/train_first_test.sh
 DRY_RUN=1 bash my_devs/train/dp/agilex/train_first_test_right.sh
 ```
+
+## 8. 右臂推理脚本
+
+先做 dry-run：
+
+```bash
+source /home/agilex/miniconda3/etc/profile.d/conda.sh
+conda activate lerobot_flex
+python my_devs/train/dp/agilex/run_dp_single_arm_infer.py --dry-run true
+```
+
+只做观测检查：
+
+```bash
+python my_devs/train/dp/agilex/run_dp_single_arm_infer.py \
+  --arm right \
+  --execution-mode observation_only \
+  --run-time-s 10
+```
+
+做右臂影子推理，不下发真实指令：
+
+```bash
+python my_devs/train/dp/agilex/run_dp_single_arm_infer.py \
+  --arm right \
+  --execution-mode policy_inference \
+  --control-mode passive_follow \
+  --run-time-s 10
+```
+
+如果后面要改 Diffusion 部署参数，目前脚本只直接开放：
+
+1. `--policy-n-action-steps`
+2. `--policy-num-inference-steps`
+
+像 `down_dims`、`crop_shape` 这种结构化参数，建议直接改 checkpoint 配置或另写专用部署命令。
