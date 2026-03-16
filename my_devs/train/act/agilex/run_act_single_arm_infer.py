@@ -32,6 +32,15 @@ python my_devs/train/act/agilex/run_act_single_arm_infer.py \
     --control-mode command_master \
     --policy-path /home/agilex/cqy/flexible_lerobot/outputs/train/20260314_215531_act_agilex_first_test_right_full/checkpoints/100000/pretrained_model \
     --run-time-s 8
+
+python my_devs/train/act/agilex/run_act_single_arm_infer.py \
+    --arm right \
+    --execution-mode policy_inference \
+    --control-mode command_master \
+    --policy-path /home/agilex/cqy/flexible_lerobot/outputs/train/20260314_215531_act_agilex_first_test_right_full/checkpoints/100000/pretrained_model \
+    --policy-n-action-steps 1 \
+    --policy-temporal-ensemble-coeff 0.01 \
+    --run-time-s 8
 """
 
 from __future__ import annotations
