@@ -268,6 +268,9 @@ class AsyncRobotClientConfig:
     close_ack_timeout_s: float
     max_consecutive_timeouts: int
     dry_consume: bool
+    actuate: bool
+    actuation_warmup_steps: int
+    max_action_age_ms: float
     reset_on_connect: bool
     metrics_output_path: Path | None
     dry_run: bool = False
@@ -320,9 +323,16 @@ class AsyncClientMetrics:
     foreign_session_drop_count: int = 0
     duplicate_response_drop_count: int = 0
     must_go_count: int = 0
+    consumed_action_count: int = 0
     executed_action_count: int = 0
+    actuated_action_count: int = 0
+    hold_command_count: int = 0
+    warmup_hold_count: int = 0
+    stale_action_drop_count: int = 0
+    send_action_failures: int = 0
     request_send_latency_ms: list[float] = field(default_factory=list)
     round_trip_latency_ms: list[float] = field(default_factory=list)
+    action_age_at_consume_ms: list[float] = field(default_factory=list)
     action_age_at_execution_ms: list[float] = field(default_factory=list)
     queue_size_before_send: list[int] = field(default_factory=list)
     queue_size_after_ack: list[int] = field(default_factory=list)
@@ -350,11 +360,18 @@ class AsyncClientMetrics:
             "foreign_session_drop_count": self.foreign_session_drop_count,
             "duplicate_response_drop_count": self.duplicate_response_drop_count,
             "must_go_count": self.must_go_count,
+            "consumed_action_count": self.consumed_action_count,
             "executed_action_count": self.executed_action_count,
+            "actuated_action_count": self.actuated_action_count,
+            "hold_command_count": self.hold_command_count,
+            "warmup_hold_count": self.warmup_hold_count,
+            "stale_action_drop_count": self.stale_action_drop_count,
+            "send_action_failures": self.send_action_failures,
             "queue_underflow_rate": self.hold_cycles / float(control_cycles),
             "response_stale_or_drop_rate": stale_or_drop / float(max(self.ack_count + stale_or_drop, 1)),
             "request_send_latency_ms": _summarize_distribution(self.request_send_latency_ms),
             "round_trip_latency_ms": _summarize_distribution(self.round_trip_latency_ms),
+            "action_age_at_consume_ms": _summarize_distribution(self.action_age_at_consume_ms),
             "action_age_at_execution_ms": _summarize_distribution(self.action_age_at_execution_ms),
             "queue_size_before_send": _summarize_distribution(
                 [float(value) for value in self.queue_size_before_send]
@@ -984,6 +1001,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 4 default. Consume the queue and build the merged action, but do not actuate the robot.",
     )
     parser.add_argument(
+        "--actuate",
+        type=parse_bool,
+        nargs="?",
+        const=True,
+        default=env_bool("ASYNC_ACTUATE", False),
+        help="Phase 6 guarded bringup switch. When enabled, the client publishes hold/policy commands to the robot.",
+    )
+    parser.add_argument(
+        "--actuation-warmup-steps",
+        type=int,
+        default=int(os.getenv("ASYNC_ACTUATION_WARMUP_STEPS", "5")),
+        help="Number of initial control steps to publish only hold actions before applying policy actions.",
+    )
+    parser.add_argument(
+        "--max-action-age-ms",
+        type=float,
+        default=float(os.getenv("ASYNC_MAX_ACTION_AGE_MS", "1000.0")),
+        help="Stale-action guard in milliseconds. Set 0 to disable and accept all policy action ages.",
+    )
+    parser.add_argument(
         "--reset-on-connect",
         type=parse_bool,
         nargs="?",
@@ -1020,6 +1057,18 @@ def validate_config(config: AsyncRobotClientConfig) -> None:
         )
     if config.max_consecutive_timeouts < 1:
         raise ValueError("max_consecutive_timeouts must be >= 1")
+    if config.actuation_warmup_steps < 0:
+        raise ValueError(f"actuation_warmup_steps must be >= 0, got {config.actuation_warmup_steps}")
+    if config.max_action_age_ms < 0.0:
+        raise ValueError(f"max_action_age_ms must be >= 0, got {config.max_action_age_ms}")
+    if not config.actuate and not config.dry_consume:
+        raise ValueError("Use --actuate true to leave dry-consume mode; --dry-consume false alone is not enough")
+    if config.actuate and config.control_mode != "command_master":
+        raise ValueError("actuate=true requires --control-mode command_master")
+    if config.actuate and str(config.control_arm).strip().lower() == AUTO_ARM:
+        raise ValueError("actuate=true requires an explicit --control-arm (left/right/both), not auto")
+    if config.actuate and config.run_time_s <= 0:
+        raise ValueError("actuate=true requires a bounded --run-time-s for the first bringup")
 
 
 def print_runtime_summary(config: AsyncRobotClientConfig) -> None:
@@ -1037,7 +1086,16 @@ def print_runtime_summary(config: AsyncRobotClientConfig) -> None:
     )
     print(
         f"[INFO] dry_consume={config.dry_consume} "
-        "(Phase 4 default; merged action is produced but not actuated)"
+        + (
+            "(actuation enabled; hold/policy commands may be published)"
+            if config.actuate
+            else "(Phase 4 default; merged action is produced but not actuated)"
+        )
+    )
+    print(
+        "[INFO] actuation: "
+        f"enabled={config.actuate} warmup_steps={config.actuation_warmup_steps} "
+        f"max_action_age_ms={config.max_action_age_ms:.1f}"
     )
     print(f"[INFO] metrics_output_path: {config.metrics_output_path}")
     print(f"[INFO] run_time_s: {config.run_time_s} (<=0 means until Ctrl+C)")
@@ -1057,6 +1115,9 @@ def build_metrics_report(
             "chunk_size": config.chunk_size,
             "response_timeout_s": config.response_timeout_s,
             "dry_consume": config.dry_consume,
+            "actuate": config.actuate,
+            "actuation_warmup_steps": config.actuation_warmup_steps,
+            "max_action_age_ms": config.max_action_age_ms,
             "reset_on_connect": config.reset_on_connect,
         },
         "session_id": client.session_id,
@@ -1064,6 +1125,18 @@ def build_metrics_report(
         "latest_send_debug_payload": client.latest_send_debug_payload,
         "metrics": client.metrics.summary(),
     }
+
+
+def maybe_actuate_robot(robot: Any, action: dict[str, float]) -> None:
+    _ = robot.send_action(action)
+
+
+def publish_robot_action(robot: Any, action: dict[str, float], metrics: AsyncClientMetrics) -> None:
+    try:
+        maybe_actuate_robot(robot, action)
+    except Exception:
+        metrics.send_action_failures += 1
+        raise
 
 
 def write_metrics_report(report: dict[str, Any], output_path: Path | None, logger) -> None:
@@ -1095,6 +1168,7 @@ def run(config: AsyncRobotClientConfig) -> None:
     first_observation_logged = False
     robot_observation_processor = None
     observation_dataset_features = None
+    last_raw_observation: dict[str, Any] | None = None
 
     try:
         policy_client.start()
@@ -1106,7 +1180,11 @@ def run(config: AsyncRobotClientConfig) -> None:
             image_width=config.image_width,
         )
         robot.connect()
-        logger.info("AgileX connected for async dry-consume loop")
+        logger.info(
+            "AgileX connected for async loop | actuate=%s | publish_enabled=%s",
+            config.actuate,
+            config.control_mode == "command_master",
+        )
 
         step = 0
         while True:
@@ -1121,6 +1199,7 @@ def run(config: AsyncRobotClientConfig) -> None:
 
             loop_started = now_mono()
             raw_observation = robot.get_observation()
+            last_raw_observation = raw_observation
             validate_live_observation(
                 raw_observation,
                 image_height=config.image_height,
@@ -1148,18 +1227,44 @@ def run(config: AsyncRobotClientConfig) -> None:
 
             policy_client.handle_watchdog()
 
+            hold_action = build_agilex_hold_action(raw_observation)
             buffered_action = policy_client.pop_action()
             if buffered_action is None:
                 policy_client.metrics.hold_cycles += 1
+                if config.actuate:
+                    publish_robot_action(robot, hold_action, policy_client.metrics)
+                    policy_client.metrics.hold_command_count += 1
             else:
-                hold_action = build_agilex_hold_action(raw_observation)
                 merged_action = merge_agilex_action(hold_action, buffered_action.predicted_action)
-                _ = merged_action
+                action_age_ms = max(now_wall() - buffered_action.capture_ts, 0.0) * 1000.0
                 policy_client.last_executed_action_id = buffered_action.action_id
-                policy_client.metrics.executed_action_count += 1
-                policy_client.metrics.action_age_at_execution_ms.append(
-                    max(now_wall() - buffered_action.capture_ts, 0.0) * 1000.0
+                policy_client.metrics.consumed_action_count += 1
+                policy_client.metrics.action_age_at_consume_ms.append(action_age_ms)
+
+                should_hold_for_staleness = (
+                    config.max_action_age_ms > 0.0 and action_age_ms > config.max_action_age_ms
                 )
+                if should_hold_for_staleness:
+                    policy_client.metrics.stale_action_drop_count += 1
+                    logger.warning(
+                        "Dropping stale async action and publishing hold | action_id=%s | age_ms=%.2f | limit_ms=%.2f",
+                        buffered_action.action_id,
+                        action_age_ms,
+                        config.max_action_age_ms,
+                    )
+                    if config.actuate:
+                        publish_robot_action(robot, hold_action, policy_client.metrics)
+                        policy_client.metrics.hold_command_count += 1
+                elif config.actuate:
+                    if step < config.actuation_warmup_steps:
+                        publish_robot_action(robot, hold_action, policy_client.metrics)
+                        policy_client.metrics.hold_command_count += 1
+                        policy_client.metrics.warmup_hold_count += 1
+                    else:
+                        publish_robot_action(robot, merged_action, policy_client.metrics)
+                        policy_client.metrics.executed_action_count += 1
+                        policy_client.metrics.actuated_action_count += 1
+                        policy_client.metrics.action_age_at_execution_ms.append(action_age_ms)
 
             try:
                 policy_client.send_infer_request(policy_observation)
@@ -1173,7 +1278,7 @@ def run(config: AsyncRobotClientConfig) -> None:
             if config.log_interval > 0 and step % config.log_interval == 0:
                 logger.info(
                     "Async step=%s | queue=%s | pending=%s | avg_control_fps=%.2f | hold_cycles=%s | "
-                    "ack=%s retry=%s abort=%s timeout=%s drops=%s",
+                    "ack=%s retry=%s abort=%s timeout=%s drops=%s | actuated=%s hold_cmd=%s stale_drop=%s",
                     step,
                     policy_client.queue_size(),
                     getattr(policy_client.pending_request, "request_id", None),
@@ -1186,6 +1291,9 @@ def run(config: AsyncRobotClientConfig) -> None:
                     policy_client.metrics.late_response_drop_count
                     + policy_client.metrics.foreign_session_drop_count
                     + policy_client.metrics.duplicate_response_drop_count,
+                    policy_client.metrics.actuated_action_count,
+                    policy_client.metrics.hold_command_count,
+                    policy_client.metrics.stale_action_drop_count,
                 )
 
             step += 1
@@ -1197,6 +1305,11 @@ def run(config: AsyncRobotClientConfig) -> None:
             report = build_metrics_report(config, policy_client, avg_control_fps)
             write_metrics_report(report, config.metrics_output_path, logger)
         finally:
+            if config.actuate and getattr(robot, "is_connected", False) and last_raw_observation is not None:
+                try:
+                    maybe_actuate_robot(robot, build_agilex_hold_action(last_raw_observation))
+                except Exception as exc:
+                    logger.warning("Failed to publish final hold action during shutdown: %s", exc)
             policy_client.stop()
             if getattr(robot, "is_connected", False):
                 robot.disconnect()
@@ -1204,6 +1317,7 @@ def run(config: AsyncRobotClientConfig) -> None:
 
 def main() -> None:
     args = build_parser().parse_args()
+    effective_dry_consume = args.dry_consume and not args.actuate
     config = AsyncRobotClientConfig(
         robot_id=args.robot_id,
         control_mode=args.control_mode,
@@ -1244,7 +1358,10 @@ def main() -> None:
         reset_ack_timeout_s=args.reset_ack_timeout_s,
         close_ack_timeout_s=args.close_ack_timeout_s,
         max_consecutive_timeouts=args.max_consecutive_timeouts,
-        dry_consume=args.dry_consume,
+        dry_consume=effective_dry_consume,
+        actuate=args.actuate,
+        actuation_warmup_steps=args.actuation_warmup_steps,
+        max_action_age_ms=args.max_action_age_ms,
         reset_on_connect=args.reset_on_connect,
         metrics_output_path=normalize_optional_path(args.metrics_output_path),
         dry_run=args.dry_run,
