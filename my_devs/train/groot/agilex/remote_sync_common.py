@@ -44,7 +44,7 @@ from lerobot.processor.converters import (
 )
 from lerobot.processor.device_processor import DeviceProcessorStep
 from lerobot.robots.agilex import AgileXRobotConfig
-from lerobot.robots.agilex.agilex_ros_bridge import CAMERA_KEYS, POSITION_FEATURE_NAMES
+from lerobot.robots.agilex.agilex_ros_bridge import ACTION_FEATURE_NAMES, CAMERA_KEYS, POSITION_FEATURE_NAMES
 from lerobot.utils.constants import OBS_STR
 from lerobot.utils.import_utils import register_third_party_plugins
 from lerobot.utils.utils import auto_select_torch_device, init_logging
