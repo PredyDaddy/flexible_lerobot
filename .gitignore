@@ -193,3 +193,6 @@ google
 *.json
 
 *.jsonl
+
+# ACT TRT exported model artifacts (too large for regular Git)
+my_devs/docs/act_trt/reference_docs/trt_act/export_models/*.onnx

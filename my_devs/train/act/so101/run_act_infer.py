@@ -34,9 +34,15 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+if __package__ is None or __package__ == "":
+    repo_root = Path(__file__).resolve().parents[4]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
 
 from lerobot import policies  # noqa: F401  # Register policy config classes.
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
@@ -139,6 +145,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--policy-path", default=os.getenv("POLICY_PATH", DEFAULT_POLICY_PATH))
     parser.add_argument(
+        "--policy-backend",
+        choices=["torch", "trt"],
+        default=os.getenv("POLICY_BACKEND", "torch"),
+        help="Inference backend. `trt` reuses the same pre/post processors but swaps the policy core.",
+    )
+    parser.add_argument(
         "--policy-device",
         default=os.getenv("POLICY_DEVICE_OVERRIDE"),
         help="Override checkpoint device with one of cpu/cuda/mps/xpu/auto.",
@@ -154,6 +166,21 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_optional_float,
         default=parse_optional_float(os.getenv("POLICY_TEMPORAL_ENSEMBLE_COEFF")),
         help="Optional ACT deployment override. If set, requires policy-n-action-steps=1.",
+    )
+    parser.add_argument(
+        "--trt-engine-path",
+        default=os.getenv("TRT_ENGINE_PATH"),
+        help="Optional TensorRT engine path. If omitted, derive from the policy checkpoint path.",
+    )
+    parser.add_argument(
+        "--trt-metadata-path",
+        default=os.getenv("TRT_METADATA_PATH"),
+        help="Optional ACT TRT export metadata path. If omitted, derive from the policy checkpoint path.",
+    )
+    parser.add_argument(
+        "--trt-device",
+        default=os.getenv("TRT_DEVICE", "cuda:0"),
+        help="CUDA device used by the TensorRT runtime.",
     )
     parser.add_argument(
         "--task",
@@ -185,16 +212,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 def load_pre_post_processors(
     policy_path: Path,
+    *,
+    policy_device: str | None = None,
 ) -> tuple[
     PolicyProcessorPipeline[dict[str, Any], dict[str, Any]],
     PolicyProcessorPipeline[PolicyAction, PolicyAction],
 ]:
     """Load saved policy processors directly from checkpoint directory."""
+    preprocessor_kwargs: dict[str, Any] = {
+        "pretrained_model_name_or_path": str(policy_path),
+        "config_filename": "policy_preprocessor.json",
+        "to_transition": batch_to_transition,
+        "to_output": transition_to_batch,
+    }
+    if policy_device is not None:
+        preprocessor_kwargs["overrides"] = {"device_processor": {"device": policy_device}}
+
     preprocessor = PolicyProcessorPipeline.from_pretrained(
-        pretrained_model_name_or_path=str(policy_path),
-        config_filename="policy_preprocessor.json",
-        to_transition=batch_to_transition,
-        to_output=transition_to_batch,
+        **preprocessor_kwargs,
     )
     postprocessor = PolicyProcessorPipeline.from_pretrained(
         pretrained_model_name_or_path=str(policy_path),
@@ -231,13 +266,37 @@ def apply_act_runtime_overrides(
         policy_cfg.temporal_ensemble_coeff = policy_temporal_ensemble_coeff
 
 
-def main() -> None:
+def resolve_trt_artifacts(
+    policy_path: Path,
+    trt_engine_path: str | None,
+    trt_metadata_path: str | None,
+) -> tuple[Path, Path]:
+    from my_devs.new_act_trt.scripts.act_model_utils import (
+        resolve_default_engine_path,
+        resolve_default_metadata_path,
+    )
+
+    engine_path = (
+        Path(trt_engine_path).expanduser().resolve()
+        if trt_engine_path
+        else resolve_default_engine_path(policy_path)
+    )
+    metadata_path = (
+        Path(trt_metadata_path).expanduser().resolve()
+        if trt_metadata_path
+        else resolve_default_metadata_path(policy_path)
+    )
+    return engine_path, metadata_path
+
+
+def main(argv: list[str] | None = None) -> None:
     register_third_party_plugins()
-    args = build_parser().parse_args()
+    args = build_parser().parse_args(argv)
 
     policy_path = Path(args.policy_path).expanduser()
     if not policy_path.is_dir():
         raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
+    policy_backend = args.policy_backend.strip().lower()
 
     if args.robot_type not in {"so100_follower", "so101_follower"}:
         raise ValueError(
@@ -274,13 +333,36 @@ def main() -> None:
         policy_n_action_steps=args.policy_n_action_steps,
         policy_temporal_ensemble_coeff=args.policy_temporal_ensemble_coeff,
     )
+    trt_engine_path: Path | None = None
+    trt_metadata_path: Path | None = None
+    if policy_backend == "trt":
+        if get_safe_torch_device(policy_cfg.device).type != "cuda":
+            raise ValueError(
+                "ACT TensorRT backend requires a CUDA policy device. "
+                f"Resolved policy device: {policy_cfg.device}"
+            )
+        trt_engine_path, trt_metadata_path = resolve_trt_artifacts(
+            policy_path=policy_path,
+            trt_engine_path=args.trt_engine_path,
+            trt_metadata_path=args.trt_metadata_path,
+        )
+        if not trt_engine_path.is_file():
+            raise FileNotFoundError(f"TensorRT engine path does not exist: {trt_engine_path}")
+        if not trt_metadata_path.is_file():
+            raise FileNotFoundError(f"TensorRT metadata path does not exist: {trt_metadata_path}")
 
     print(f"[INFO] Robot id: {args.robot_id}")
     print(f"[INFO] Robot type (requested): {args.robot_type}")
     print(f"[INFO] Robot port: {args.robot_port}")
     print(f"[INFO] Policy path: {policy_path}")
     print(f"[INFO] Policy type: {policy_cfg.type}")
+    print(f"[INFO] Policy backend: {policy_backend}")
     print(f"[INFO] Policy device: {policy_cfg.device}")
+    if trt_engine_path is not None:
+        print(f"[INFO] TRT engine path: {trt_engine_path}")
+    if trt_metadata_path is not None:
+        print(f"[INFO] TRT metadata path: {trt_metadata_path}")
+        print(f"[INFO] TRT runtime device: {args.trt_device}")
     print(f"[INFO] Task: {args.task}")
     print(f"[INFO] FPS: {args.fps}")
     print(f"[INFO] run_time_s: {args.run_time_s} (<=0 means until Ctrl+C)")
@@ -299,12 +381,23 @@ def main() -> None:
 
     robot = make_robot_from_config(robot_cfg)
 
-    policy_class = get_policy_class(policy_cfg.type)
-    policy = policy_class.from_pretrained(str(policy_path), config=policy_cfg, strict=False)
-    policy.config.device = policy_cfg.device
-    policy.to(policy_cfg.device)
+    if policy_backend == "torch":
+        policy_class = get_policy_class(policy_cfg.type)
+        policy = policy_class.from_pretrained(str(policy_path), config=policy_cfg, strict=False)
+        policy.config.device = policy_cfg.device
+        policy.to(policy_cfg.device)
+    else:
+        from my_devs.new_act_trt.scripts.trt_act_policy import TrtActPolicyAdapter
 
-    preprocessor, postprocessor = load_pre_post_processors(policy_path)
+        policy = TrtActPolicyAdapter(
+            policy_cfg,
+            engine_path=trt_engine_path,
+            metadata_path=trt_metadata_path,
+            trt_device=args.trt_device,
+        )
+        policy.config.device = policy_cfg.device
+
+    preprocessor, postprocessor = load_pre_post_processors(policy_path, policy_device=policy_cfg.device)
 
     _, robot_action_processor, robot_observation_processor = make_default_processors()
     dataset_features = combine_feature_dicts(

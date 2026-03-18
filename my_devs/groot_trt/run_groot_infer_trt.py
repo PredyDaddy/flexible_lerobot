@@ -9,18 +9,33 @@ Safety:
 - Supports `--mock true` to run the full loop WITHOUT sending actions to the robot.
 - Start with a short `--run-time-s` and low `--fps`, and keep your E-stop ready.
 
-Example (mock, no action send):
+Quick start on this machine (mock, no action send):
 
-  TMPDIR=/data/cqy_workspace/tmp \\
-  conda run -n lerobot_flex env TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35 \\
-    python my_devs/groot_trt/run_groot_infer_trt.py \\
-      --robot-port /dev/ttyACM0 \\
-      --top-cam-index 4 --wrist-cam-index 6 \\
-      --task \"Put the block in the bin\" \\
-      --policy-path /path/to/pretrained_model \\
-      --engine-dir /path/to/gr00t_engine_api_trt1013 \\
-      --run-time-s 10 --fps 5 \\
-      --mock true
+  export TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35
+
+  python3 my_devs/groot_trt/run_groot_infer_trt.py \\
+    --engine-dir /data/cqy_workspace/flexible_lerobot/outputs/trt/consistency_rerun_20260305_102931/gr00t_engine_api_trt1013 \\
+    --robot-port /dev/ttyACM0 \\
+    --top-cam-index 4 \\
+    --wrist-cam-index 6 \\
+    --task "Put the block in the bin" \\
+    --run-time-s 10 \\
+    --fps 5 \\
+    --mock true
+
+Example (real action send):
+
+  export TENSORRT_PY_DIR=/data/cqy_workspace/third_party/tensorrt_10_13_0_35
+
+  python3 my_devs/groot_trt/run_groot_infer_trt.py \
+    --engine-dir /data/cqy_workspace/flexible_lerobot/outputs/trt/consistency_rerun_20260305_102931/gr00t_engine_api_trt1013 \
+    --robot-port /dev/ttyACM0 \
+    --top-cam-index 4 \
+    --wrist-cam-index 6 \
+    --task "Put the block in the bin" \
+    --run-time-s 120 \
+    --fps 30 \
+    --mock false
 """
 
 from __future__ import annotations
