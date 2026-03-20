@@ -3,68 +3,48 @@
 set -Eeuo pipefail
 
 # -----------------------------------------------------------------------------
-# Agilex ACT 单臂训练脚本（右臂）
+# Agilex ACT 单臂训练脚本（右臂，默认使用 cleaned 数据集）
 # 说明：
-# - 风格和参数布局参考 my_devs/train/act/so101/train_full.sh，但当前是独立脚本
-# - 默认训练 datasets/lerobot_datasets/first_test_right
-# - 支持通过环境变量覆盖常用参数
+# - 默认训练 my_devs/split_datasets/outputs/dummy/first_test_right_drop_57_163_227
+# - 默认按 15 epochs 自动换算总 steps，而不是手填固定 steps
+# - 默认 batch size 取 16，先偏稳妥，后续可由环境变量自行上调
 # -----------------------------------------------------------------------------
 
-# 训练使用的 conda 环境名。
+# Runtime env
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-lerobot_flex}"
-# 是否离线读取 Hugging Face Hub；默认开启，避免训练时误走外网。
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
-# 是否离线读取 datasets；默认开启。
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
-# 是否离线读取 transformers；默认开启。
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
-# Hugging Face datasets 缓存目录。
 export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-/tmp/hf_datasets}"
 
-# 当前脚本所在目录。
+# Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# 仓库根目录。
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
-# 训练日志输出目录。
 LOG_DIR="${LOG_DIR:-${ROOT_DIR}/logs}"
-# 训练产物总输出目录。
 OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOT_DIR}/outputs/train}"
 
-# 传给 lerobot-train 的数据集 repo_id；默认使用 first_test_right。
-DATASET_REPO_ID="${DATASET_REPO_ID:-first_test_right}"
-# 数据集根目录；默认指向右臂单臂数据集 first_test_right。
-DATASET_ROOT="${DATASET_ROOT:-${ROOT_DIR}/datasets/lerobot_datasets/first_test_right}"
+# Cleaned dataset defaults
+DATASET_REPO_ID="${DATASET_REPO_ID:-dummy/first_test_right_drop_57_163_227}"
+DATASET_ROOT="${DATASET_ROOT:-${ROOT_DIR}/my_devs/split_datasets/outputs/dummy/first_test_right_drop_57_163_227}"
+DATASET_VIDEO_BACKEND="${DATASET_VIDEO_BACKEND:-pyav}"
 
-# 本次训练任务名；会拼到输出目录和日志文件名中。
-JOB_NAME="${JOB_NAME:-act_agilex_first_test_right_full}"
-# 策略类型；这里固定默认使用 ACT。
+# Training defaults
+EPOCHS="${EPOCHS:-15}"
+BATCH_SIZE="${BATCH_SIZE:-16}"
+SAVE_EVERY_EPOCHS="${SAVE_EVERY_EPOCHS:-5}"
+JOB_NAME="${JOB_NAME:-act_agilex_first_test_right_drop_57_163_227_e${EPOCHS}}"
 POLICY_TYPE="${POLICY_TYPE:-act}"
-# 训练设备；auto 会自动检测 cuda/cpu。
 POLICY_DEVICE="${POLICY_DEVICE:-auto}"
-# 单卡 batch size；右臂单臂输入更轻，默认取 32。
-BATCH_SIZE="${BATCH_SIZE:-8}"
-# 总训练步数。
-STEPS="${STEPS:-100000}"
-# 每隔多少步保存一次 checkpoint。
-SAVE_FREQ="${SAVE_FREQ:-10000}"
-# 每隔多少步做一次评估；默认 -1 表示关闭。
 EVAL_FREQ="${EVAL_FREQ:--1}"
-# 每隔多少步打印一次训练日志。
 LOG_FREQ="${LOG_FREQ:-100}"
-# DataLoader worker 数量。
 NUM_WORKERS="${NUM_WORKERS:-4}"
-# 随机种子。
 SEED="${SEED:-1000}"
-# 是否把训练产物推送到 Hub。
 PUSH_TO_HUB="${PUSH_TO_HUB:-false}"
-# 是否启用 wandb。
 WANDB_ENABLE="${WANDB_ENABLE:-false}"
 
-# 可选：仅训练某些 episode，例如 "[0,1,2]"。
+# Optional overrides
 DATASET_EPISODES="${DATASET_EPISODES:-}"
-# 可选：手工指定 GPU，例如 "0" 或 "0,1"。
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-}"
-# 仅预演命令，不真正启动训练；1 表示开启。
 DRY_RUN="${DRY_RUN:-0}"
 
 mkdir -p "${LOG_DIR}" "${OUTPUT_ROOT}" "${HF_DATASETS_CACHE}"
@@ -90,6 +70,21 @@ if [[ "${CONDA_DEFAULT_ENV:-}" != "${CONDA_ENV_NAME}" ]]; then
   RUNNER=(conda run --no-capture-output -n "${CONDA_ENV_NAME}")
 fi
 
+if [[ ! "${EPOCHS}" =~ ^[0-9]+$ ]] || [[ "${EPOCHS}" -le 0 ]]; then
+  echo "ERROR: EPOCHS must be a positive integer, got: ${EPOCHS}" >&2
+  exit 2
+fi
+
+if [[ ! "${BATCH_SIZE}" =~ ^[0-9]+$ ]] || [[ "${BATCH_SIZE}" -le 0 ]]; then
+  echo "ERROR: BATCH_SIZE must be a positive integer, got: ${BATCH_SIZE}" >&2
+  exit 2
+fi
+
+if [[ ! "${SAVE_EVERY_EPOCHS}" =~ ^[0-9]+$ ]] || [[ "${SAVE_EVERY_EPOCHS}" -le 0 ]]; then
+  echo "ERROR: SAVE_EVERY_EPOCHS must be a positive integer, got: ${SAVE_EVERY_EPOCHS}" >&2
+  exit 2
+fi
+
 if [[ "${POLICY_DEVICE}" == "auto" ]]; then
   detected_device="$("${RUNNER[@]}" python -c "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')" || true)"
   if [[ "${detected_device}" == "cuda" ]]; then
@@ -99,10 +94,32 @@ if [[ "${POLICY_DEVICE}" == "auto" ]]; then
   fi
 fi
 
+INFO_JSON="${DATASET_ROOT}/meta/info.json"
+if [[ ! -f "${INFO_JSON}" ]]; then
+  echo "ERROR: dataset meta/info.json not found: ${INFO_JSON}" >&2
+  exit 2
+fi
+
+TOTAL_FRAMES="$("${RUNNER[@]}" python - <<'PY' "${INFO_JSON}"
+import json
+import sys
+from pathlib import Path
+
+info_path = Path(sys.argv[1])
+info = json.loads(info_path.read_text())
+total_frames = info.get("total_frames")
+if not isinstance(total_frames, int) or total_frames <= 0:
+    raise SystemExit(f"Invalid total_frames in {info_path}: {total_frames}")
+print(total_frames)
+PY
+)"
+
+STEPS_PER_EPOCH="$(( (TOTAL_FRAMES + BATCH_SIZE - 1) / BATCH_SIZE ))"
+STEPS="$(( STEPS_PER_EPOCH * EPOCHS ))"
+SAVE_FREQ="$(( STEPS_PER_EPOCH * SAVE_EVERY_EPOCHS ))"
+
 timestamp="$(date +'%Y%m%d_%H%M%S')"
-# 当前这次训练的实际输出目录；默认自动按时间戳生成。
 OUTPUT_DIR="${OUTPUT_DIR:-${OUTPUT_ROOT}/${timestamp}_${JOB_NAME}}"
-# 当前这次训练的日志文件。
 LOG_FILE="${LOG_FILE:-${LOG_DIR}/train_${JOB_NAME}_${timestamp}.log}"
 
 TRAIN_CMD=(
@@ -110,6 +127,7 @@ TRAIN_CMD=(
   lerobot-train
   "--dataset.repo_id=${DATASET_REPO_ID}"
   "--dataset.root=${DATASET_ROOT}"
+  "--dataset.video_backend=${DATASET_VIDEO_BACKEND}"
   "--policy.type=${POLICY_TYPE}"
   "--output_dir=${OUTPUT_DIR}"
   "--job_name=${JOB_NAME}"
@@ -137,13 +155,19 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   exit 0
 fi
 
+echo "[calc] dataset_repo_id=${DATASET_REPO_ID}"
+echo "[calc] dataset_root=${DATASET_ROOT}"
+echo "[calc] total_frames=${TOTAL_FRAMES}"
+echo "[calc] batch_size=${BATCH_SIZE}"
+echo "[calc] epochs=${EPOCHS}"
+echo "[calc] steps_per_epoch=${STEPS_PER_EPOCH}"
+echo "[calc] total_steps=${STEPS}"
+echo "[calc] save_every_epochs=${SAVE_EVERY_EPOCHS} -> save_freq=${SAVE_FREQ}"
+echo "[calc] dataset_video_backend=${DATASET_VIDEO_BACKEND}"
 echo "[start] script=train_first_test_right.sh conda_env=${CONDA_ENV_NAME}"
-echo "[start] dataset_repo_id=${DATASET_REPO_ID}"
-echo "[start] dataset_root=${DATASET_ROOT}"
 echo "[start] output_dir=${OUTPUT_DIR}"
 echo "[start] policy_device=${POLICY_DEVICE}"
-echo "[start] steps=${STEPS} batch_size=${BATCH_SIZE} num_workers=${NUM_WORKERS}"
-echo "[start] save_freq=${SAVE_FREQ} eval_freq=${EVAL_FREQ} log_freq=${LOG_FREQ}"
+echo "[start] num_workers=${NUM_WORKERS} eval_freq=${EVAL_FREQ} log_freq=${LOG_FREQ}"
 echo "[start] log_file=${LOG_FILE}"
 
 "${TRAIN_CMD[@]}" "$@" 2>&1 | tee "${LOG_FILE}"

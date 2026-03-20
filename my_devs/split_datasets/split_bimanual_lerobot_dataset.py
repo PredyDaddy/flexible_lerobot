@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
+import numpy as np
+import pandas as pd
+
+from lerobot.datasets.dataset_tools import _copy_data_with_feature_changes, _copy_videos
+from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
+from lerobot.datasets.utils import write_stats
 
 DEFAULT_SOURCE_ROOT = Path("/home/agilex/cqy/flexible_lerobot/my_devs/add_robot/agilex/outputs")
 DEFAULT_TARGET_ROOT = Path("/home/agilex/cqy/flexible_lerobot/my_devs/split_datasets/outputs")
@@ -271,6 +276,139 @@ def _save_episode_with_timestamps(dataset: LeRobotDataset, timestamps: list[floa
     dataset.save_episode()
 
 
+def _slice_stat_value(value: Any, value_slice: slice) -> Any:
+    if isinstance(value, np.ndarray):
+        if value.ndim > 0 and value.shape[0] == EXPECTED_BIMANUAL_DIM:
+            return value[value_slice]
+        return value.copy()
+    if isinstance(value, list):
+        if len(value) == EXPECTED_BIMANUAL_DIM:
+            return value[value_slice]
+        return list(value)
+    if isinstance(value, tuple):
+        if len(value) == EXPECTED_BIMANUAL_DIM:
+            return list(value[value_slice])
+        return list(value)
+    return value
+
+
+def _build_target_stats(source_stats: dict[str, dict[str, Any]] | None, arm_spec: ArmSpec) -> dict[str, dict[str, Any]] | None:
+    if source_stats is None:
+        return None
+
+    vector_slices = {
+        ACTION_KEY: arm_spec.action_slice,
+        STATE_KEY: arm_spec.state_slice,
+    }
+    allowed_keys = set(vector_slices) | set(arm_spec.image_keys) | {
+        "timestamp",
+        "frame_index",
+        "episode_index",
+        "index",
+        "task_index",
+    }
+
+    target_stats: dict[str, dict[str, Any]] = {}
+    for key in allowed_keys:
+        if key not in source_stats:
+            continue
+        target_stats[key] = {}
+        for stat_name, stat_value in source_stats[key].items():
+            if key in vector_slices:
+                target_stats[key][stat_name] = _slice_stat_value(stat_value, vector_slices[key])
+            elif isinstance(stat_value, np.ndarray):
+                target_stats[key][stat_name] = stat_value.copy()
+            else:
+                target_stats[key][stat_name] = stat_value
+
+    return target_stats
+
+
+def _rewrite_target_stats_file(target_dir: Path, source_dataset: LeRobotDataset, arm_spec: ArmSpec) -> None:
+    target_stats = _build_target_stats(source_dataset.meta.stats, arm_spec)
+    if target_stats is not None:
+        write_stats(target_stats, target_dir)
+
+
+def _drop_prefix_columns(df: pd.DataFrame, prefixes: list[str]) -> pd.DataFrame:
+    cols_to_drop = [column for column in df.columns if any(column.startswith(prefix) for prefix in prefixes)]
+    if cols_to_drop:
+        df = df.drop(columns=cols_to_drop)
+    return df
+
+
+def _rewrite_episode_metadata_for_arm(target_dir: Path, arm_spec: ArmSpec) -> None:
+    dropped_camera_key = RIGHT_CAMERA_KEY if arm_spec.arm_name == "left" else LEFT_CAMERA_KEY
+    vector_prefixes = {
+        f"stats/{ACTION_KEY}/": arm_spec.action_slice,
+        f"stats/{STATE_KEY}/": arm_spec.state_slice,
+    }
+    drop_prefixes = [
+        f"videos/{dropped_camera_key}/",
+        f"stats/{dropped_camera_key}/",
+    ]
+
+    for path in sorted((target_dir / "meta" / "episodes").rglob("*.parquet")):
+        df = pd.read_parquet(path)
+        df = _drop_prefix_columns(df, drop_prefixes)
+
+        for prefix, value_slice in vector_prefixes.items():
+            for column in [col for col in df.columns if col.startswith(prefix)]:
+                df[column] = df[column].apply(lambda value, value_slice=value_slice: _slice_stat_value(value, value_slice))
+
+        df.to_parquet(path, index=False)
+
+
+def _fast_copy_split_dataset(
+    *,
+    config: SplitConfig,
+    source_dataset: LeRobotDataset,
+) -> tuple[Path, Path]:
+    dataset_specs = (
+        ("left", config.left_repo_id, RIGHT_CAMERA_KEY),
+        ("right", config.right_repo_id, LEFT_CAMERA_KEY),
+    )
+
+    output_paths: dict[str, Path] = {}
+    for side, repo_id, dropped_camera_key in dataset_specs:
+        arm_spec = ARM_SPECS[side]
+        target_dir = repo_path(config.target_root, repo_id)
+        target_features = build_target_features(source_dataset.meta.info, arm_spec)
+        target_meta = LeRobotDatasetMetadata.create(
+            repo_id=repo_id,
+            fps=source_dataset.meta.fps,
+            features=target_features,
+            robot_type=source_dataset.meta.robot_type,
+            root=target_dir,
+            use_videos=True,
+        )
+        _copy_data_with_feature_changes(
+            dataset=source_dataset,
+            new_meta=target_meta,
+            add_features={
+                ACTION_KEY: (
+                    lambda row, _episode_idx, _frame_in_ep, value_slice=arm_spec.action_slice: row[ACTION_KEY][
+                        value_slice
+                    ],
+                    target_features[ACTION_KEY],
+                ),
+                STATE_KEY: (
+                    lambda row, _episode_idx, _frame_in_ep, value_slice=arm_spec.state_slice: row[STATE_KEY][
+                        value_slice
+                    ],
+                    target_features[STATE_KEY],
+                ),
+            },
+            remove_features=[dropped_camera_key],
+        )
+        _copy_videos(source_dataset, target_meta, exclude_keys=[dropped_camera_key])
+        _rewrite_target_stats_file(target_dir, source_dataset, arm_spec)
+        _rewrite_episode_metadata_for_arm(target_dir, arm_spec)
+        output_paths[side] = target_dir
+
+    return output_paths["left"], output_paths["right"]
+
+
 def split_dataset(config: SplitConfig) -> tuple[Path, Path]:
     source_dataset_dir = resolve_existing_dataset_root(config.source_root, config.source_repo_id)
     source_dataset = LeRobotDataset(
@@ -286,6 +424,13 @@ def split_dataset(config: SplitConfig) -> tuple[Path, Path]:
 
     left_target_dir = repo_path(config.target_root, config.left_repo_id)
     right_target_dir = repo_path(config.target_root, config.right_repo_id)
+
+    if config.task_mode == TASK_MODE_COPY and config.episode_indices is None:
+        return _fast_copy_split_dataset(
+            config=config,
+            source_dataset=source_dataset,
+        )
+
     use_videos = len(source_dataset.meta.video_keys) > 0
     source_fps = int(source_dataset.fps)
     source_info = source_dataset.meta.info

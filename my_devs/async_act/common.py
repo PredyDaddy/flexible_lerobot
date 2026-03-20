@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -213,6 +214,7 @@ def format_checkpoint_summary(
     arm: str,
     policy_path: Path,
     policy_cfg: PreTrainedConfig,
+    client_fps: int,
     actions_per_chunk: int,
     chunk_size_threshold: float,
     aggregate_fn_name: str,
@@ -226,6 +228,18 @@ def format_checkpoint_summary(
     runtime_notes: list[str] | None = None,
 ) -> str:
     side_policy_key = ARM_TO_POLICY_CAMERA_KEY[arm]
+    control_dt_s = 1.0 / float(client_fps)
+    if runtime_mode == "act_temporal_ensemble":
+        replan_hint = (
+            "every control step "
+            f"(~{control_dt_s * 1000.0:.1f}ms / {control_dt_s:.3f}s) because temporal mode forces per-step refresh"
+        )
+    else:
+        steps_until_refresh = max(1, int(math.ceil(actions_per_chunk * max(0.0, 1.0 - chunk_size_threshold))))
+        replan_hint = (
+            f"every ~{steps_until_refresh} control steps "
+            f"(~{steps_until_refresh * control_dt_s * 1000.0:.1f}ms / {steps_until_refresh * control_dt_s:.3f}s)"
+        )
     lines = [
         f"[INFO] Arm: {arm}",
         f"[INFO] Control mode: {control_mode}",
@@ -233,6 +247,8 @@ def format_checkpoint_summary(
         f"[INFO] Policy type: {policy_cfg.type}",
         f"[INFO] Policy device: {policy_cfg.device}",
         f"[INFO] Server address: {server_address}",
+        f"[INFO] client_fps: {client_fps}",
+        f"[INFO] client_control_dt: {control_dt_s * 1000.0:.2f}ms",
         (
             "[INFO] ACT config: "
             f"chunk_size={policy_cfg.chunk_size}, "
@@ -244,6 +260,8 @@ def format_checkpoint_summary(
         f"[INFO] actions_per_chunk: {actions_per_chunk}",
         f"[INFO] chunk_size_threshold: {chunk_size_threshold}",
         f"[INFO] aggregate_fn_name: {aggregate_fn_name}",
+        f"[INFO] action_horizon: ~{actions_per_chunk * control_dt_s:.3f}s per returned chunk",
+        f"[INFO] estimated_replan_interval: {replan_hint}",
         f"[INFO] action_smoothing_alpha: {action_smoothing_alpha}",
         f"[INFO] max_joint_step_rad: {max_joint_step_rad}",
         f"[INFO] run_time_s: {run_time_s} (<=0 means until Ctrl+C)",

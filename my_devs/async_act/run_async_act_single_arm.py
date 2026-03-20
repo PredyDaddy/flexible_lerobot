@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     server = subparsers.add_parser("server", help="Start async policy server.")
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8080)
-    server.add_argument("--fps", type=int, default=30)
+    server.add_argument("--fps", type=int, default=60)
     server.add_argument("--inference-latency", type=float, default=None)
     server.add_argument("--obs-queue-timeout", type=float, default=2.0)
 
@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     client.add_argument("--right-camera-topic", default="/camera_r/color/image_raw")
     client.add_argument("--observation-timeout-s", type=float, default=2.0)
     client.add_argument("--queue-size", type=int, default=1)
-    client.add_argument("--fps", type=int, default=30)
+    client.add_argument("--fps", type=int, default=60)
     client.add_argument("--policy-path", required=True)
     client.add_argument("--policy-device", default=None)
     client.add_argument("--server-address", default="127.0.0.1:8080")
@@ -164,6 +164,7 @@ def run_client(args: argparse.Namespace) -> int:
             arm=args.arm,
             policy_path=policy_path,
             policy_cfg=policy_cfg,
+            client_fps=client_cfg.fps,
             actions_per_chunk=client_cfg.actions_per_chunk,
             chunk_size_threshold=client_cfg.chunk_size_threshold,
             aggregate_fn_name=args.aggregate_fn_name,
