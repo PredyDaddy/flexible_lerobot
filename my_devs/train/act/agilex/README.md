@@ -85,11 +85,11 @@ bash my_devs/train/act/agilex/train_first_test.sh
 ### 2.2 右臂 smoke
 
 ```bash
-STEPS=20 \
 BATCH_SIZE=2 \
 NUM_WORKERS=0 \
 SAVE_FREQ=20 \
 LOG_FREQ=1 \
+STEPS=20 \
 WANDB_ENABLE=false \
 bash my_devs/train/act/agilex/train_first_test_right.sh
 ```
@@ -128,12 +128,15 @@ DRY_RUN=1 bash my_devs/train/act/agilex/train_first_test_right.sh
 
 - `DATASET_REPO_ID=first_test_right`
 - `DATASET_ROOT=/home/agilex/cqy/flexible_lerobot/datasets/lerobot_datasets/first_test_right`
-- `JOB_NAME=act_agilex_first_test_right_full`
+- `DATASET_VIDEO_BACKEND=pyav`
+- `EPOCHS=15`
+- `JOB_NAME=act_agilex_first_test_right_e15`
 - `POLICY_TYPE=act`
 - `POLICY_DEVICE=auto`
-- `BATCH_SIZE=32`
-- `STEPS=100000`
-- `SAVE_FREQ=10000`
+- `BATCH_SIZE=16`
+- `STEPS=` 空表示自动按 epoch 换算
+- `SAVE_EVERY_EPOCHS=5`
+- `SAVE_FREQ=` 空表示自动按 `SAVE_EVERY_EPOCHS` 换算
 - `EVAL_FREQ=-1`
 - `LOG_FREQ=100`
 - `NUM_WORKERS=4`
@@ -141,7 +144,7 @@ DRY_RUN=1 bash my_devs/train/act/agilex/train_first_test_right.sh
 - `PUSH_TO_HUB=false`
 - `WANDB_ENABLE=false`
 
-说明：右臂单臂默认 `BATCH_SIZE=32`，因为输入更轻，默认可以放得更大一些。
+说明：右臂脚本不是直接写死 `STEPS`，而是会读取 `meta/info.json` 里的 `total_frames`，按 `ceil(total_frames / batch_size) * EPOCHS` 自动换算总步数。对当前 `first_test_right` 数据集，默认 `BATCH_SIZE=16`、`EPOCHS=15` 时，总步数约为 `59910`，每 5 个 epoch 保存一次时 `save_freq=19970`。
 
 ---
 
@@ -153,6 +156,18 @@ DRY_RUN=1 bash my_devs/train/act/agilex/train_first_test_right.sh
 
 ```bash
 STEPS=20000 bash my_devs/train/act/agilex/train_first_test.sh
+```
+
+右臂脚本更推荐直接改 epoch 数：
+
+```bash
+EPOCHS=15 bash my_devs/train/act/agilex/train_first_test_right.sh
+```
+
+如果只是想做一个很小的 smoke test，也可以直接手工覆盖步数：
+
+```bash
+STEPS=20 SAVE_FREQ=20 bash my_devs/train/act/agilex/train_first_test_right.sh
 ```
 
 ### 4.2 改 batch size
@@ -347,8 +362,8 @@ bash my_devs/train/act/agilex/run_act_infer.sh
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 POLICY_DEVICE=cuda \
-BATCH_SIZE=32 \
-STEPS=50000 \
+BATCH_SIZE=16 \
+EPOCHS=15 \
 NUM_WORKERS=4 \
 bash my_devs/train/act/agilex/train_first_test_right.sh
 ```
@@ -385,7 +400,8 @@ DRY_RUN=1 bash my_devs/train/act/agilex/train_first_test.sh
   - `NUM_WORKERS=2`
 - 右臂：
   - `BATCH_SIZE=16`
-  - `STEPS=20000`
+  - `EPOCHS=15`
+  - 或者 `STEPS=20000`
   - `NUM_WORKERS=2`
 
 如果显存紧张，优先先降：

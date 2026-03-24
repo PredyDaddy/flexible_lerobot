@@ -27,20 +27,20 @@ python my_devs/train/act/agilex/run_act_single_arm_infer.py \
     --run-time-s 12
 
 python my_devs/train/act/agilex/run_act_single_arm_infer.py \
-    --arm right \
+    --arm left \
     --execution-mode policy_inference \
     --control-mode command_master \
-    --policy-path /home/agilex/cqy/flexible_lerobot/outputs/train/20260314_215531_act_agilex_first_test_right_full/checkpoints/100000/pretrained_model \
-    --run-time-s 8
+    --policy-path /home/agilex/cqy/flexible_lerobot/outputs/show/20260321_003349_act_agilex_both_black_cup_test_left_e15_bs64/checkpoints/006510/pretrained_model \
+    --run-time-s 60
 
 python my_devs/train/act/agilex/run_act_single_arm_infer.py \
     --arm right \
     --execution-mode policy_inference \
     --control-mode command_master \
-    --policy-path /home/agilex/cqy/flexible_lerobot/outputs/train/20260314_215531_act_agilex_first_test_right_full/checkpoints/100000/pretrained_model \
+    --policy-path /home/agilex/cqy/flexible_lerobot/outputs/show/black_cup_right/20260320_185053_act_agilex_both_black_cup_test_right/checkpoints/last/pretrained_model \
     --policy-n-action-steps 1 \
     --policy-temporal-ensemble-coeff 0.01 \
-    --run-time-s 8
+    --run-time-s 60
 """
 
 from __future__ import annotations
@@ -106,6 +106,35 @@ ARM_TO_POLICY_CAMERA_KEY = {
 ROBOT_TYPE = "agilex"
 DEFAULT_JOINT_NAMES = [f"joint{i}" for i in range(7)]
 INACTIVE_ARM_HOLD_ATOL = 1e-6
+
+# Vertical (task initial) home position for each arm (radians).
+# NOTE: These values are task-specific and come from Agilex live readings
+# (e.g. my_devs/agilex_scripts/read_current_joint_positions.py).
+VERTICAL_HOME_POSITION = {
+    # Black cup initial joints (left)
+    LEFT_PREFIX: [
+        -0.001761844,
+        1.184430156,
+        -1.176981568,
+        0.0,
+        1.222231304,
+        -0.048267548,
+        0.0021,
+    ],
+    # Black cup initial joints (right)
+    RIGHT_PREFIX: [
+        0.1936284,
+        1.15758384,
+        -1.278871972,
+        -0.166782084,
+        1.221550988,
+        0.17740548,
+        0.0007,
+    ],
+}
+VERTICAL_MOVE_TOLERANCE = 0.05  # radians tolerance for convergence check
+VERTICAL_MOVE_TIMEOUT_S = 10.0  # max time to wait for vertical position convergence
+VERTICAL_MOVE_STEP_DT = 0.033  # ~30Hz control loop for moving to vertical
 
 
 def parse_bool(value: str | bool) -> bool:
@@ -248,6 +277,16 @@ def build_parser() -> argparse.ArgumentParser:
         const=True,
         default=env_bool("DRY_RUN", False),
         help="Print resolved config and exit without connecting robot or loading model weights.",
+    )
+    parser.add_argument(
+        "--vertical",
+        "--verterical",
+        action="store_true",
+        default=env_bool("VERTICAL_INIT", False),
+        help=(
+            "Move robot to the configured vertical (task initial) home position before policy inference starts. "
+            "(Alias: --verterical)"
+        ),
     )
     return parser
 
@@ -508,6 +547,79 @@ def get_live_observation(bridge: AgileXRosBridge) -> dict[str, Any]:
     return observation
 
 
+def move_to_vertical_position(
+    bridge: AgileXRosBridge,
+    arm: str,
+    fps: int = 30,
+    tolerance: float = VERTICAL_MOVE_TOLERANCE,
+    timeout_s: float = VERTICAL_MOVE_TIMEOUT_S,
+) -> bool:
+    """Move the specified arm to vertical home position before inference.
+
+    This function sends continuous commands to move the active arm to a predefined
+    vertical "home" position while holding the inactive arm at its current pose.
+
+    Args:
+        bridge: The AgileX ROS bridge instance.
+        arm: Which arm to move ("left" or "right").
+        fps: Control loop frequency.
+        tolerance: Position tolerance in radians for convergence.
+        timeout_s: Maximum time to wait for convergence.
+
+    Returns:
+        True if converged within tolerance, False if timed out.
+    """
+    target_joints = VERTICAL_HOME_POSITION[arm]
+    target_action_names = ARM_TO_ACTION_NAMES[arm]
+    state_names = ARM_TO_STATE_NAMES[arm]
+
+    print(f"[INFO] Moving {arm} arm to vertical home position: {[f'{v:.4f}' for v in target_joints]}")
+
+    start_time = time.perf_counter()
+    step = 0
+
+    while True:
+        elapsed = time.perf_counter() - start_time
+        if elapsed > timeout_s:
+            print(f"[WARN] Vertical move timeout after {elapsed:.2f}s. Proceeding anyway.")
+            return False
+
+        loop_start = time.perf_counter()
+
+        # Get current observation
+        observation = get_live_observation(bridge)
+
+        # Build action: target for active arm, hold current for inactive arm
+        robot_action = merge_single_arm_action_with_hold_current(
+            observation=observation,
+            arm_action=target_joints,
+            arm=arm,
+        )
+
+        # Publish the command
+        bridge.publish_action(robot_action)
+
+        # Check convergence
+        current_joints = [float(observation[name]) for name in state_names]
+        errors = [abs(current_joints[i] - target_joints[i]) for i in range(7)]
+        max_error = max(errors)
+
+        step += 1
+        if step % 30 == 0:  # Log every ~1 second
+            print(
+                f"[INFO] Vertical move step {step} | elapsed={elapsed:.2f}s | "
+                f"max_error={max_error:.4f} rad | target={target_joints}"
+            )
+
+        if max_error < tolerance:
+            print(f"[INFO] Vertical position reached in {elapsed:.2f}s (max_error={max_error:.4f} rad)")
+            return True
+
+        # Maintain loop rate
+        dt = time.perf_counter() - loop_start
+        precise_sleep(max(1 / fps - dt, 0.0))
+
+
 def print_runtime_summary(
     args: argparse.Namespace,
     policy_path: Path,
@@ -551,6 +663,7 @@ def print_runtime_summary(
     print(f"[INFO] hold_inactive_arm_mode: current_observation_pose")
     print(f"[INFO] observation_timeout_s: {args.observation_timeout_s}")
     print(f"[INFO] queue_size: {args.queue_size}")
+    print(f"[INFO] vertical_init: {args.vertical}")
 
 
 def main() -> None:
@@ -611,6 +724,12 @@ def main() -> None:
         )
         bridge.wait_for_ready(timeout_s=args.observation_timeout_s, require_images=True)
         print(f"[INFO] Agilex connected. publish_enabled={publish_enabled}")
+
+        # Move to vertical home position if requested (only in command_master mode)
+        if args.vertical and args.control_mode == "command_master":
+            move_to_vertical_position(bridge, args.arm, fps=args.fps)
+        elif args.vertical and args.control_mode != "command_master":
+            print("[WARN] --vertical requires --control-mode=command_master. Skipping vertical move.")
 
         if policy is not None and preprocessor is not None and postprocessor is not None:
             policy.reset()

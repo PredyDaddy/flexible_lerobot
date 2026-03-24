@@ -26,7 +26,8 @@ python my_devs/train/act/agilex/run_act_infer.py \
     --execution-mode policy_inference \
     --control-mode passive_follow \
     --policy-n-action-steps 100 \
-    --run-time-s 12
+    --run-time-s 12 \
+    --policy-path 
 
 python my_devs/train/act/agilex/run_act_infer.py \
       --execution-mode policy_inference \

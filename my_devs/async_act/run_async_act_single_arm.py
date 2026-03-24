@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     server = subparsers.add_parser("server", help="Start async policy server.")
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8080)
-    server.add_argument("--fps", type=int, default=60)
+    server.add_argument("--fps", type=int, default=30)
     server.add_argument("--inference-latency", type=float, default=None)
     server.add_argument("--obs-queue-timeout", type=float, default=2.0)
 
