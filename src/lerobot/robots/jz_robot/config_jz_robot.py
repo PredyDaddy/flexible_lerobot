@@ -40,6 +40,11 @@ DEFAULT_RIGHT_JOINT_NAMES = [
     "right_joint7",
 ]
 
+DEFAULT_LEFT_GRIPPER_STATE_TOPIC = "left_gripper/gripper_status"
+DEFAULT_RIGHT_GRIPPER_STATE_TOPIC = "right_gripper/gripper_status"
+DEFAULT_LEFT_GRIPPER_COMMAND_TOPIC = "left_gripper/gripper_commands"
+DEFAULT_RIGHT_GRIPPER_COMMAND_TOPIC = "right_gripper/gripper_commands"
+
 
 @RobotConfig.register_subclass("jz_robot")
 @dataclass
@@ -55,6 +60,15 @@ class JZRobotConfig(RobotConfig):
     left_position_command_topic: str = "telecon/arm_left/joint_commands_input"
     right_position_command_topic: str = "telecon/arm_right/joint_commands_input"
 
+    use_gripper: bool = False
+    left_gripper_state_topic: str = DEFAULT_LEFT_GRIPPER_STATE_TOPIC
+    right_gripper_state_topic: str = DEFAULT_RIGHT_GRIPPER_STATE_TOPIC
+    left_gripper_command_topic: str = DEFAULT_LEFT_GRIPPER_COMMAND_TOPIC
+    right_gripper_command_topic: str = DEFAULT_RIGHT_GRIPPER_COMMAND_TOPIC
+
+    # Wait timeout for initial state messages on startup. Set to 0 or a negative value to wait forever.
+    init_state_timeout_s: float = 0.0
+    # Max allowed age of the latest state message after startup before it is treated as stale.
     state_timeout_s: float = 0.2
     qos_depth: int = 10
 
@@ -77,3 +91,12 @@ class JZRobotConfig(RobotConfig):
             raise ValueError("left_joint_names must not be empty")
         if len(self.right_joint_names) == 0:
             raise ValueError("right_joint_names must not be empty")
+        if self.use_gripper:
+            if not self.left_gripper_state_topic:
+                raise ValueError("left_gripper_state_topic must not be empty when use_gripper is true")
+            if not self.right_gripper_state_topic:
+                raise ValueError("right_gripper_state_topic must not be empty when use_gripper is true")
+            if not self.left_gripper_command_topic:
+                raise ValueError("left_gripper_command_topic must not be empty when use_gripper is true")
+            if not self.right_gripper_command_topic:
+                raise ValueError("right_gripper_command_topic must not be empty when use_gripper is true")

@@ -26,9 +26,13 @@ right_joint_names:
 
 left_command_topic: telecon/arm_left/joint_commands_input
 right_command_topic: telecon/arm_right/joint_commands_input
+use_gripper: true
+left_gripper_command_topic: left_gripper/gripper_commands
+right_gripper_command_topic: right_gripper/gripper_commands
 
 qos_depth: 10
-connect_timeout_s: 5.0
+# 设为 0 或负数表示启动时一直等待，直到收到第一帧外部命令。
+connect_timeout_s: 0.0
 
 # 如果希望外部命令断流时报错，可以设置为正数秒；默认关闭 stale 检查。
 command_timeout_s: null

@@ -1,11 +1,11 @@
-# JZRobot 平滑模式配置
+# JZRobot 三路 RealSense 采集配置
 # 用途：
-# 1. 集中保存机器人类型、双臂 topic、joint 名称、相机参数
-# 2. 避免每次启动都手写一长串 --robot.* 参数
-# 3. 作为 teleoperate / record / replay 的机器人配置模板
+# 1. 固定双臂 JZRobot 的 ROS2 topic 和 joint 名称
+# 2. 固定胸部 / 左臂 / 右臂三路 RealSense 序列号
+# 3. 作为 record / replay / visualize 的统一机器人配置模板
 
 type: jz_robot
-id: jz_robot_dual_arm
+id: jz_robot_three_realsense
 
 left_joint_names:
   - left_joint1
@@ -28,7 +28,7 @@ right_joint_names:
 left_joint_state_topic: arm_left/joint_states
 right_joint_state_topic: arm_right/joint_states
 
-# 平滑模式：LeRobot 发到 SmoothMotionEngine 输入端
+# 默认走 SmoothMotionEngine 输入端
 left_position_command_topic: telecon/arm_left/joint_commands_input
 right_position_command_topic: telecon/arm_right/joint_commands_input
 use_gripper: true
@@ -40,18 +40,36 @@ right_gripper_command_topic: right_gripper/gripper_commands
 state_timeout_s: 0.2
 qos_depth: 10
 
-# 如果动作来自外部 teleop（例如 jz_command_teleop 监听的同一组 ROS2 topic），
-# 这里必须打开，避免 LeRobot 再次往同一 topic 回写形成闭环自激。
+# 录制阶段默认由外部 teleop / VR / 上位机发布命令
+# LeRobot 只读取状态和相机并记录数据，不回写控制命令，避免形成闭环。
 use_external_commands: true
 
-# 如果你希望在 LeRobot 侧再做一次目标限幅，可以改成正数；默认关闭，主要依赖 SmoothMotionEngine 自身保护。
 max_relative_target: null
 
 cameras:
-  front:
+  chest:
     type: intelrealsense
-    serial_number_or_name: REPLACE_WITH_REALSENSE_SERIAL
+    serial_number_or_name: "348522073175"
     fps: 30
     width: 640
     height: 480
     use_depth: false
+    warmup_s: 1
+
+  left_arm:
+    type: intelrealsense
+    serial_number_or_name: "230422272306"
+    fps: 30
+    width: 640
+    height: 480
+    use_depth: false
+    warmup_s: 1
+
+  right_arm:
+    type: intelrealsense
+    serial_number_or_name: "230322272819"
+    fps: 30
+    width: 640
+    height: 480
+    use_depth: false
+    warmup_s: 1

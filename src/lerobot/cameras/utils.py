@@ -48,6 +48,11 @@ def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> dict[s
 
             cameras[key] = ZMQCamera(cfg)
 
+        elif cfg.type == "ros2_topic":
+            from .ros2_topic.camera_ros2_topic import ROS2TopicCamera
+
+            cameras[key] = ROS2TopicCamera(cfg)
+
         else:
             try:
                 cameras[key] = cast(Camera, make_device_from_device_class(cfg))

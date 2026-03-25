@@ -628,6 +628,14 @@ class VideoEncodingManager:
     def __init__(self, dataset):
         self.dataset = dataset
 
+    def _cleanup_directory(self, path: Path, *, reason: str) -> None:
+        if not path.exists():
+            return
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            logging.warning("Failed to remove %s while %s", path, reason, exc_info=True)
+
     def __enter__(self):
         return self
 
@@ -661,7 +669,7 @@ class VideoEncodingManager:
                     logging.debug(
                         f"Cleaning up interrupted episode images for episode {interrupted_episode_index}, camera {key}"
                     )
-                    shutil.rmtree(img_dir)
+                    self._cleanup_directory(img_dir, reason="cleaning interrupted episode images")
 
         # Clean up any remaining images directory if it's empty
         img_dir = self.dataset.root / "images"
@@ -670,7 +678,7 @@ class VideoEncodingManager:
         if len(png_files) == 0:
             # Only remove the images directory if no PNG files remain
             if img_dir.exists():
-                shutil.rmtree(img_dir)
+                self._cleanup_directory(img_dir, reason="cleaning empty images directory")
                 logging.debug("Cleaned up empty images directory")
         else:
             logging.debug(f"Images directory is not empty, containing {len(png_files)} PNG files")

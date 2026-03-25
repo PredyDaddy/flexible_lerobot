@@ -17,7 +17,9 @@
 from dataclasses import dataclass, field
 
 from lerobot.robots.jz_robot.config_jz_robot import (
+    DEFAULT_LEFT_GRIPPER_COMMAND_TOPIC,
     DEFAULT_LEFT_JOINT_NAMES,
+    DEFAULT_RIGHT_GRIPPER_COMMAND_TOPIC,
     DEFAULT_RIGHT_JOINT_NAMES,
 )
 
@@ -34,9 +36,13 @@ class JZCommandTeleopConfig(TeleoperatorConfig):
 
     left_command_topic: str = "telecon/arm_left/joint_commands_input"
     right_command_topic: str = "telecon/arm_right/joint_commands_input"
+    use_gripper: bool = False
+    left_gripper_command_topic: str = DEFAULT_LEFT_GRIPPER_COMMAND_TOPIC
+    right_gripper_command_topic: str = DEFAULT_RIGHT_GRIPPER_COMMAND_TOPIC
 
     qos_depth: int = 10
-    connect_timeout_s: float = 5.0
+    # Wait timeout for the first command on startup. Set to 0 or a negative value to wait forever.
+    connect_timeout_s: float = 0.0
     command_timeout_s: float | None = None
 
     def __post_init__(self) -> None:
@@ -44,3 +50,8 @@ class JZCommandTeleopConfig(TeleoperatorConfig):
             raise ValueError("left_joint_names must not be empty")
         if len(self.right_joint_names) == 0:
             raise ValueError("right_joint_names must not be empty")
+        if self.use_gripper:
+            if not self.left_gripper_command_topic:
+                raise ValueError("left_gripper_command_topic must not be empty when use_gripper is true")
+            if not self.right_gripper_command_topic:
+                raise ValueError("right_gripper_command_topic must not be empty when use_gripper is true")

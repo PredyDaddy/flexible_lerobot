@@ -1,0 +1,82 @@
+# JZRobot 三路 RealSense ROS2 topic 录制配置
+# 用途：
+# 1. 固定双臂 JZRobot 的 ROS2 topic 和 joint 名称
+# 2. 相机输入来自已运行的 realsense2_camera ROS2 节点，而不是直接按序列号打开设备
+# 3. 作为 record / replay / visualize 的统一机器人配置模板
+
+type: jz_robot
+id: jz_robot_three_realsense_ros2_topics
+
+left_joint_names:
+  - left_joint1
+  - left_joint2
+  - left_joint3
+  - left_joint4
+  - left_joint5
+  - left_joint6
+  - left_joint7
+
+right_joint_names:
+  - right_joint1
+  - right_joint2
+  - right_joint3
+  - right_joint4
+  - right_joint5
+  - right_joint6
+  - right_joint7
+
+left_joint_state_topic: /robot1/arm_left/joint_states
+right_joint_state_topic: /robot1/arm_right/joint_states
+
+left_position_command_topic: /robot1/telecon/arm_left/joint_commands_input
+right_position_command_topic: /robot1/telecon/arm_right/joint_commands_input
+use_gripper: true
+left_gripper_state_topic: /robot1/left_gripper/gripper_status
+right_gripper_state_topic: /robot1/right_gripper/gripper_status
+left_gripper_command_topic: /robot1/left_gripper/gripper_commands
+right_gripper_command_topic: /robot1/right_gripper/gripper_commands
+
+state_timeout_s: 5.0
+qos_depth: 10
+use_external_commands: true
+max_relative_target: null
+
+cameras:
+  chest:
+    type: ros2_topic
+    image_topic: /robot1/camera_head/camera_head/color/image_raw
+    fps: 30
+    width: 640
+    height: 480
+    color_mode: rgb
+    timeout_ms: 5000
+    qos_depth: 1
+    reliability: reliable
+    durability: volatile
+    warmup_s: 0
+
+  left_arm:
+    type: ros2_topic
+    image_topic: /robot1/camera_left/camera_left/color/image_rect_raw
+    fps: 30
+    width: 848
+    height: 480
+    color_mode: rgb
+    timeout_ms: 5000
+    qos_depth: 1
+    reliability: reliable
+    durability: volatile
+    warmup_s: 0
+
+  right_arm:
+    type: ros2_topic
+    image_topic: /robot1/camera_right/camera_right/color/image_rect_raw
+    fps: 30
+    width: 848
+    height: 480
+    color_mode: rgb
+    timeout_ms: 5000
+    qos_depth: 1
+    reliability: reliable
+    durability: volatile
+    warmup_s: 0
