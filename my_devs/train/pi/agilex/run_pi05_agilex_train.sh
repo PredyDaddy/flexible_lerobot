@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# TARGET_EPOCHS=15 BATCH_SIZE=8 NUM_WORKERS=4 RUN_MODE=full bash my_devs/train/pi/agilex/run_pi05_agilex_train.sh
 set -euo pipefail
 
 find_repo_root() {

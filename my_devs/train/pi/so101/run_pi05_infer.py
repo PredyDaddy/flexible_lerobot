@@ -14,24 +14,28 @@ Notes for PI0.5:
   In our setup we keep a local directory at:
     <repo_root>/google/paligemma-3b-pt-224
   (it can be a symlink to a ModelScope download).
-
+ 
 Example:
 python my_devs/train/pi/so101/run_pi05_infer.py \
-    --robot-port /dev/ttyACM0 \
-    --top-cam-index 4 \
-    --wrist-cam-index 6 \
-    --task "Put the block in the bin" \
+    --policy-path outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model \
+    --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+    --top-cam /dev/video4 \
+    --wrist-cam /dev/video6 \
+    --task "Put the eraser into the small box" \
     --run-time-s 120
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+from safetensors import safe_open
 
 
 def resolve_repo_root(script_path: Path) -> Path:
@@ -68,10 +72,12 @@ from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import get_safe_torch_device
 
 DEFAULT_POLICY_PATH = (
-    "/data/cqy_workspace/flexible_lerobot/outputs/train/"
-    "pi05_grasp_block_in_bin1_repro_20260303_170727/bs8_20260303_170727/"
-    "checkpoints/last/pretrained_model"
+    "/data/cqy_workspace/flexible_lerobot/outputs/pi05_eraser_cup_multi_task_runs/"
+    "20260602_200955/checkpoints/last/pretrained_model"
 )
+DEFAULT_TASK = "First put the eraser into the small box, then move the cup back to the upper-right corner"
+DEFAULT_ROBOT_PORT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00"
+DEFAULT_CALIB_DIR = "/home/cqy/.cache/huggingface/lerobot/calibration/robots/so_follower"
 
 
 def parse_bool(value: str | bool) -> bool:
@@ -95,22 +101,50 @@ def maybe_path(path_str: str | None) -> Path | None:
     return None if not path_str else Path(path_str).expanduser()
 
 
+def parse_camera(value: str) -> int | Path:
+    if value.isdecimal():
+        return int(value)
+    return Path(value).expanduser()
+
+
+def optional_float(value: str | None) -> float | None:
+    if value is None or value.strip().lower() in {"", "none", "null"}:
+        return None
+    return float(value)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Pure PI0.5 inference loop for SO101/SO100 follower robot via LeRobot APIs."
     )
-    parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "my_so101"))
+    parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "hfy_follower"))
     parser.add_argument("--robot-type", default=os.getenv("ROBOT_TYPE", "so101_follower"))
     parser.add_argument(
         "--calib-dir",
-        default=os.getenv(
-            "CALIB_DIR", "/home/cqy/.cache/huggingface/lerobot/calibration/robots/so101_follower"
-        ),
+        default=os.getenv("CALIB_DIR", DEFAULT_CALIB_DIR),
     )
-    parser.add_argument("--robot-port", default=os.getenv("ROBOT_PORT", "/dev/ttyACM0"))
+    parser.add_argument("--robot-port", default=os.getenv("ROBOT_PORT", DEFAULT_ROBOT_PORT))
+    parser.add_argument(
+        "--max-relative-target",
+        type=optional_float,
+        default=optional_float(os.getenv("MAX_RELATIVE_TARGET")),
+        help="Optional SO follower safety clip for each motor target. Example: 10. Use none/omit to disable.",
+    )
 
-    parser.add_argument("--top-cam-index", type=int, default=int(os.getenv("TOP_CAM_INDEX", "4")))
-    parser.add_argument("--wrist-cam-index", type=int, default=int(os.getenv("WRIST_CAM_INDEX", "6")))
+    parser.add_argument(
+        "--top-cam",
+        type=parse_camera,
+        default=parse_camera(os.getenv("TOP_CAM", os.getenv("TOP_CAM_INDEX", "/dev/video4"))),
+        help="Top camera device path or numeric OpenCV index.",
+    )
+    parser.add_argument(
+        "--wrist-cam",
+        type=parse_camera,
+        default=parse_camera(os.getenv("WRIST_CAM", os.getenv("WRIST_CAM_INDEX", "/dev/video6"))),
+        help="Wrist camera device path or numeric OpenCV index.",
+    )
+    parser.add_argument("--top-cam-fourcc", default=os.getenv("TOP_CAM_FOURCC", "YUYV"))
+    parser.add_argument("--wrist-cam-fourcc", default=os.getenv("WRIST_CAM_FOURCC", "MJPG"))
     parser.add_argument("--img-width", type=int, default=int(os.getenv("IMG_WIDTH", "640")))
     parser.add_argument("--img-height", type=int, default=int(os.getenv("IMG_HEIGHT", "480")))
     parser.add_argument("--fps", type=int, default=int(os.getenv("FPS", "30")))
@@ -118,7 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--policy-path", default=os.getenv("POLICY_PATH", DEFAULT_POLICY_PATH))
     parser.add_argument(
         "--task",
-        default=os.getenv("DATASET_TASK", "Put the block in the bin"),
+        default=os.getenv("DATASET_TASK", DEFAULT_TASK),
         help="Language instruction passed to policy inference.",
     )
     parser.add_argument(
@@ -140,6 +174,14 @@ def build_parser() -> argparse.ArgumentParser:
         const=True,
         default=env_bool("DRY_RUN", False),
         help="Print resolved config and exit without connecting robot or loading model weights.",
+    )
+    parser.add_argument(
+        "--check-policy-load",
+        type=parse_bool,
+        nargs="?",
+        const=True,
+        default=env_bool("CHECK_POLICY_LOAD", False),
+        help="Load checkpoint weights and saved processors, then exit without connecting robot.",
     )
     return parser
 
@@ -189,6 +231,64 @@ def ensure_local_tokenizer_dir(repo_root: Path) -> None:
         )
 
 
+def summarize_safetensors(path: Path, limit: int = 8) -> None:
+    with safe_open(path, framework="pt", device="cpu") as handle:
+        keys = list(handle.keys())
+        print(f"[INFO] {path.name}: {path.stat().st_size} bytes, tensors={len(keys)}")
+        for key in keys[:limit]:
+            tensor_slice = handle.get_slice(key)
+            print(
+                f"[INFO]   {key}: "
+                f"shape={tuple(tensor_slice.get_shape())} dtype={tensor_slice.get_dtype()}"
+            )
+        if len(keys) > limit:
+            print("[INFO]   ...")
+
+
+def validate_policy_artifacts(policy_path: Path) -> None:
+    required_files = [
+        "config.json",
+        "model.safetensors",
+        "policy_preprocessor.json",
+        "policy_preprocessor_step_2_normalizer_processor.safetensors",
+        "policy_postprocessor.json",
+        "policy_postprocessor_step_0_unnormalizer_processor.safetensors",
+        "train_config.json",
+    ]
+    missing = [name for name in required_files if not (policy_path / name).is_file()]
+    if missing:
+        raise FileNotFoundError(f"Policy checkpoint is missing required files: {missing}")
+
+    with (policy_path / "config.json").open() as f:
+        config = json.load(f)
+
+    expected_inputs = {
+        "observation.state": [6],
+        "observation.images.top": [3, 480, 640],
+        "observation.images.wrist": [3, 480, 640],
+    }
+    for key, expected_shape in expected_inputs.items():
+        feature = config.get("input_features", {}).get(key)
+        if feature is None or feature.get("shape") != expected_shape:
+            raise ValueError(
+                f"Unexpected input feature for {key}: {feature}. Expected shape {expected_shape}."
+            )
+
+    action_feature = config.get("output_features", {}).get("action")
+    if action_feature is None or action_feature.get("shape") != [6]:
+        raise ValueError(f"Unexpected action feature: {action_feature}. Expected shape [6].")
+
+    print("[INFO] Policy artifacts found and feature shapes match SO101 top/wrist setup.")
+    print(
+        "[INFO] Policy config: "
+        f"type={config.get('type')} dtype={config.get('dtype')} "
+        f"chunk_size={config.get('chunk_size')} n_action_steps={config.get('n_action_steps')}"
+    )
+    summarize_safetensors(policy_path / "model.safetensors")
+    summarize_safetensors(policy_path / "policy_preprocessor_step_2_normalizer_processor.safetensors")
+    summarize_safetensors(policy_path / "policy_postprocessor_step_0_unnormalizer_processor.safetensors")
+
+
 def main() -> None:
     register_third_party_plugins()
     args = build_parser().parse_args()
@@ -203,6 +303,7 @@ def main() -> None:
     policy_path = Path(args.policy_path).expanduser()
     if not policy_path.is_dir():
         raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
+    validate_policy_artifacts(policy_path)
 
     if args.robot_type not in {"so100_follower", "so101_follower"}:
         raise ValueError(
@@ -212,22 +313,25 @@ def main() -> None:
 
     cameras = {
         "top": OpenCVCameraConfig(
-            index_or_path=args.top_cam_index,
+            index_or_path=args.top_cam,
             width=args.img_width,
             height=args.img_height,
             fps=args.fps,
+            fourcc=args.top_cam_fourcc,
         ),
         "wrist": OpenCVCameraConfig(
-            index_or_path=args.wrist_cam_index,
+            index_or_path=args.wrist_cam,
             width=args.img_width,
             height=args.img_height,
             fps=args.fps,
+            fourcc=args.wrist_cam_fourcc,
         ),
     }
     robot_cfg = SOFollowerRobotConfig(
         id=args.robot_id,
         calibration_dir=maybe_path(args.calib_dir),
         port=args.robot_port,
+        max_relative_target=args.max_relative_target,
         cameras=cameras,
     )
 
@@ -238,6 +342,11 @@ def main() -> None:
     print(f"[INFO] Robot id: {args.robot_id}")
     print(f"[INFO] Robot type (requested): {args.robot_type}")
     print(f"[INFO] Robot port: {args.robot_port}")
+    calibration_file = Path(args.calib_dir).expanduser() / f"{args.robot_id}.json"
+    print(f"[INFO] Robot calibration file: {calibration_file}")
+    print(f"[INFO] Top camera: {args.top_cam} fourcc={args.top_cam_fourcc}")
+    print(f"[INFO] Wrist camera: {args.wrist_cam} fourcc={args.wrist_cam_fourcc}")
+    print(f"[INFO] max_relative_target: {args.max_relative_target}")
     print(f"[INFO] Policy path: {policy_path}")
     print(f"[INFO] Policy type: {policy_cfg.type}")
     print(f"[INFO] Task: {args.task}")
@@ -250,11 +359,6 @@ def main() -> None:
 
     ensure_local_tokenizer_dir(repo_root)
 
-    # Build robot.
-    from lerobot.robots import make_robot_from_config
-
-    robot = make_robot_from_config(robot_cfg)
-
     # Build policy model directly from checkpoint.
     policy_class = get_policy_class(policy_cfg.type)
     policy = policy_class.from_pretrained(str(policy_path), strict=False)
@@ -262,6 +366,15 @@ def main() -> None:
 
     # Load exact checkpoint processors.
     preprocessor, postprocessor = load_pre_post_processors(policy_path)
+
+    if args.check_policy_load:
+        print("[INFO] CHECK_POLICY_LOAD=true, loaded policy weights and processors successfully.")
+        return
+
+    # Build robot only after policy loading checks pass, so offline validation does not touch hardware.
+    from lerobot.robots import make_robot_from_config
+
+    robot = make_robot_from_config(robot_cfg)
 
     # Mirror the feature building in `lerobot_record` for robust key mapping.
     _, robot_action_processor, robot_observation_processor = make_default_processors()
