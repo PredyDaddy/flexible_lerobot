@@ -4,7 +4,7 @@ set -e
 cd /data/cqy_workspace/flexible_lerobot
 
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
-OUTPUT_DIR="/data/cqy_workspace/flexible_lerobot/outputs/groot_eraser_cup_multi_task_runs/${RUN_ID}"
+OUTPUT_DIR="/data/cqy_workspace/flexible_lerobot/outputs/groot_eraser_put_small_box_projector_runs/${RUN_ID}"
 mkdir -p "${OUTPUT_DIR}_logs"
 exec > >(tee -a "${OUTPUT_DIR}_logs/train_terminal.log") 2>&1
 
@@ -32,17 +32,20 @@ lerobot-train \
   --policy.type=groot \
   --policy.repo_id=robotech/groot \
   --policy.push_to_hub=false \
-  --dataset.repo_id=desk_cleanup_v1/eraser_cup_multi_task \
-  --dataset.root=/data/cqy_workspace/flexible_lerobot/datasets/desk_cleanup_v1/eraser_cup_multi_task \
+  --dataset.repo_id=desk_cleanup_v1/eraser_put_small_box \
+  --dataset.root=/data/cqy_workspace/flexible_lerobot/datasets/desk_cleanup_v1/eraser_put_small_box \
   --dataset.video_backend=pyav \
   --batch_size=32 \
-  --steps=16640 \
+  --steps=5820 \
   --output_dir="${OUTPUT_DIR}" \
-  --job_name=groot_eraser_cup_multi_task \
+  --job_name=groot_eraser_put_small_box_projector \
   --policy.device=cuda \
   --wandb.enable=false \
   --policy.base_model_path=/data/cqy_workspace/flexible_lerobot/assets/modelscope/GR00T-N1.5-3B \
-  --policy.tokenizer_assets_repo=/data/cqy_workspace/flexible_lerobot/assets/modelscope/lerobot/eagle2hg-processor-groot-n1p5 \
+  --policy.tune_llm=false \
+  --policy.tune_visual=false \
+  --policy.tune_projector=true \
+  --policy.tune_diffusion_model=false \
   --save_freq=2000 \
   --eval_freq=20000 \
   --policy.use_bf16=true
