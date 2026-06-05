@@ -22,6 +22,12 @@ class AsyncChunkStats:
     last_switch_step: int = 0
     pending_inference: bool = False
     wait_count: int = 0
+    switch_count: int = 0
+    last_switch_delta_abs_max: float = 0.0
+    max_switch_delta_abs_max: float = 0.0
+    last_switch_delta_l2: float = 0.0
+    max_switch_delta_l2: float = 0.0
+    switch_direction_flip_count: int = 0
 
 
 class AsyncChunkManager:
@@ -60,6 +66,7 @@ class AsyncChunkManager:
         self.chunk_index = 0
         self.total_steps = 0
         self.previous_action: np.ndarray | None = None
+        self.previous_delta: np.ndarray | None = None
         self.stats = AsyncChunkStats()
 
     def reset(self) -> None:
@@ -71,6 +78,7 @@ class AsyncChunkManager:
         self.chunk_index = 0
         self.total_steps = 0
         self.previous_action = None
+        self.previous_delta = None
         self.stats = AsyncChunkStats()
 
     def close(self) -> None:
@@ -160,6 +168,20 @@ class AsyncChunkManager:
         alpha = (self.chunk_index + 1) / (self.blend_steps + 1)
         return (1.0 - alpha) * self.previous_action + alpha * action
 
+    def _record_switch_discontinuity(self, raw_action: np.ndarray) -> None:
+        if self.chunk_index != 0 or self.previous_action is None:
+            return
+        delta = raw_action - self.previous_action
+        delta_abs_max = float(np.max(np.abs(delta)))
+        delta_l2 = float(np.linalg.norm(delta))
+        self.stats.switch_count += 1
+        self.stats.last_switch_delta_abs_max = delta_abs_max
+        self.stats.max_switch_delta_abs_max = max(self.stats.max_switch_delta_abs_max, delta_abs_max)
+        self.stats.last_switch_delta_l2 = delta_l2
+        self.stats.max_switch_delta_l2 = max(self.stats.max_switch_delta_l2, delta_l2)
+        if self.previous_delta is not None and np.any(delta * self.previous_delta < 0):
+            self.stats.switch_direction_flip_count += 1
+
     def get_action(self, observation: dict) -> np.ndarray:
         self._bootstrap_or_switch(observation)
         if self.current_chunk is None:
@@ -170,9 +192,13 @@ class AsyncChunkManager:
         self._collect_next_if_ready(wait=False)
 
         action = self.current_chunk[self.chunk_index].copy()
+        self._record_switch_discontinuity(action)
         action = self._blend_action(action)
+        previous_action = self.previous_action.copy() if self.previous_action is not None else None
         self.chunk_index += 1
         self.total_steps += 1
+        if previous_action is not None:
+            self.previous_delta = action - previous_action
         self.previous_action = action.copy()
         if self.chunk_index >= min(self.n_action_steps, self.current_chunk.shape[0]):
             self.current_chunk = None

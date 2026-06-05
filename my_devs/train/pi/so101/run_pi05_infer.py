@@ -23,6 +23,15 @@ python my_devs/train/pi/so101/run_pi05_infer.py \
     --wrist-cam /dev/video6 \
     --task "Put the eraser into the small box" \
     --run-time-s 120
+
+
+python my_devs/train/pi/so101/run_pi05_infer.py \
+      --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --task "Put the eraser into the small box" \
+      --run-time-s 120
 """
 
 from __future__ import annotations
@@ -246,15 +255,19 @@ def summarize_safetensors(path: Path, limit: int = 8) -> None:
 
 
 def validate_policy_artifacts(policy_path: Path) -> None:
+    is_peft_checkpoint = (policy_path / "adapter_config.json").is_file()
+    weight_file = "adapter_model.safetensors" if is_peft_checkpoint else "model.safetensors"
     required_files = [
         "config.json",
-        "model.safetensors",
+        weight_file,
         "policy_preprocessor.json",
         "policy_preprocessor_step_2_normalizer_processor.safetensors",
         "policy_postprocessor.json",
         "policy_postprocessor_step_0_unnormalizer_processor.safetensors",
         "train_config.json",
     ]
+    if is_peft_checkpoint:
+        required_files.append("adapter_config.json")
     missing = [name for name in required_files if not (policy_path / name).is_file()]
     if missing:
         raise FileNotFoundError(f"Policy checkpoint is missing required files: {missing}")
@@ -282,11 +295,34 @@ def validate_policy_artifacts(policy_path: Path) -> None:
     print(
         "[INFO] Policy config: "
         f"type={config.get('type')} dtype={config.get('dtype')} "
-        f"chunk_size={config.get('chunk_size')} n_action_steps={config.get('n_action_steps')}"
+        f"chunk_size={config.get('chunk_size')} n_action_steps={config.get('n_action_steps')} "
+        f"use_peft={config.get('use_peft')}"
     )
-    summarize_safetensors(policy_path / "model.safetensors")
+    summarize_safetensors(policy_path / weight_file)
     summarize_safetensors(policy_path / "policy_preprocessor_step_2_normalizer_processor.safetensors")
     summarize_safetensors(policy_path / "policy_postprocessor_step_0_unnormalizer_processor.safetensors")
+
+
+def load_policy(policy_path: Path, policy_cfg: PreTrainedConfig):
+    policy_class = get_policy_class(policy_cfg.type)
+    adapter_config_path = policy_path / "adapter_config.json"
+    if adapter_config_path.is_file():
+        from peft import PeftConfig, PeftModel
+
+        peft_config = PeftConfig.from_pretrained(str(policy_path))
+        base_model_path = peft_config.base_model_name_or_path
+        if not base_model_path:
+            raise ValueError(f"Missing base_model_name_or_path in {adapter_config_path}")
+
+        print(f"[INFO] Loading LoRA adapter checkpoint: {policy_path}")
+        print(f"[INFO] Loading LoRA base policy: {base_model_path}")
+        base_policy = policy_class.from_pretrained(base_model_path, config=policy_cfg, strict=False)
+        policy = PeftModel.from_pretrained(base_policy, str(policy_path), config=peft_config)
+        policy.config = base_policy.config
+        return policy
+
+    print(f"[INFO] Loading full policy checkpoint: {policy_path}")
+    return policy_class.from_pretrained(str(policy_path), strict=False)
 
 
 def main() -> None:
@@ -359,9 +395,8 @@ def main() -> None:
 
     ensure_local_tokenizer_dir(repo_root)
 
-    # Build policy model directly from checkpoint.
-    policy_class = get_policy_class(policy_cfg.type)
-    policy = policy_class.from_pretrained(str(policy_path), strict=False)
+    # Build policy model directly from a full checkpoint, or from base + PEFT adapter for LoRA checkpoints.
+    policy = load_policy(policy_path, policy_cfg)
     policy.to(policy_cfg.device)
 
     # Load exact checkpoint processors.

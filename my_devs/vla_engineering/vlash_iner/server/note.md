@@ -1,6 +1,6 @@
  cd /data/cqy_workspace/flexible_lerobot/my_devs/vla_engineering
 
- conda run --no-capture-output -n lerobot_flex python -u -m vlash_iner.server.run_pi05_async_erver \
+ conda run --no-capture-output -n lerobot_flex python -u -m vlash_iner.server.run_pi05_async_server \
     --host 127.0.0.1 \
     --port 8008 \
     --endpoint /infer \

@@ -64,6 +64,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--list-tasks", action="store_true", help="Print known task aliases and exit.")
     parser.add_argument("--robot-type", default=os.getenv("ROBOT_TYPE", "so101_follower"))
     parser.add_argument(
+        "--backend",
+        choices=["torch", "torch_compile", "tensorrt_split"],
+        default=os.getenv("PI05_BACKEND"),
+        help=(
+            "Inference backend. Defaults to torch_compile when --compile-model=true, otherwise torch. "
+            "Use tensorrt_split to patch policy.model.sample_actions with split TensorRT engines."
+        ),
+    )
+    parser.add_argument(
         "--device",
         default=os.getenv("DEVICE"),
         help="Override policy device, e.g. cuda or cpu.",
@@ -77,6 +86,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Load policy with torch.compile before serving.",
     )
     parser.add_argument("--compile-mode", default=os.getenv("COMPILE_MODE", "reduce-overhead"))
+    parser.add_argument(
+        "--prefix-engine-path",
+        default=os.getenv(
+            "PI05_TRT_PREFIX_ENGINE",
+            "my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp32.engine",
+        ),
+        help="TensorRT split backend prefix_cache engine path.",
+    )
+    parser.add_argument(
+        "--denoise-engine-path",
+        default=os.getenv(
+            "PI05_TRT_DENOISE_ENGINE",
+            "my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp32.engine",
+        ),
+        help="TensorRT split backend denoise_step engine path.",
+    )
+    parser.add_argument(
+        "--trt-model-dtype",
+        choices=["float32", "bfloat16"],
+        default=os.getenv("PI05_TRT_MODEL_DTYPE", "float32"),
+        help=(
+            "Policy dtype override before patching TensorRT split backend. "
+            "Existing FP32 engines expect float32."
+        ),
+    )
     parser.add_argument("--warmup-steps", type=int, default=int(os.getenv("WARMUP_STEPS", "0")))
     parser.add_argument("--img-width", type=int, default=int(os.getenv("IMG_WIDTH", "640")))
     parser.add_argument("--img-height", type=int, default=int(os.getenv("IMG_HEIGHT", "480")))
@@ -131,11 +165,15 @@ class Pi05InferServer:
         default_task: str,
         default_robot_type: str,
         sync_cuda_for_timing: bool,
+        backend: str,
+        backend_info: dict[str, Any] | None = None,
     ) -> None:
         self.bundle = bundle
         self.default_task = default_task
         self.default_robot_type = default_robot_type
         self.sync_cuda_for_timing = sync_cuda_for_timing
+        self.backend = backend
+        self.backend_info = backend_info or {}
         self.request_count = 0
         self.last_infer_s = 0.0
 
@@ -145,6 +183,8 @@ class Pi05InferServer:
             "ready": True,
             "policy_path": str(self.bundle.policy_path),
             "policy_type": getattr(policy_cfg, "type", None),
+            "backend": self.backend,
+            "backend_info": self.backend_info,
             "device": str(self.bundle.device),
             "chunk_size": getattr(policy_cfg, "chunk_size", None),
             "n_action_steps": getattr(policy_cfg, "n_action_steps", None),
@@ -200,6 +240,7 @@ class Pi05InferServer:
             "infer_time_s": infer_s,
             "request_count": self.request_count,
             "chunk_shape": tuple(chunk.shape),
+            "backend": self.backend,
         }
 
 
@@ -240,38 +281,126 @@ def create_app(server: Pi05InferServer, *, endpoint: str) -> FastAPI:
     return app
 
 
-def load_bundle(args: argparse.Namespace, *, policy_path: Path) -> Pi05PolicyBundle:
+def resolve_backend(args: argparse.Namespace) -> str:
+    if args.backend is not None:
+        return args.backend
+    return "torch_compile" if args.compile_model else "torch"
+
+
+def resolve_engine_path(path_str: str) -> Path:
+    path = Path(path_str).expanduser()
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    return path.resolve()
+
+
+def patch_tensorrt_split_backend(
+    bundle: Pi05PolicyBundle,
+    *,
+    prefix_engine_path: Path,
+    denoise_engine_path: Path,
+) -> dict[str, Any]:
+    openpi_trt_dir = REPO_ROOT / "my_devs/openpi_trt"
+    openpi_trt_str = openpi_trt_dir.as_posix()
+    if openpi_trt_str not in sys.path:
+        sys.path.insert(0, openpi_trt_str)
+
+    from runtime.pi05_trt_split import patch_sample_actions_with_split_trt
+
+    if not prefix_engine_path.is_file():
+        raise FileNotFoundError(f"TensorRT prefix_cache engine does not exist: {prefix_engine_path}")
+    if not denoise_engine_path.is_file():
+        raise FileNotFoundError(f"TensorRT denoise_step engine does not exist: {denoise_engine_path}")
+
+    log_info(f"Patching PI0.5 sample_actions with TensorRT split backend.")
+    log_info(f"TensorRT prefix engine: {prefix_engine_path}")
+    log_info(f"TensorRT denoise engine: {denoise_engine_path}")
+    runtime = patch_sample_actions_with_split_trt(
+        bundle.policy,
+        prefix_engine_path,
+        denoise_engine_path,
+    )
+    return {
+        "prefix_engine_path": str(prefix_engine_path),
+        "denoise_engine_path": str(denoise_engine_path),
+        "runtime": runtime.describe(),
+    }
+
+
+def load_bundle(
+    args: argparse.Namespace,
+    *,
+    policy_path: Path,
+    backend: str,
+) -> tuple[Pi05PolicyBundle, dict[str, Any]]:
     validate_policy_artifacts(policy_path, summarize=args.summarize_artifacts)
-    if not args.compile_model:
-        return load_pi05_bundle(
+    if backend == "torch":
+        bundle = load_pi05_bundle(
             policy_path,
             repo_root=REPO_ROOT,
             strict=False,
             check_artifacts=False,
             summarize_artifacts=False,
         )
+        return bundle, {}
 
-    policy, device = load_compiled_policy(policy_path, device=args.device, compile_mode=args.compile_mode)
-    preprocessor, postprocessor = load_pre_post_processors(policy_path)
-    bundle = Pi05PolicyBundle(
-        policy=policy,
-        policy_cfg=policy.config,
-        preprocessor=preprocessor,
-        postprocessor=postprocessor,
-        device=device,
-        policy_path=policy_path,
-    )
-    if args.warmup_steps > 0:
-        warmup_compiled_bundle(
-            bundle,
-            task=resolve_task(build_parser(), args),
-            robot_type=args.robot_type,
-            warmup_steps=args.warmup_steps,
-            img_height=args.img_height,
-            img_width=args.img_width,
-            state_dim=args.state_dim,
+    if backend == "torch_compile":
+        policy, device = load_compiled_policy(policy_path, device=args.device, compile_mode=args.compile_mode)
+        preprocessor, postprocessor = load_pre_post_processors(policy_path)
+        bundle = Pi05PolicyBundle(
+            policy=policy,
+            policy_cfg=policy.config,
+            preprocessor=preprocessor,
+            postprocessor=postprocessor,
+            device=device,
+            policy_path=policy_path,
         )
-    return bundle
+        if args.warmup_steps > 0:
+            warmup_compiled_bundle(
+                bundle,
+                task=resolve_task(build_parser(), args),
+                robot_type=args.robot_type,
+                warmup_steps=args.warmup_steps,
+                img_height=args.img_height,
+                img_width=args.img_width,
+                state_dim=args.state_dim,
+            )
+        return bundle, {"compile_mode": args.compile_mode, "warmup_steps": args.warmup_steps}
+
+    if backend == "tensorrt_split":
+        from lerobot.utils.utils import get_safe_torch_device
+
+        openpi_trt_dir = REPO_ROOT / "my_devs/openpi_trt"
+        openpi_trt_str = openpi_trt_dir.as_posix()
+        if openpi_trt_str not in sys.path:
+            sys.path.insert(0, openpi_trt_str)
+        from scripts.pi05_onnx_common import load_policy
+
+        trt_device = args.device or "cuda"
+        log_info(
+            f"Loading TensorRT-backed policy with device={trt_device} "
+            f"dtype={args.trt_model_dtype}..."
+        )
+        policy = load_policy(policy_path, device=trt_device, model_dtype=args.trt_model_dtype)
+        device = get_safe_torch_device(policy.config.device)
+        preprocessor, postprocessor = load_pre_post_processors(policy_path)
+        bundle = Pi05PolicyBundle(
+            policy=policy,
+            policy_cfg=policy.config,
+            preprocessor=preprocessor,
+            postprocessor=postprocessor,
+            device=device,
+            policy_path=policy_path,
+        )
+        backend_info = patch_tensorrt_split_backend(
+            bundle,
+            prefix_engine_path=resolve_engine_path(args.prefix_engine_path),
+            denoise_engine_path=resolve_engine_path(args.denoise_engine_path),
+        )
+        backend_info["model_dtype"] = args.trt_model_dtype
+        return bundle, backend_info
+
+    raise ValueError(f"Unsupported backend: {backend}")
 
 
 def main() -> None:
@@ -287,21 +416,25 @@ def main() -> None:
     policy_path = Path(args.policy_path).expanduser().resolve()
     if not policy_path.is_dir():
         raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
+    backend = resolve_backend(args)
 
     log_info("Starting PI0.5 async inference server.")
     log_info(f"Repo root: {REPO_ROOT}")
     log_info(f"Policy path: {policy_path}")
     log_info(f"Task: {task}")
     log_info(f"Robot type: {args.robot_type}")
+    log_info(f"backend: {backend}")
     log_info(f"compile_model: {args.compile_model}")
     log_info(f"warmup_steps: {args.warmup_steps}")
 
-    bundle = load_bundle(args, policy_path=policy_path)
+    bundle, backend_info = load_bundle(args, policy_path=policy_path, backend=backend)
     server = Pi05InferServer(
         bundle=bundle,
         default_task=task,
         default_robot_type=args.robot_type,
         sync_cuda_for_timing=args.sync_cuda_for_timing,
+        backend=backend,
+        backend_info=backend_info,
     )
     app = create_app(server, endpoint=args.endpoint)
     print(f"[INFO] PI0.5 server listening on http://{args.host}:{args.port}{args.endpoint}", flush=True)

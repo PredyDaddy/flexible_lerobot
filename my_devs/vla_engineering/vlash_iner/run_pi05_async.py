@@ -288,7 +288,8 @@ def main() -> None:
                     f"last_infer={manager.stats.last_inference_s:.3f}s "
                     f"infer_count={manager.stats.inference_count} "
                     f"pending={manager.stats.pending_inference} "
-                    f"wait_count={manager.stats.wait_count}"
+                    f"wait_count={manager.stats.wait_count} "
+                    f"switch_delta_max={manager.stats.last_switch_delta_abs_max:.3f}"
                 )
             precise_sleep(max(1 / control_fps - (time.perf_counter() - loop_t), 0.0))
     except KeyboardInterrupt:

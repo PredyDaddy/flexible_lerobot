@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import pickle
 import sys
@@ -147,6 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--list-tasks", action="store_true", help="Print known task aliases and exit.")
     parser.add_argument("--run-time-s", type=float, default=float(os.getenv("RUN_TIME_S", "0")))
     parser.add_argument("--log-interval", type=int, default=int(os.getenv("LOG_INTERVAL", "30")))
+    parser.add_argument(
+        "--output-json",
+        type=Path,
+        default=None,
+        help="Optional structured runtime report path for acceptance evidence.",
+    )
     parser.add_argument("--connect-retries", type=int, default=int(os.getenv("CONNECT_RETRIES", "3")))
     parser.add_argument("--connect-retry-s", type=float, default=float(os.getenv("CONNECT_RETRY_S", "1.0")))
     parser.add_argument(
@@ -155,6 +162,22 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         const=True,
         default=env_bool("DRY_RUN", False),
+    )
+    parser.add_argument(
+        "--no-send-action",
+        type=parse_bool,
+        nargs="?",
+        const=True,
+        default=env_bool("NO_SEND_ACTION", False),
+        help="Connect robot/cameras and run remote inference, but do not send actions to the robot.",
+    )
+    parser.add_argument(
+        "--confirm-control",
+        type=parse_bool,
+        nargs="?",
+        const=True,
+        default=env_bool("CONFIRM_CONTROL", False),
+        help="Required for any real robot.send_action call. Keeps robot safe unless explicitly enabled.",
     )
     parser.add_argument("--n-action-steps", type=int, default=int(os.getenv("N_ACTION_STEPS", "0")))
     parser.add_argument(
@@ -217,6 +240,33 @@ def resolve_task(parser: argparse.ArgumentParser, args: argparse.Namespace) -> s
     return task
 
 
+def percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, int(round((pct / 100.0) * (len(ordered) - 1)))))
+    return ordered[index]
+
+
+def summarize(values: list[float]) -> dict[str, float]:
+    if not values:
+        return {"count": 0, "mean": 0.0, "p50": 0.0, "p95": 0.0, "min": 0.0, "max": 0.0}
+    return {
+        "count": len(values),
+        "mean": sum(values) / len(values),
+        "p50": percentile(values, 50),
+        "p95": percentile(values, 95),
+        "min": min(values),
+        "max": max(values),
+    }
+
+
+def write_runtime_report(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
+    print(f"[INFO] Runtime report written: {path}", flush=True)
+
+
 def main() -> None:
     from lerobot.datasets.utils import build_dataset_frame
     from lerobot.policies.utils import make_robot_action
@@ -267,6 +317,8 @@ def main() -> None:
     print(f"[INFO] chunk_blend_steps: {args.chunk_blend_steps}")
     print(f"[INFO] future_state_aware: {args.future_state_aware}")
     print(f"[INFO] action_quant_ratio: {args.action_quant_ratio}")
+    print(f"[INFO] no_send_action: {args.no_send_action}")
+    print(f"[INFO] confirm_control: {args.confirm_control}")
     control_fps = args.control_fps if args.control_fps > 0 else float(args.fps)
     print(f"[INFO] control_fps: {control_fps}")
     print(f"[INFO] reuse_observation_within_chunk: {args.reuse_observation_within_chunk}")
@@ -283,6 +335,11 @@ def main() -> None:
     if args.dry_run:
         print("[INFO] DRY_RUN=true, exit without connecting robot hardware.")
         return
+    if not args.no_send_action and not args.confirm_control:
+        raise RuntimeError(
+            "Refusing to send robot actions without --confirm-control true. "
+            "Use --no-send-action true for read-only validation."
+        )
 
     validate_runtime_config(robot_runtime_cfg)
     robot_cfg = build_so_follower_config(robot_runtime_cfg)
@@ -306,6 +363,9 @@ def main() -> None:
         )
     )
     last_server_infer_s = 0.0
+    request_latencies_s: list[float] = []
+    server_infers_s: list[float] = []
+    run_error: str | None = None
 
     def predict_chunk(observation_frame: dict, future_state: np.ndarray | None) -> np.ndarray:
         nonlocal last_server_infer_s
@@ -316,9 +376,12 @@ def main() -> None:
             "robot_type": robot.robot_type,
             "n_action_steps": n_action_steps,
         }
+        request_start_t = time.perf_counter()
         result = remote_client.infer(payload)
+        request_latencies_s.append(time.perf_counter() - request_start_t)
         chunk = np.asarray(result["action_chunk"], dtype=np.float32)
         last_server_infer_s = float(result.get("infer_time_s", 0.0))
+        server_infers_s.append(last_server_infer_s)
         return chunk
 
     manager = AsyncChunkManager(
@@ -381,7 +444,9 @@ def main() -> None:
 
             action_vector = manager.get_action(latest_observation_frame)
             safety.validate(action_vector)
-            if (step + 1) % args.action_quant_ratio == 0:
+            if args.no_send_action:
+                pass
+            elif (step + 1) % args.action_quant_ratio == 0:
                 action_tensor = torch.as_tensor(action_vector, dtype=torch.float32).unsqueeze(0)
                 action_dict = make_robot_action(action_tensor, dataset_features)
                 robot_action_to_send = robot_action_processor((action_dict, obs))
@@ -400,13 +465,57 @@ def main() -> None:
                 )
             precise_sleep(max(1 / control_fps - (time.perf_counter() - loop_t), 0.0))
     except KeyboardInterrupt:
+        run_error = "KeyboardInterrupt"
         print("[INFO] KeyboardInterrupt received. Stopping remote inference.")
     except ConnectionError as exc:
+        run_error = repr(exc)
         print(f"[ERROR] Robot connection failed: {exc}", flush=True)
+    except Exception as exc:
+        run_error = repr(exc)
+        raise
     finally:
+        elapsed_s = time.perf_counter() - start_t
+        report = {
+            "server_url": args.server_url,
+            "endpoint": args.endpoint,
+            "task": task,
+            "robot_type": args.robot_type,
+            "run_time_s": args.run_time_s,
+            "elapsed_s": elapsed_s,
+            "steps": step,
+            "observed_hz": step / elapsed_s if elapsed_s > 0 else 0.0,
+            "n_action_steps": n_action_steps,
+            "control_fps": control_fps,
+            "fps": args.fps,
+            "inference_overlap_steps": args.inference_overlap_steps,
+            "background_inference": args.background_inference,
+            "chunk_blend_steps": args.chunk_blend_steps,
+            "future_state_aware": args.future_state_aware,
+            "reuse_observation_within_chunk": args.reuse_observation_within_chunk,
+            "action_quant_ratio": args.action_quant_ratio,
+            "no_send_action": args.no_send_action,
+            "confirm_control": args.confirm_control,
+            "request_count": len(request_latencies_s),
+            "manager_inference_count": manager.stats.inference_count,
+            "wait_count": manager.stats.wait_count,
+            "pending_inference": manager.stats.pending_inference,
+            "switch_count": manager.stats.switch_count,
+            "last_switch_delta_abs_max": manager.stats.last_switch_delta_abs_max,
+            "max_switch_delta_abs_max": manager.stats.max_switch_delta_abs_max,
+            "last_switch_delta_l2": manager.stats.last_switch_delta_l2,
+            "max_switch_delta_l2": manager.stats.max_switch_delta_l2,
+            "switch_direction_flip_count": manager.stats.switch_direction_flip_count,
+            "request_latency_s": summarize(request_latencies_s),
+            "server_infer_s": summarize(server_infers_s),
+            "health": health,
+            "error": run_error,
+            "finished": run_error is None,
+        }
         manager.close()
         if robot.is_connected:
             robot.disconnect()
+        if args.output_json is not None:
+            write_runtime_report(args.output_json, report)
         print("[INFO] Remote async client finished.")
 
 
