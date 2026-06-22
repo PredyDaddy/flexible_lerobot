@@ -203,3 +203,6 @@ my_devs/vla_engineering/vlash-main
 *.png
 
 my_devs/openpi_trt/artifacts
+
+# FlashRT reference source; keep local only, do not track extracted upstream code.
+my_devs/flash_RT_pi/reference_source_code/FlashRT-main/
