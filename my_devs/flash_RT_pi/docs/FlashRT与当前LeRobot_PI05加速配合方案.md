@@ -52,12 +52,115 @@ Phase 4: 如需深度融合，再做 LeRobot policy adapter，让上层看起来
 核心原则：
 
 - 训练仍然走当前 LeRobot PI0.5。
+- 当前已经能跑的 PyTorch 实机命令是黄金基线，后续所有 FlashRT Phase 都必须围绕同一份 `policy-path`、同一组相机、同一个 task 去替换推理后端，而不是换模型、换 processor 或换 robot runtime。
 - checkpoint、processor、normalization、robot schema 不在第一阶段迁移。
 - FlashRT 只接管推理热点路径，不接管机器人 I/O、安全限幅和服务编排。
 - FlashRT 不产生 TensorRT `.engine`，不要把它纳入 `ONNX -> engine` 那套流程。
 - 先走服务化旁路，验证延迟、一致性和上机稳定性后，再考虑主包级 adapter。
 
-## 2. 当前仓库 PI0.5 推理边界
+## 2. 当前 PyTorch 实机基线
+
+你当前已经在用 PyTorch 后端直接跑训练出来的 PI0.5 / SO101 权重，命令是：
+
+```bash
+python my_devs/train/pi/so101/run_pi05_infer.py \
+      --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --task "Put the eraser into the small box" \
+      --run-time-s 120
+```
+
+这条命令在本方案里不是普通示例，而是后续 FlashRT 接入的对照基线。它定义了我们必须保持不变的上层事实：
+
+```text
+policy_path:
+  outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model
+
+robot:
+  SO101/SO follower
+  port=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00
+
+cameras:
+  top=/dev/video4
+  wrist=/dev/video6
+  shape in config: observation.images.top=[3,480,640], observation.images.wrist=[3,480,640]
+
+state/action:
+  observation.state=[6]
+  action=[6]
+
+task:
+  Put the eraser into the small box
+
+runtime:
+  120 秒真实机器人推理运行
+```
+
+`run_pi05_infer.py` 当前做的事情是：
+
+```text
+1. 解析 policy_path、robot port、top/wrist camera、task、run_time_s。
+2. 校验 checkpoint artifact：
+   - config.json
+   - adapter_model.safetensors 或 model.safetensors
+   - policy_preprocessor.json
+   - policy_preprocessor_step_2_normalizer_processor.safetensors
+   - policy_postprocessor.json
+   - policy_postprocessor_step_0_unnormalizer_processor.safetensors
+   - train_config.json
+3. 校验 SO101 feature shape：
+   - observation.state = [6]
+   - observation.images.top = [3,480,640]
+   - observation.images.wrist = [3,480,640]
+   - action = [6]
+4. 如果是 LoRA checkpoint，通过 adapter_config.json 找 base_model_name_or_path：
+   - 先加载 base PI0.5 policy
+   - 再用 PeftModel.from_pretrained(...) 加载 LoRA adapter
+5. 加载 checkpoint 自带的 preprocessor/postprocessor。
+6. 连接 SO101 follower 和两路 OpenCV 相机。
+7. 在控制循环里执行：
+   robot.get_observation()
+     -> robot_observation_processor
+     -> build_dataset_frame(...)
+     -> predict_action(...)
+     -> policy preprocessor
+     -> PI05Policy.select_action(...)
+     -> PI05Policy.predict_action_chunk(...)
+     -> PI05Pytorch.sample_actions(...)  # 当前是 PyTorch 后端
+     -> policy postprocessor
+     -> make_robot_action(...)
+     -> robot_action_processor
+     -> robot.send_action(...)
+8. 循环 120 秒或直到 Ctrl+C。
+```
+
+这里最关键的是：当前实机基线已经证明这份 LoRA 权重、checkpoint processor、normalizer/unnormalizer、SO101 robot schema、top/wrist 相机、task 文本和 PyTorch `sample_actions(...)` 是能组成一条完整执行链路的。
+
+FlashRT 后续的目标不是重新训练一份模型，也不是绕过这些 processor，而是把上面链路里的这一段：
+
+```text
+PI05Pytorch.sample_actions(...)  # PyTorch
+```
+
+逐步替换成：
+
+```text
+FlashRT PI0.5 backend
+  -> load 同一份 policy_path 对应的权重或转换后的等价权重
+  -> 使用同一份 normalizer / prompt / camera / action schema
+  -> 输出可被当前 postprocessor 或 robot client 正确消费的 action_chunk
+```
+
+因此，后续每个 Phase 的判断标准都应该回到这个问题：
+
+```text
+在不改变 policy_path、task、top/wrist camera、SO101 action schema 的前提下，
+能不能把当前 PyTorch 推理后端替换成 FlashRT，并保持动作语义、安全检查和实机稳定性？
+```
+
+## 3. 当前仓库 PI0.5 推理边界
 
 当前 LeRobot PI0.5 的上层推理链路是：
 
@@ -107,7 +210,7 @@ observation dict + prompt
 
 这更接近 `my_devs/vla_engineering/vlash_iner` 当前服务化后端的设计。
 
-## 3. FlashRT 能提供什么
+## 4. FlashRT 能提供什么
 
 根据参考源码的 `README.md`、`USAGE.md`、`flash_rt/api.py`、`docs/architecture.md`、`docs/rtc_lite_design.md`，FlashRT 对本项目最有价值的能力是：
 
@@ -175,7 +278,7 @@ observation dict + prompt
 
    FlashRT 自带 `ActionChunkAdapter`、`CallablePolicyAdapter`、`AsyncChunkRunner` 思路，但它不管理机器人 I/O、不管理相机、不管理安全检查。这个边界和我们当前 `vlash_iner` 的机器人客户端职责是一致的。
 
-## 4. 与 Laravel 的配合方式
+## 5. 与 Laravel 的配合方式
 
 这里的 Laravel 不应该直接 import Python 模型，也不应该直接调用 CUDA。Laravel 更适合作为上层业务和控制台：
 
@@ -267,7 +370,7 @@ Laravel 侧只保存 session 配置、调用记录和指标，不保存 GPU 进�
 
 Laravel 的正确位置是“控制面”和“记录面”，Python service/robot client 是“数据面”和“执行面”。
 
-## 5. FlashRT 加速当前仓库代码的三种方案
+## 6. FlashRT 加速当前仓库代码的三种方案
 
 ### 方案 A：服务化旁路后端，推荐第一阶段
 
@@ -361,7 +464,7 @@ batch
 
 除非后续确认 FlashRT 作为正式主推后端长期维护，否则第一阶段不建议把这些内容搬进 `src/lerobot`。
 
-## 6. 与现有 TensorRT/VLASH 工程的关系
+## 7. 与现有 TensorRT/VLASH 工程的关系
 
 当前已有两条相关工程线：
 
@@ -403,9 +506,60 @@ backend=flashrt_pi05
 对比 torch / tensorrt_split / flashrt_pi05
 ```
 
-## 7. 推荐实施步骤
+## 8. 推荐实施步骤
 
-### Phase 0：环境和源码边界确认
+所有 Phase 都围绕同一条主线展开：
+
+```text
+当前 PyTorch 实机基线：
+  run_pi05_infer.py
+  --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model
+  --top-cam /dev/video4
+  --wrist-cam /dev/video6
+  --task "Put the eraser into the small box"
+
+最终目标：
+  同一份训练权重、同一组相机、同一个 task、同一个 SO101 action schema
+  只把 PyTorch sample_actions 推理热点换成 FlashRT 后端
+```
+
+### Phase 0：固定 PyTorch 黄金基线
+
+目标：
+
+- 先把当前 PyTorch 实机链路作为可回退、可对比、可验收的黄金基线。
+- 后续 FlashRT 的所有结果都和这条命令对齐，而不是换 checkpoint 或换 task。
+
+基线命令：
+
+```bash
+python my_devs/train/pi/so101/run_pi05_infer.py \
+      --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --task "Put the eraser into the small box" \
+      --run-time-s 120
+```
+
+建议在正式替换后端前，先至少保存一次 PyTorch baseline 记录：
+
+```text
+policy_path
+task
+robot port
+camera device
+run_time_s
+平均控制循环耗时
+policy 推理耗时，如果脚本后续加计时
+是否完成 120 秒
+是否触发安全限制或人工中断
+机器人任务表现：是否能把 eraser 放进 small box
+```
+
+这个 Phase 的产物不是新模型，而是一份对照证据。FlashRT 后续哪怕更快，也必须先证明它在同样输入和同样动作语义下工作。
+
+### Phase 1：环境和源码边界确认
 
 目标：
 
@@ -426,7 +580,7 @@ conda run -n lerobot_flex git check-ignore -v \
 .gitignore:... my_devs/flash_RT_pi/reference_source_code/FlashRT-main/
 ```
 
-### Phase 1：最小 FlashRT PI0.5 smoke
+### Phase 2：最小 FlashRT PI0.5 smoke
 
 新增脚本：
 
@@ -438,12 +592,14 @@ my_devs/flash_RT_pi/run_flashrt_pi05_smoke.py
 
 ```text
 1. import flash_rt
-2. flash_rt.load_model(checkpoint, config="pi05", framework="torch", num_views=2)
-3. 检查本地 PaliGemma tokenizer 和 checkpoint normalizer / unnormalizer stats
-4. 构造或读取一帧 top/wrist/raw_state/prompt
-5. raw_state -> 使用当前 checkpoint stats 做 LeRobot 等价归一化 -> normalized_state
-6. model.predict(images=[top, wrist], prompt=task, state=normalized_state)
-7. 打印 action shape、dtype、horizon、dim、数值范围、首帧 latency、warm latency
+2. 使用和 PyTorch baseline 相同的 policy_path：
+   outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model
+3. flash_rt.load_model(checkpoint, config="pi05", framework="torch", num_views=2)
+4. 检查本地 PaliGemma tokenizer 和 checkpoint normalizer / unnormalizer stats
+5. 构造或读取一帧 top/wrist/raw_state/prompt
+6. raw_state -> 使用当前 checkpoint stats 做 LeRobot 等价归一化 -> normalized_state
+7. model.predict(images=[top, wrist], prompt=task, state=normalized_state)
+8. 打印 action shape、dtype、horizon、dim、数值范围、首帧 latency、warm latency
 ```
 
 验收门槛：
@@ -460,7 +616,22 @@ actions.shape[1] 必须与 checkpoint action feature 对齐，或存在显式验
 
 特别注意：FlashRT PI0.5 参考路径常见返回是 `T=10` 的 action chunk，而当前 LeRobot/openpi_trt 链路常见内部 chunk 是 50 步。第一阶段不能沿用原来 50 步 chunk 的运行参数，必须以实际 `flashrt_horizon` 重算 `n_action_steps`、`actions_per_chunk`、`overlap_steps` 和 `queue_low_watermark`。
 
-### Phase 2：离线一致性对比
+这一阶段只回答一个问题：
+
+```text
+FlashRT 能不能加载并推理这份当前已经通过 PyTorch 实机验证的 LoRA PI0.5 权重？
+```
+
+如果 FlashRT 不能直接加载 LoRA adapter checkpoint，就不能直接跳到机器人。此时要先研究 FlashRT 是否需要：
+
+```text
+1. 合并 LoRA 到 base model 后再加载；
+2. 适配 adapter_model.safetensors 的 key；
+3. 增加只放在 my_devs/flash_RT_pi 下的 checkpoint conversion/adapter；
+4. 或改为 FlashRT 支持的等价 full checkpoint。
+```
+
+### Phase 3：离线一致性对比
 
 新增对比脚本：
 
@@ -473,6 +644,15 @@ my_devs/flash_RT_pi/compare_lerobot_torch_vs_flashrt.py
 ```text
 LeRobot torch PI05Policy.predict_action_chunk(...)
 FlashRT VLAModel.predict(...)
+```
+
+其中 LeRobot torch 侧必须复用 PyTorch baseline 的加载方式：
+
+```text
+load_policy(policy_path, policy_cfg)
+load_pre_post_processors(policy_path)
+task = "Put the eraser into the small box"
+top/wrist/state schema = run_pi05_infer.py 当前 schema
 ```
 
 需要记录：
@@ -498,7 +678,7 @@ warmed_prompt_lengths
 
 动作维度必须作为 hard gate：不允许因为当前 SO101 action dim 是 6，就把 FlashRT 返回的 7 维或其他维度 action 盲目截断为前 6 维。只有在明确 source/target action 含义、joint 顺序、归一化/反归一化空间，并通过离线 replay、只读、低速真实动作 gate 后，才允许加显式维度映射。
 
-### Phase 3：接入 vlash_iner 服务后端
+### Phase 4：接入 vlash_iner 服务后端
 
 新增后端：
 
@@ -527,6 +707,7 @@ response:
 
 ```text
 --backend flashrt_pi05
+--policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model
 --flashrt-checkpoint-path ...
 --flashrt-hardware auto
 --flashrt-state-prompt-mode fixed|exact
@@ -534,13 +715,42 @@ response:
 
 服务端仍然是单 active backend、单 `/infer` endpoint。`/sessions` 是后续 Laravel 控制面成熟后的抽象，不作为第一版必须项。
 
-### Phase 4：Laravel 控制面接入
+这里的目标仍然不是换 robot client，而是让服务端具备这样的能力：
+
+```text
+同一份 policy_path:
+  backend=torch          -> 当前 PyTorch 语义基线
+  backend=flashrt_pi05   -> FlashRT 后端
+
+同一份 /infer request:
+  observation + task
+
+同一种 response:
+  action_chunk + diagnostics
+```
+
+只有服务化后端对齐后，才考虑把当前单机 `run_pi05_infer.py` 也改造成可选后端版本。例如长期可以演进成：
+
+```bash
+python my_devs/train/pi/so101/run_pi05_infer.py \
+      --backend flashrt_pi05 \
+      --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --task "Put the eraser into the small box" \
+      --run-time-s 120
+```
+
+注意：这只是目标形态，当前 `run_pi05_infer.py` 还没有 `--backend` 参数。第一阶段更稳的是先在服务化链路里加 `flashrt_pi05`，等通过 L1/L2/L3 后，再决定是否回填到单机脚本。
+
+### Phase 5：Laravel 控制面接入
 
 Laravel 新增或复用已有配置项：
 
 ```text
 backend = flashrt_pi05
-checkpoint_path
+checkpoint_path = outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model
 robot_id
 camera_profile
 task
@@ -575,7 +785,7 @@ Laravel 不应该：
 - 直接写机器人串口。
 - 在 Web 请求线程里等待长时间 GPU 初始化。
 
-### Phase 5：真实机器人保守验收
+### Phase 6：真实机器人保守验收
 
 沿用当前 `vlash_iner` 和 `pi05_engineering` 已经沉淀的保守上机原则：
 
@@ -600,9 +810,32 @@ max_action_delta 开启
 
 等确认 no starvation、no safety reject、no deadline miss 后再提升频率。
 
-## 8. 关键风险和需要验证的问题
+FlashRT 实机验收的最终对照命令仍然是 PyTorch baseline：
 
-### 8.1 checkpoint 兼容风险
+```bash
+python my_devs/train/pi/so101/run_pi05_infer.py \
+      --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --task "Put the eraser into the small box" \
+      --run-time-s 120
+```
+
+FlashRT 后端必须证明：
+
+```text
+1. 加载的是同一训练权重或由同一 LoRA checkpoint 合并/转换得到的等价权重。
+2. 使用同一 task、同一 top/wrist camera、同一 SO101 state/action schema。
+3. 不绕过 checkpoint 的 normalizer/unnormalizer 语义。
+4. action chunk 可以被现有 safety 和 robot processor 正确消费。
+5. 真实机器人低速验收不比 PyTorch baseline 更危险。
+6. 在通过安全验收后，warm latency 或 deadline miss 明显优于 PyTorch baseline。
+```
+
+## 9. 关键风险和需要验证的问题
+
+### 9.1 checkpoint 兼容风险
 
 FlashRT 支持 PI0.5 safetensors，但当前仓库的 LeRobot checkpoint 可能存在：
 
@@ -614,7 +847,7 @@ FlashRT 支持 PI0.5 safetensors，但当前仓库的 LeRobot checkpoint 可能�
 
 必须用 Phase 1/2 先验证，不能直接假设可加载。
 
-### 8.2 action 空间风险
+### 9.2 action 空间风险
 
 当前 LeRobot PI0.5 上层有 preprocessor/postprocessor 和 unnormalizer。FlashRT `predict()` 返回值是否已经 unnormalize，需要实测确认。
 
@@ -630,7 +863,7 @@ FlashRT 支持 PI0.5 safetensors，但当前仓库的 LeRobot checkpoint 可能�
 
 动作维度也必须严格验证。FlashRT 参考 PI0.5 路线可能默认面向 LIBERO 风格动作维度；当前 SO101 checkpoint 的 action feature 是另一套维度和关节顺序。任何 `7 -> 6`、`32 -> 6`、`10步 -> N步` 的转换都必须有显式映射和验收记录，不能用“取前 N 维”作为默认策略。
 
-### 8.3 horizon 兼容风险
+### 9.3 horizon 兼容风险
 
 当前 LeRobot PI0.5 / openpi_trt 链路常见内部 action chunk 是 `[B, 50, 32]`，随后上层截到真实 action dim。FlashRT PI0.5 公开示例常见返回是 `[10, 7]`。这会直接影响异步 chunk 调度：
 
@@ -644,7 +877,7 @@ miss_policy / hold-last 触发概率
 
 因此接入 `vlash_iner` 前必须先记录 FlashRT 实际返回 `T`，并用这个 `T` 重算调度参数。若 `T=10`，第一阶段要围绕 10 步 chunk 做低速保守验收，不能沿用 50 步链路的直觉。
 
-### 8.4 图像预处理风险
+### 9.4 图像预处理风险
 
 当前 LeRobot processor 会处理 image tensor、resize、normalization、device。FlashRT `predict()` 文档示例期待 `(224, 224, 3)` uint8 numpy images。
 
@@ -655,7 +888,7 @@ miss_policy / hold-last 触发概率
 - 是否需要我们在后端先做 `resize_with_pad` 到 224。
 - camera 顺序必须固定为 `top -> wrist`，不能和训练 schema 反。
 
-### 8.5 首次调用和 state prompt graph 风险
+### 9.5 首次调用和 state prompt graph 风险
 
 FlashRT 首次调用包含 calibration + CUDA Graph capture。README 中描述 first call 约数秒级，warm call 才是实时路径。
 
@@ -687,7 +920,7 @@ new_length_capture_latency_ms
 warm_predict_latency_ms
 ```
 
-### 8.6 多进程和显存风险
+### 9.6 多进程和显存风险
 
 FlashRT graph 和权重在 Python 进程内持有。Laravel 多用户或多 session 不能无限创建 GPU worker。
 
@@ -702,7 +935,7 @@ FlashRT graph 和权重在 Python 进程内持有。Laravel 多用户或多 sess
 
 后续再做 session pool。
 
-## 9. 建议新增文件清单
+## 10. 建议新增文件清单
 
 第一阶段建议新增：
 
@@ -723,7 +956,7 @@ my_devs/vla_engineering/vlash_iner/server/run_pi05_backend_acceptance.py
 
 如果 Laravel 项目在本仓库内，建议只增加 Laravel 的 session/backend 配置和页面展示，不把 FlashRT Python 代码放进 Laravel 目录。
 
-## 10. 最小代码草图
+## 11. 最小代码草图
 
 下面是后续实现时可以参考的最小后端形态。它不是最终代码，只定义边界：
 
@@ -803,7 +1036,7 @@ class FlashRTPi05Backend:
             raise ValueError("FlashRT returned NaN or Inf actions")
 ```
 
-## 11. 当前建议
+## 12. 当前建议
 
 我建议下一步不要直接改主框架，而是先完成：
 

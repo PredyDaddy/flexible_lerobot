@@ -47,27 +47,28 @@ from lerobot.robots.so_follower.config_so_follower import SOFollowerRobotConfig 
 from lerobot.utils.constants import OBS_STR  # noqa: E402
 from transformers.cache_utils import DynamicCache  # noqa: E402
 
+try:
+    from runtime.protocol import (  # noqa: E402
+        PI05_PREFIX_CACHE_LAYERS,
+        denoise_step_input_names,
+        prefix_cache_tensor_names,
+    )
+except ModuleNotFoundError:
+    OPENPI_TRT_DIR = Path(__file__).resolve().parents[1]
+    if OPENPI_TRT_DIR.as_posix() not in sys.path:
+        sys.path.insert(0, OPENPI_TRT_DIR.as_posix())
+    from runtime.protocol import (  # noqa: E402
+        PI05_PREFIX_CACHE_LAYERS,
+        denoise_step_input_names,
+        prefix_cache_tensor_names,
+    )
+
 
 DEFAULT_POLICY_PATH = (
     REPO_ROOT
     / "outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model"
 )
 DEFAULT_TASK = "First put the eraser into the small box, then move the cup back to the upper-right corner"
-PI05_PREFIX_CACHE_LAYERS = 18
-
-
-def prefix_cache_tensor_names(num_layers: int = PI05_PREFIX_CACHE_LAYERS) -> list[str]:
-    names = ["prefix_pad_masks"]
-    for layer_idx in range(num_layers):
-        names.append(f"past_key_values.{layer_idx}.key")
-        names.append(f"past_key_values.{layer_idx}.value")
-    return names
-
-
-def denoise_step_input_names(num_layers: int = PI05_PREFIX_CACHE_LAYERS) -> list[str]:
-    names = prefix_cache_tensor_names(num_layers)
-    names.extend(["x_t", "timestep"])
-    return names
 
 
 def flatten_past_key_values(past_key_values) -> tuple[torch.Tensor, ...]:

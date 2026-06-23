@@ -24,7 +24,7 @@ python my_devs/train/pi/so101/run_pi05_infer.py \
     --task "Put the eraser into the small box" \
     --run-time-s 120
 
-
+lora微调
 python my_devs/train/pi/so101/run_pi05_infer.py \
       --policy-path outputs/pi05_lora_eraser_cup_multi_task_runs/20260604_212835_full/checkpoints/last/pretrained_model \
       --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
