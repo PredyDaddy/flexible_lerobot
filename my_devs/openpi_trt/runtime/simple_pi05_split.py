@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-"""Compact PI0.5 split TensorRT runtime.
+"""Compact PI0.5 hybrid TensorRT runtime.
 
-This file is the new minimal runtime path. It intentionally keeps only the
-production split boundary:
+This file is the minimal deployment path after the prefix-cache engine was
+retired:
 
-prefix_cache engine + denoise_step engine + Python denoise loop.
+PyTorch prefix_cache + denoise_step TensorRT engine + Python denoise loop.
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import torch
+from transformers.cache_utils import DynamicCache
 
 from runtime.protocol import (
     DENOISE_OUTPUT_NAMES,
-    PREFIX_CACHE_INPUT_NAMES,
     denoise_step_input_names,
     prefix_cache_tensor_names,
     validate_names,
@@ -34,10 +34,14 @@ DEFAULT_DENOISE_FP16_CONSTRAINED_ENGINE = Path(
 
 @dataclass(frozen=True)
 class SimplePI05TRTProfile:
-    """A deployable split TensorRT profile."""
+    """A deployable hybrid TensorRT profile.
+
+    `prefix_engine_path` is kept for command-line/backward compatibility, but
+    the hybrid runtime computes prefix_cache with the loaded PyTorch policy.
+    """
 
     name: str
-    prefix_engine_path: Path
+    prefix_engine_path: Path | None
     denoise_engine_path: Path
     num_layers: int = 18
 
@@ -68,33 +72,77 @@ class SimplePI05TRTProfile:
     def resolved(self) -> "SimplePI05TRTProfile":
         return SimplePI05TRTProfile(
             name=self.name,
-            prefix_engine_path=self.prefix_engine_path.expanduser(),
+            prefix_engine_path=self.prefix_engine_path.expanduser() if self.prefix_engine_path is not None else None,
             denoise_engine_path=self.denoise_engine_path.expanduser(),
             num_layers=self.num_layers,
         )
 
     def validate_files(self) -> None:
-        if not self.prefix_engine_path.is_file():
-            raise FileNotFoundError(f"Missing prefix_cache engine: {self.prefix_engine_path}")
         if not self.denoise_engine_path.is_file():
             raise FileNotFoundError(f"Missing denoise_step engine: {self.denoise_engine_path}")
 
 
+def _flatten_past_key_values(past_key_values: DynamicCache) -> tuple[torch.Tensor, ...]:
+    if not hasattr(past_key_values, "key_cache") or not hasattr(past_key_values, "value_cache"):
+        raise TypeError(f"Expected DynamicCache-like past_key_values, got {type(past_key_values).__name__}")
+    flat: list[torch.Tensor] = []
+    for key, value in zip(past_key_values.key_cache, past_key_values.value_cache, strict=True):
+        flat.append(key.contiguous())
+        flat.append(value.contiguous())
+    return tuple(flat)
+
+
+def _make_att_2d_masks(pad_masks: torch.Tensor, att_masks: torch.Tensor) -> torch.Tensor:
+    cumsum = torch.cumsum(att_masks.to(dtype=torch.int64), dim=1)
+    att_2d_masks = cumsum[:, None, :] <= cumsum[:, :, None]
+    pad_2d_masks = pad_masks[:, None, :] & pad_masks[:, :, None]
+    return att_2d_masks & pad_2d_masks
+
+
+@torch.no_grad()
+def _torch_prefix_cache(
+    policy,
+    images: list[torch.Tensor],
+    img_masks: list[torch.Tensor],
+    tokens: torch.Tensor,
+    masks: torch.Tensor,
+) -> dict[str, torch.Tensor]:
+    model = policy.model
+    prefix_embs, prefix_pad_masks, prefix_att_masks = model.embed_prefix(images, img_masks, tokens, masks)
+    prefix_att_2d_masks = _make_att_2d_masks(prefix_pad_masks, prefix_att_masks)
+    prefix_position_ids = torch.cumsum(prefix_pad_masks.to(dtype=torch.int64), dim=1) - 1
+    prefix_att_2d_masks_4d = model._prepare_attention_masks_4d(prefix_att_2d_masks)
+    model.paligemma_with_expert.paligemma.language_model.config._attn_implementation = "eager"
+    _, past_key_values = model.paligemma_with_expert.forward(
+        attention_mask=prefix_att_2d_masks_4d,
+        position_ids=prefix_position_ids,
+        past_key_values=None,
+        inputs_embeds=[prefix_embs, None],
+        use_cache=True,
+    )
+    values = (prefix_pad_masks.contiguous(), *_flatten_past_key_values(past_key_values))
+    return {name: tensor for name, tensor in zip(prefix_cache_tensor_names(), values, strict=True)}
+
+
 class SimplePI05SplitTRTRuntime:
-    """Minimal TensorRT implementation of PI0.5 sample_actions."""
+    """Minimal hybrid implementation of PI0.5 sample_actions.
+
+    The class name intentionally stays the same because `my_devs/vla_engineering`
+    imports it through the compatibility wrapper. Runtime behavior is now:
+
+    1. PyTorch computes prefix_pad_masks and PaliGemma KV cache.
+    2. TensorRT runs every denoise_step.
+    """
 
     def __init__(self, profile: SimplePI05TRTProfile):
         self.profile = profile.resolved()
         self.profile.validate_files()
-        self.prefix_engine = TorchTensorRTEngine(self.profile.prefix_engine_path)
         self.denoise_engine = TorchTensorRTEngine(self.profile.denoise_engine_path)
         self.cache_names = prefix_cache_tensor_names(self.profile.num_layers)
         self.denoise_input_names = denoise_step_input_names(self.profile.num_layers)
         self._validate_engine_io()
 
     def _validate_engine_io(self) -> None:
-        validate_names(self.prefix_engine.input_names, list(PREFIX_CACHE_INPUT_NAMES), label="prefix_cache inputs")
-        validate_names(self.prefix_engine.output_names, self.cache_names, label="prefix_cache outputs")
         validate_names(self.denoise_engine.input_names, self.denoise_input_names, label="denoise_step inputs")
         validate_names(self.denoise_engine.output_names, list(DENOISE_OUTPUT_NAMES), label="denoise_step outputs")
 
@@ -125,16 +173,7 @@ class SimplePI05SplitTRTRuntime:
         if num_steps is None:
             num_steps = policy.config.num_inference_steps
 
-        prefix_inputs = {
-            "image_0": images[0],
-            "image_1": images[1],
-            "img_mask_0": img_masks[0],
-            "img_mask_1": img_masks[1],
-            "tokens": tokens,
-            "masks": masks,
-        }
-        prefix_outputs = self.prefix_engine(**self._cast_for_engine(self.prefix_engine, prefix_inputs))
-        cache_inputs = {name: prefix_outputs[name].contiguous() for name in self.cache_names}
+        cache_inputs = _torch_prefix_cache(policy, images, img_masks, tokens, masks)
 
         dt = -1.0 / num_steps
         x_t = noise.contiguous()
@@ -174,10 +213,12 @@ class SimplePI05SplitTRTRuntime:
     def describe(self) -> dict:
         return {
             "profile": self.profile.name,
-            "prefix_engine_path": str(self.profile.prefix_engine_path),
+            "prefix_backend": "torch",
+            "prefix_engine_path": str(self.profile.prefix_engine_path) if self.profile.prefix_engine_path else None,
             "denoise_engine_path": str(self.profile.denoise_engine_path),
-            "prefix_inputs": self.prefix_engine.input_names,
-            "prefix_outputs": self.prefix_engine.output_names,
             "denoise_inputs": self.denoise_engine.input_names,
             "denoise_outputs": self.denoise_engine.output_names,
         }
+
+
+SimplePI05HybridTRTRuntime = SimplePI05SplitTRTRuntime

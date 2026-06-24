@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Compatibility wrapper for the compact PI0.5 split TensorRT runtime.
+"""Compatibility wrapper for the compact PI0.5 hybrid TensorRT runtime.
 
 `my_devs/vla_engineering` imports this module directly, so keep this stable
 while the real implementation lives in `runtime.simple_pi05_split`.
@@ -17,7 +17,7 @@ from runtime.simple_pi05_split import SimplePI05SplitTRTRuntime, SimplePI05TRTPr
 
 
 class PI05TensorRTSplitRuntime(SimplePI05SplitTRTRuntime):
-    """Backward-compatible name for the production split TensorRT runtime."""
+    """Backward-compatible name for the production hybrid TensorRT runtime."""
 
     def __init__(
         self,
@@ -75,7 +75,8 @@ class PI05TensorRTSplitRuntime(SimplePI05SplitTRTRuntime):
         return {
             "config": self.config.to_dict(),
             "profile": description["profile"],
-            "prefix_engine": self.prefix_engine.describe(),
+            "prefix_backend": description["prefix_backend"],
+            "prefix_engine": None,
             "denoise_engine": self.denoise_engine.describe(),
             "num_layers": self.profile.num_layers,
         }
@@ -86,7 +87,11 @@ def patch_sample_actions_with_split_trt(
     prefix_engine_path: str | Path,
     denoise_engine_path: str | Path,
 ) -> PI05TensorRTSplitRuntime:
-    """Replace `policy.model.sample_actions(...)` with split TensorRT inference."""
+    """Replace `policy.model.sample_actions(...)` with Torch-prefix + TRT-denoise inference.
+
+    `prefix_engine_path` is accepted for compatibility with existing scripts and
+    server commands. It is no longer loaded by the runtime.
+    """
     runtime = PI05TensorRTSplitRuntime(prefix_engine_path, denoise_engine_path)
     original_sample_actions = policy.model.sample_actions
 

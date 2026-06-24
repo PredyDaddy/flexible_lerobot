@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Simple real-robot runner for the compact PI0.5 split TensorRT runtime."""
+"""Simple real-robot runner for the compact PI0.5 hybrid TensorRT runtime."""
 
 from __future__ import annotations
 
@@ -19,11 +19,12 @@ for path in (OPENPI_TRT_DIR, REPO_ROOT):
         sys.path.insert(0, path.as_posix())
 
 from runtime.simple_pi05_split import (  # noqa: E402
-    DEFAULT_DENOISE_FP16_CONSTRAINED_ENGINE,
     DEFAULT_PREFIX_ENGINE,
+    DEFAULT_DENOISE_FP16_CONSTRAINED_ENGINE,
     SimplePI05SplitTRTRuntime,
     SimplePI05TRTProfile,
 )
+from runtime.pure_pi05_trt import PurePI05TRTPolicyAdapter, PurePI05TRTProfile, PurePI05TRTRuntime  # noqa: E402
 from scripts.pi05_onnx_common import (  # noqa: E402
     DEFAULT_POLICY_PATH,
     DEFAULT_TASK,
@@ -52,7 +53,8 @@ from lerobot.utils.utils import get_safe_torch_device  # noqa: E402
 
 DEFAULT_ROBOT_PORT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00"
 DEFAULT_CALIB_DIR = "/home/cqy/.cache/huggingface/lerobot/calibration/robots/so_follower"
-DEFAULT_MOTOR_WRITE_RETRIES = 0
+DEFAULT_MOTOR_IO_RETRIES = 10
+DEFAULT_RUNTIME_ASSETS_DIR = Path("my_devs/openpi_trt/artifacts/pi05_runtime_assets")
 
 
 def log(message: str) -> None:
@@ -134,14 +136,35 @@ def log_expected_motors(robot: Any) -> None:
 def patch_motor_bus_retries(robot: Any, retries: int) -> None:
     retries = max(int(retries), 0)
     if retries <= 0:
-        log("[DIAG] Motor bus writes use native LeRobot retry behavior.")
+        log("[DIAG] Motor bus I/O uses native LeRobot retry behavior.")
         return
     try:
         bus = robot.bus
+        original_read = bus.read
+        original_sync_read = bus.sync_read
         original_write = bus.write
+        original_sync_write = bus.sync_write
     except AttributeError:
-        log("[DIAG] Robot has no motor bus; skip motor write retry patch.")
+        log("[DIAG] Robot has no motor bus; skip motor I/O retry patch.")
         return
+
+    def read_with_min_retries(
+        data_name: str,
+        motor: str,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_read(data_name, motor, normalize=normalize, num_retry=max(num_retry, retries))
+
+    def sync_read_with_min_retries(
+        data_name: str,
+        motors: str | list[str] | None = None,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_sync_read(data_name, motors, normalize=normalize, num_retry=max(num_retry, retries))
 
     def write_with_min_retries(
         data_name: str,
@@ -159,8 +182,25 @@ def patch_motor_bus_retries(robot: Any, retries: int) -> None:
             num_retry=max(num_retry, retries),
         )
 
+    def sync_write_with_min_retries(
+        data_name: str,
+        values: Any,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_sync_write(
+            data_name,
+            values,
+            normalize=normalize,
+            num_retry=max(num_retry, retries),
+        )
+
+    bus.read = read_with_min_retries
+    bus.sync_read = sync_read_with_min_retries
     bus.write = write_with_min_retries
-    log(f"[DIAG] Motor bus writes will use at least {retries} retries.")
+    bus.sync_write = sync_write_with_min_retries
+    log(f"[DIAG] Motor bus read/write calls will use at least {retries} retries.")
 
 
 def diagnose_robot_connect_failure(robot: Any, exc: BaseException) -> None:
@@ -190,6 +230,15 @@ def diagnose_robot_connect_failure(robot: Any, exc: BaseException) -> None:
 
     log("[HINT] The failing write above names the motor id. For id=5 on SO101, check wrist_roll power/cable/id.")
     log("[HINT] If the motor responds intermittently, rerun with --motor-write-retries 10.")
+
+
+def diagnose_robot_observation_failure(robot: Any, exc: BaseException, retries: int) -> None:
+    log(f"[ERROR] robot.get_observation() failed: {type(exc).__name__}: {exc}")
+    log("[ERROR] This happened before policy inference and before robot.send_action().")
+    log(f"[DIAG] Current motor_io_retries={retries}.")
+    log_expected_motors(robot)
+    log("[HINT] This is a motor bus read failure on Present_Position, not a TensorRT/model failure.")
+    log("[HINT] Try --motor-io-retries 20, check SO101 power, USB serial stability, and all motor cables.")
 
 
 def disconnect_robot_best_effort(robot: Any) -> None:
@@ -240,10 +289,30 @@ def load_pre_post_processors(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Simple SO101 PI0.5 split TensorRT real-robot runner.")
+    parser = argparse.ArgumentParser(description="Simple SO101 PI0.5 Torch-prefix + TRT-denoise real-robot runner.")
     parser.add_argument("--policy-path", type=Path, default=DEFAULT_POLICY_PATH)
+    parser.add_argument(
+        "--runtime-assets-dir",
+        type=Path,
+        default=DEFAULT_RUNTIME_ASSETS_DIR,
+        help=(
+            "Small config/preprocessor/postprocessor directory for pure_trt. "
+            "It must not contain model.safetensors."
+        ),
+    )
+    parser.add_argument(
+        "--runtime-backend",
+        choices=["hybrid", "pure_trt"],
+        default="hybrid",
+        help="hybrid loads PyTorch policy weights for prefix. pure_trt loads prefix+denoise TensorRT engines only.",
+    )
     parser.add_argument("--profile", choices=["auto", "fp32", "fp16_constrained"], default="auto")
-    parser.add_argument("--prefix-engine-path", type=Path, default=DEFAULT_PREFIX_ENGINE)
+    parser.add_argument(
+        "--prefix-engine-path",
+        type=Path,
+        default=DEFAULT_PREFIX_ENGINE,
+        help="Required for --runtime-backend pure_trt. Ignored by hybrid.",
+    )
     parser.add_argument("--denoise-engine-path", type=Path, default=DEFAULT_DENOISE_FP16_CONSTRAINED_ENGINE)
     parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "hfy_follower"))
     parser.add_argument("--robot-type", default=os.getenv("ROBOT_TYPE", "so101_follower"))
@@ -275,8 +344,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--motor-write-retries",
         type=int,
-        default=int(os.getenv("MOTOR_WRITE_RETRIES", str(DEFAULT_MOTOR_WRITE_RETRIES))),
-        help="Optional minimum retries for motor register writes during connect/configure; 0 matches old runner.",
+        default=None,
+        help="Deprecated alias for --motor-io-retries.",
+    )
+    parser.add_argument(
+        "--motor-io-retries",
+        type=int,
+        default=int(os.getenv("MOTOR_IO_RETRIES", os.getenv("MOTOR_WRITE_RETRIES", str(DEFAULT_MOTOR_IO_RETRIES)))),
+        help="Minimum retries for motor read/sync_read/write/sync_write calls; 0 matches native LeRobot.",
     )
     parser.add_argument("--dry-run", type=parse_bool, nargs="?", const=True, default=env_bool("DRY_RUN", False))
     parser.add_argument("--check-policy-load", type=parse_bool, nargs="?", const=True, default=False)
@@ -288,7 +363,8 @@ def main() -> None:
     configure_runtime()
     args = build_parser().parse_args()
     policy_path = args.policy_path.expanduser().resolve()
-    prefix_engine = args.prefix_engine_path.expanduser()
+    runtime_assets_dir = args.runtime_assets_dir.expanduser().resolve()
+    prefix_engine = args.prefix_engine_path.expanduser() if args.prefix_engine_path is not None else None
     denoise_engine = args.denoise_engine_path.expanduser()
     profile_name = args.profile
     if profile_name == "auto":
@@ -297,9 +373,18 @@ def main() -> None:
         denoise_engine = Path("my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp32.engine")
 
     log("[SAFETY] Simple runner controls robot only with --confirm-control.")
-    log(f"[INFO] policy_path={policy_path}")
+    log(f"[INFO] runtime_backend={args.runtime_backend}")
+    if args.runtime_backend == "pure_trt":
+        log(f"[INFO] runtime_assets_dir={runtime_assets_dir}")
+    else:
+        log(f"[INFO] policy_path={policy_path}")
     log(f"[INFO] profile={profile_name}")
-    log(f"[INFO] prefix_engine={prefix_engine}")
+    prefix_backend = "tensorrt" if args.runtime_backend == "pure_trt" else "torch"
+    log(f"[INFO] prefix_backend={prefix_backend}")
+    if args.runtime_backend == "pure_trt":
+        log(f"[INFO] prefix_engine={prefix_engine}")
+    else:
+        log(f"[INFO] prefix_engine={prefix_engine} (ignored by hybrid)")
     log(f"[INFO] denoise_engine={denoise_engine}")
     log(f"[INFO] robot={args.robot_id} type={args.robot_type} port={args.robot_port}")
     log(f"[INFO] max_relative_target={args.max_relative_target}")
@@ -307,37 +392,52 @@ def main() -> None:
     log(f"[INFO] image={args.img_width}x{args.img_height}@{args.fps}, task={args.task!r}")
     log(f"[INFO] run_time_s={args.run_time_s}, log_interval={args.log_interval}")
     log(f"[INFO] log_action_preview={args.log_action_preview}")
-    log(f"[INFO] motor_write_retries={args.motor_write_retries}")
+    motor_io_retries = args.motor_io_retries if args.motor_write_retries is None else args.motor_write_retries
+    log(f"[INFO] motor_io_retries={motor_io_retries}")
     if args.dry_run:
         log("[INFO] DRY_RUN=true. Exit before loading model or touching hardware.")
         return
 
-    if not policy_path.is_dir():
+    if args.runtime_backend == "pure_trt":
+        if not runtime_assets_dir.is_dir():
+            raise FileNotFoundError(f"Runtime assets directory does not exist: {runtime_assets_dir}")
+        if (runtime_assets_dir / "model.safetensors").exists():
+            raise RuntimeError(
+                f"Runtime assets directory should not contain model.safetensors: {runtime_assets_dir}"
+            )
+    elif not policy_path.is_dir():
         raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
-    if not prefix_engine.is_file():
+    if args.runtime_backend == "pure_trt" and (prefix_engine is None or not prefix_engine.is_file()):
         raise FileNotFoundError(f"Prefix TensorRT engine does not exist: {prefix_engine}")
     if not denoise_engine.is_file():
         raise FileNotFoundError(f"Denoise TensorRT engine does not exist: {denoise_engine}")
 
     ensure_local_tokenizer_dir()
 
-    load_t0 = time.perf_counter()
-    log("[INFO] Loading policy...")
-    policy = load_policy(policy_path, device="cuda", model_dtype="float32")
-    log(f"[INFO] Policy loaded in {time.perf_counter() - load_t0:.2f}s")
+    if args.runtime_backend == "pure_trt":
+        trt_t0 = time.perf_counter()
+        log("[INFO] Loading pure TensorRT runtime without PyTorch model weights...")
+        runtime = PurePI05TRTRuntime(PurePI05TRTProfile(profile_name, prefix_engine, denoise_engine))
+        policy = PurePI05TRTPolicyAdapter(runtime_assets_dir, runtime, device="cuda")
+        log(f"[INFO] Pure TensorRT runtime loaded in {time.perf_counter() - trt_t0:.2f}s")
+        log(f"[INFO] runtime={runtime.describe()}")
+    else:
+        load_t0 = time.perf_counter()
+        log("[INFO] Loading policy...")
+        policy = load_policy(policy_path, device="cuda", model_dtype="float32")
+        log(f"[INFO] Policy loaded in {time.perf_counter() - load_t0:.2f}s")
 
-    trt_t0 = time.perf_counter()
-    log("[INFO] Loading simple split TensorRT runtime...")
-    runtime = SimplePI05SplitTRTRuntime(
-        SimplePI05TRTProfile(profile_name, prefix_engine, denoise_engine)
-    )
-    runtime.patch_policy(policy)
-    log(f"[INFO] TensorRT runtime loaded in {time.perf_counter() - trt_t0:.2f}s")
-    log(f"[INFO] runtime={runtime.describe()}")
+        trt_t0 = time.perf_counter()
+        log("[INFO] Loading simple hybrid TensorRT runtime...")
+        runtime = SimplePI05SplitTRTRuntime(SimplePI05TRTProfile(profile_name, prefix_engine, denoise_engine))
+        runtime.patch_policy(policy)
+        log(f"[INFO] TensorRT runtime loaded in {time.perf_counter() - trt_t0:.2f}s")
+        log(f"[INFO] runtime={runtime.describe()}")
 
     proc_t0 = time.perf_counter()
     log("[INFO] Loading processors...")
-    preprocessor, postprocessor = load_pre_post_processors(policy_path)
+    processor_dir = runtime_assets_dir if args.runtime_backend == "pure_trt" else policy_path
+    preprocessor, postprocessor = load_pre_post_processors(processor_dir)
     log(f"[INFO] Processors loaded in {time.perf_counter() - proc_t0:.2f}s")
     if args.check_policy_load:
         log("[INFO] CHECK_POLICY_LOAD=true. Exit before robot connection.")
@@ -376,7 +476,7 @@ def main() -> None:
 
     log("[INFO] Creating robot object and dataset feature mapping...")
     robot = make_robot_from_config(robot_cfg)
-    patch_motor_bus_retries(robot, args.motor_write_retries)
+    patch_motor_bus_retries(robot, motor_io_retries)
     log_expected_motors(robot)
     _, robot_action_processor, robot_observation_processor = make_default_processors()
     dataset_features = combine_feature_dicts(
@@ -416,7 +516,11 @@ def main() -> None:
                 break
             loop_t = time.perf_counter()
             obs_t = time.perf_counter()
-            obs = robot.get_observation()
+            try:
+                obs = robot.get_observation()
+            except ConnectionError as exc:
+                diagnose_robot_observation_failure(robot, exc, motor_io_retries)
+                raise
             obs_ms = (time.perf_counter() - obs_t) * 1000
             prep_t = time.perf_counter()
             obs_processed = robot_observation_processor(obs)

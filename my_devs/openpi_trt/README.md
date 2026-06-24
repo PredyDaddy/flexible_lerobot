@@ -7,13 +7,20 @@ trained checkpoint:
 outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model
 ```
 
-The module now keeps one production path:
+The module now keeps two deployment paths:
 
 ```text
-checkpoint -> prefix_cache.onnx + denoise_step.onnx
-           -> prefix_cache fp32 engine + denoise_step fp32/fp16_constrained engine
-           -> split TensorRT sample_actions runtime
-           -> SO101 robot runner
+hybrid:
+  checkpoint -> denoise_step.onnx
+             -> denoise_step fp32/fp16_constrained engine
+             -> PyTorch prefix_cache + TensorRT denoise_step runtime
+             -> SO101 robot runner
+
+pure_trt:
+  checkpoint -> prefix_cache.onnx + denoise_step.onnx
+             -> prefix_cache fp32/fp16_constrained engine + denoise_step fp32/fp16_constrained engine
+             -> TensorRT prefix_cache + TensorRT denoise_step runtime
+             -> SO101 robot runner without loading PyTorch model weights
 ```
 
 ## Current Layout
@@ -23,9 +30,10 @@ my_devs/openpi_trt/
   runtime/
     trt_engine.py           # TensorRT engine loader with torch tensor I/O
     protocol.py             # stable tensor-name protocol
-    config.py               # split runtime config
+    config.py               # hybrid runtime config
     metadata.py             # optional artifact metadata helper
-    simple_pi05_split.py    # production compact split TensorRT runtime
+    simple_pi05_split.py    # production compact hybrid TensorRT runtime
+    pure_pi05_trt.py        # pure TensorRT runtime without loading model.safetensors
     pi05_trt_split.py       # compatibility wrapper for vla_engineering
 
   scripts/
@@ -61,11 +69,67 @@ conda run -n lerobot_flex python my_devs/openpi_trt/scripts/simple_pi05_pipeline
 
 Useful switches:
 
-- `--force-export`: rebuild ONNX files.
+- `--force-export`: rebuild denoise_step ONNX.
 - `--force-convert`: rebuild TensorRT engines.
 - `--validate-only`: reuse existing ONNX/engine artifacts and compare Torch vs TensorRT.
 - `--export-only`: only export ONNX.
 - `--convert-only`: only build TensorRT engines.
+
+Prefix cache is intentionally computed by the loaded PyTorch policy. The old
+prefix TensorRT engine argument is still accepted by compatibility wrappers, but
+it is not required and not loaded by the current runtime.
+
+Use `--runtime-backend pure_trt` when you want inference to avoid loading
+PyTorch model weights and run both prefix_cache and denoise_step with TensorRT.
+This still loads config, tokenizer, preprocessor, and postprocessor files.
+
+For pure TensorRT deployment, the small runtime assets bundle lives at:
+
+```text
+my_devs/openpi_trt/artifacts/pi05_runtime_assets
+```
+
+It contains only:
+
+```text
+config.json
+policy_preprocessor.json
+policy_preprocessor_step_2_normalizer_processor.safetensors
+policy_postprocessor.json
+policy_postprocessor_step_0_unnormalizer_processor.safetensors
+```
+
+It intentionally does not contain `model.safetensors`.
+
+To reduce pure TensorRT VRAM, prefer the constrained FP16 prefix engine:
+
+```text
+my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine
+```
+
+This replaces the older FP32 prefix engine:
+
+```text
+my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp32.engine
+```
+
+Current artifact sizes:
+
+```text
+prefix fp32 engine:             11G
+prefix fp16 constrained engine: 5.3G
+denoise fp16 constrained:       825M
+```
+
+Validated pure TRT constrained FP16 result:
+
+```text
+passed_allclose: true
+mean_abs_diff: 0.00349374
+max_abs_diff: 0.01450744
+cosine_similarity: 0.99997102
+TRT latency: 75.81 ms
+```
 
 ## Real Robot
 
@@ -75,7 +139,6 @@ fp32:
 conda run -n lerobot_flex python my_devs/openpi_trt/scripts/simple_pi05_run_robot.py \
   --policy-path outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model \
   --profile fp32 \
-  --prefix-engine-path my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp32.engine \
   --denoise-engine-path my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp32.engine \
   --robot-id hfy_follower \
   --robot-type so101_follower \
@@ -101,7 +164,6 @@ fp16 constrained:
 conda run -n lerobot_flex python my_devs/openpi_trt/scripts/simple_pi05_run_robot.py \
   --policy-path outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model \
   --profile fp16_constrained \
-  --prefix-engine-path my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp32.engine \
   --denoise-engine-path my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
   --robot-id hfy_follower \
   --robot-type so101_follower \
@@ -133,4 +195,5 @@ from runtime.pi05_trt_split import patch_sample_actions_with_split_trt
 
 That import path is intentionally preserved. The file is now a thin wrapper over
 `runtime.simple_pi05_split`, so the async Tesseract backend keeps working while
-the implementation stays in one place.
+the implementation stays in one place. Existing callers may still pass
+`prefix_engine_path`; the runtime ignores it and logs `prefix_backend=torch`.

@@ -65,11 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--robot-type", default=os.getenv("ROBOT_TYPE", "so101_follower"))
     parser.add_argument(
         "--backend",
-        choices=["torch", "torch_compile", "tensorrt_split"],
+        choices=["torch", "torch_compile", "tensorrt_split", "tensorrt_pure"],
         default=os.getenv("PI05_BACKEND"),
         help=(
             "Inference backend. Defaults to torch_compile when --compile-model=true, otherwise torch. "
-            "Use tensorrt_split to patch policy.model.sample_actions with split TensorRT engines."
+            "Use tensorrt_split for Torch-prefix + TensorRT-denoise. "
+            "Use tensorrt_pure for TensorRT-prefix + TensorRT-denoise without loading model.safetensors."
         ),
     )
     parser.add_argument(
@@ -92,7 +93,9 @@ def build_parser() -> argparse.ArgumentParser:
             "PI05_TRT_PREFIX_ENGINE",
             "my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp32.engine",
         ),
-        help="TensorRT split backend prefix_cache engine path.",
+        help=(
+            "Prefix TensorRT engine path. Ignored by tensorrt_split, required by tensorrt_pure."
+        ),
     )
     parser.add_argument(
         "--denoise-engine-path",
@@ -109,6 +112,17 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Policy dtype override before patching TensorRT split backend. "
             "Existing FP32 engines expect float32."
+        ),
+    )
+    parser.add_argument(
+        "--runtime-assets-dir",
+        default=os.getenv(
+            "PI05_TRT_RUNTIME_ASSETS_DIR",
+            "my_devs/openpi_trt/artifacts/pi05_runtime_assets",
+        ),
+        help=(
+            "Small config/preprocessor/postprocessor directory for tensorrt_pure. "
+            "It must not contain model.safetensors."
         ),
     )
     parser.add_argument("--warmup-steps", type=int, default=int(os.getenv("WARMUP_STEPS", "0")))
@@ -307,13 +321,11 @@ def patch_tensorrt_split_backend(
 
     from runtime.pi05_trt_split import patch_sample_actions_with_split_trt
 
-    if not prefix_engine_path.is_file():
-        raise FileNotFoundError(f"TensorRT prefix_cache engine does not exist: {prefix_engine_path}")
     if not denoise_engine_path.is_file():
         raise FileNotFoundError(f"TensorRT denoise_step engine does not exist: {denoise_engine_path}")
 
-    log_info(f"Patching PI0.5 sample_actions with TensorRT split backend.")
-    log_info(f"TensorRT prefix engine: {prefix_engine_path}")
+    log_info("Patching PI0.5 sample_actions with Torch-prefix + TensorRT-denoise backend.")
+    log_info(f"TensorRT prefix engine argument ignored: {prefix_engine_path}")
     log_info(f"TensorRT denoise engine: {denoise_engine_path}")
     runtime = patch_sample_actions_with_split_trt(
         bundle.policy,
@@ -327,12 +339,74 @@ def patch_tensorrt_split_backend(
     }
 
 
+def load_tensorrt_pure_bundle(args: argparse.Namespace) -> tuple[Pi05PolicyBundle, dict[str, Any]]:
+    from lerobot.utils.utils import get_safe_torch_device
+
+    openpi_trt_dir = REPO_ROOT / "my_devs/openpi_trt"
+    openpi_trt_str = openpi_trt_dir.as_posix()
+    if openpi_trt_str not in sys.path:
+        sys.path.insert(0, openpi_trt_str)
+
+    from runtime.pure_pi05_trt import PurePI05TRTPolicyAdapter, PurePI05TRTProfile, PurePI05TRTRuntime
+    from scripts.pi05_onnx_common import ensure_local_tokenizer_dir
+
+    runtime_assets_dir = resolve_engine_path(args.runtime_assets_dir)
+    prefix_engine_path = resolve_engine_path(args.prefix_engine_path)
+    denoise_engine_path = resolve_engine_path(args.denoise_engine_path)
+
+    if not runtime_assets_dir.is_dir():
+        raise FileNotFoundError(f"TensorRT pure runtime assets directory does not exist: {runtime_assets_dir}")
+    if (runtime_assets_dir / "model.safetensors").exists():
+        raise RuntimeError(
+            f"TensorRT pure runtime assets must not contain model.safetensors: {runtime_assets_dir}"
+        )
+    if not prefix_engine_path.is_file():
+        raise FileNotFoundError(f"TensorRT prefix_cache engine does not exist: {prefix_engine_path}")
+    if not denoise_engine_path.is_file():
+        raise FileNotFoundError(f"TensorRT denoise_step engine does not exist: {denoise_engine_path}")
+
+    ensure_local_tokenizer_dir(REPO_ROOT)
+    trt_device = args.device or "cuda"
+    log_info("Loading pure TensorRT PI0.5 backend without PyTorch model weights.")
+    log_info(f"TensorRT runtime assets: {runtime_assets_dir}")
+    log_info(f"TensorRT prefix engine: {prefix_engine_path}")
+    log_info(f"TensorRT denoise engine: {denoise_engine_path}")
+    runtime = PurePI05TRTRuntime(
+        PurePI05TRTProfile(
+            name="tensorrt_pure",
+            prefix_engine_path=prefix_engine_path,
+            denoise_engine_path=denoise_engine_path,
+        )
+    )
+    policy = PurePI05TRTPolicyAdapter(runtime_assets_dir, runtime, device=trt_device)
+    device = get_safe_torch_device(policy.config.device)
+    preprocessor, postprocessor = load_pre_post_processors(runtime_assets_dir)
+    bundle = Pi05PolicyBundle(
+        policy=policy,
+        policy_cfg=policy.config,
+        preprocessor=preprocessor,
+        postprocessor=postprocessor,
+        device=device,
+        policy_path=runtime_assets_dir,
+    )
+    return bundle, {
+        "runtime_assets_dir": str(runtime_assets_dir),
+        "prefix_engine_path": str(prefix_engine_path),
+        "denoise_engine_path": str(denoise_engine_path),
+        "runtime": runtime.describe(),
+        "loads_model_safetensors": False,
+    }
+
+
 def load_bundle(
     args: argparse.Namespace,
     *,
     policy_path: Path,
     backend: str,
 ) -> tuple[Pi05PolicyBundle, dict[str, Any]]:
+    if backend == "tensorrt_pure":
+        return load_tensorrt_pure_bundle(args)
+
     validate_policy_artifacts(policy_path, summarize=args.summarize_artifacts)
     if backend == "torch":
         bundle = load_pi05_bundle(
@@ -413,14 +487,17 @@ def main() -> None:
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
     task = resolve_task(parser, args)
-    policy_path = Path(args.policy_path).expanduser().resolve()
-    if not policy_path.is_dir():
-        raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
     backend = resolve_backend(args)
+    policy_path = Path(args.policy_path).expanduser().resolve()
+    if backend != "tensorrt_pure" and not policy_path.is_dir():
+        raise FileNotFoundError(f"Policy path does not exist: {policy_path}")
 
     log_info("Starting PI0.5 async inference server.")
     log_info(f"Repo root: {REPO_ROOT}")
-    log_info(f"Policy path: {policy_path}")
+    if backend == "tensorrt_pure":
+        log_info(f"Runtime assets dir: {resolve_engine_path(args.runtime_assets_dir)}")
+    else:
+        log_info(f"Policy path: {policy_path}")
     log_info(f"Task: {task}")
     log_info(f"Robot type: {args.robot_type}")
     log_info(f"backend: {backend}")

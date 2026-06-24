@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Runtime configuration objects for LeRobot PI0.5 split TensorRT backends."""
+"""Runtime configuration objects for LeRobot PI0.5 hybrid TensorRT backends."""
 
 from __future__ import annotations
 
@@ -15,13 +15,13 @@ DEFAULT_DENOISE_ENGINE_PATH = Path("my_devs/openpi_trt/artifacts/pi05_so101_deno
 
 @dataclass(frozen=True)
 class PI05SplitTRTConfig:
-    """Configuration for the SO101 PI0.5 prefix-cache + denoise TensorRT runtime.
+    """Configuration for the SO101 PI0.5 Torch-prefix + TRT-denoise runtime.
 
-    The defaults intentionally mirror the engine artifacts that are already used
-    by the existing scripts and by `my_devs/vla_engineering`.
+    `prefix_engine_path` is retained for compatibility with old commands. The
+    current runtime does not load a prefix TensorRT engine.
     """
 
-    prefix_engine_path: Path
+    prefix_engine_path: Path | None
     denoise_engine_path: Path
     num_layers: int = PI05_PREFIX_CACHE_LAYERS
     batch_size: int = 1
@@ -42,7 +42,7 @@ class PI05SplitTRTConfig:
         camera_count: int = 2,
     ) -> "PI05SplitTRTConfig":
         return cls(
-            prefix_engine_path=Path(prefix_engine_path).expanduser(),
+            prefix_engine_path=Path(prefix_engine_path).expanduser() if prefix_engine_path else None,
             denoise_engine_path=Path(denoise_engine_path).expanduser(),
             num_layers=num_layers,
             batch_size=batch_size,
@@ -52,14 +52,15 @@ class PI05SplitTRTConfig:
         )
 
     def validate_files(self) -> None:
-        if not self.prefix_engine_path.is_file():
+        if self.prefix_engine_path is not None and not self.prefix_engine_path.is_file():
             raise FileNotFoundError(f"Prefix TensorRT engine not found: {self.prefix_engine_path}")
         if not self.denoise_engine_path.is_file():
             raise FileNotFoundError(f"Denoise TensorRT engine not found: {self.denoise_engine_path}")
 
     def to_dict(self) -> dict:
         return {
-            "prefix_engine_path": str(self.prefix_engine_path),
+            "prefix_backend": "torch",
+            "prefix_engine_path": str(self.prefix_engine_path) if self.prefix_engine_path else None,
             "denoise_engine_path": str(self.denoise_engine_path),
             "num_layers": self.num_layers,
             "batch_size": self.batch_size,

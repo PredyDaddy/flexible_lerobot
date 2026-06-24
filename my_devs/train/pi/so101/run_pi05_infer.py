@@ -16,6 +16,7 @@ Notes for PI0.5:
   (it can be a symlink to a ModelScope download).
  
 Example:
+全量微调demo
 python my_devs/train/pi/so101/run_pi05_infer.py \
     --policy-path outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/last/pretrained_model \
     --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \

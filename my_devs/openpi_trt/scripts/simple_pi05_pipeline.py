@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-"""Simple PI0.5 split TensorRT pipeline: export, convert, and validate."""
+"""Simple PI0.5 hybrid TensorRT pipeline: export, convert, and validate.
+
+The current deployment boundary keeps prefix_cache in PyTorch and converts only
+the denoise_step graph to TensorRT.
+"""
 
 from __future__ import annotations
 
@@ -21,7 +25,8 @@ for path in (OPENPI_TRT_DIR, REPO_ROOT):
     if path.as_posix() not in sys.path:
         sys.path.insert(0, path.as_posix())
 
-from runtime.simple_pi05_split import SimplePI05SplitTRTRuntime, SimplePI05TRTProfile  # noqa: E402
+from runtime.pure_pi05_trt import PurePI05TRTProfile, PurePI05TRTRuntime  # noqa: E402
+from runtime.simple_pi05_split import DEFAULT_PREFIX_ENGINE, SimplePI05SplitTRTRuntime, SimplePI05TRTProfile  # noqa: E402
 from scripts.pi05_onnx_common import (  # noqa: E402
     DEFAULT_POLICY_PATH,
     DEFAULT_TASK,
@@ -42,8 +47,9 @@ from scripts.pi05_onnx_common import (  # noqa: E402
 
 ARTIFACT_DIR = Path("my_devs/openpi_trt/artifacts")
 PREFIX_ONNX = ARTIFACT_DIR / "pi05_so101_prefix_cache_b1_fp32.onnx"
+PREFIX_FP32_ENGINE = ARTIFACT_DIR / "pi05_so101_prefix_cache_b1_fp32.engine"
+PREFIX_FP16_CONSTRAINED_ENGINE = ARTIFACT_DIR / "pi05_so101_prefix_cache_b1_fp16_constrained.engine"
 DENOISE_ONNX = ARTIFACT_DIR / "pi05_so101_denoise_step_b1_fp32.onnx"
-PREFIX_ENGINE = ARTIFACT_DIR / "pi05_so101_prefix_cache_b1_fp32.engine"
 DENOISE_FP32_ENGINE = ARTIFACT_DIR / "pi05_so101_denoise_step_b1_fp32.engine"
 DENOISE_FP16_CONSTRAINED_ENGINE = ARTIFACT_DIR / "pi05_so101_denoise_step_b1_fp16_constrained.engine"
 
@@ -62,6 +68,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--policy-path", type=Path, default=DEFAULT_POLICY_PATH)
     parser.add_argument("--task", default=DEFAULT_TASK)
     parser.add_argument("--profile", choices=["fp32", "fp16_constrained"], default="fp16_constrained")
+    parser.add_argument("--runtime-backend", choices=["hybrid", "pure_trt"], default="hybrid")
+    parser.add_argument("--prefix-engine-path", type=Path, default=DEFAULT_PREFIX_ENGINE)
+    parser.add_argument("--build-prefix-engine", action="store_true")
+    parser.add_argument("--export-prefix-onnx", action="store_true")
+    parser.add_argument("--prefix-precision", choices=["fp32", "fp16_constrained"], default="fp16_constrained")
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--noise-seed", type=int, default=2026)
     parser.add_argument("--opset", type=int, default=19)
@@ -78,15 +89,19 @@ def build_parser() -> argparse.ArgumentParser:
 def export_onnx(policy, batch, args: argparse.Namespace) -> dict[str, Path]:
     patch_transformers_for_onnx_export()
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    jobs = [
-        (
-            "prefix_cache",
-            PREFIX_ONNX,
-            PI05PrefixCacheONNXWrapper(policy).eval(),
-            make_prefix_cache_inputs(policy, batch),
-            ["image_0", "image_1", "img_mask_0", "img_mask_1", "tokens", "masks"],
-            prefix_cache_tensor_names(),
-        ),
+    jobs = []
+    if args.export_prefix_onnx or args.build_prefix_engine:
+        jobs.append(
+            (
+                "prefix_cache",
+                PREFIX_ONNX,
+                PI05PrefixCacheONNXWrapper(policy).eval(),
+                make_prefix_cache_inputs(policy, batch),
+                ["image_0", "image_1", "img_mask_0", "img_mask_1", "tokens", "masks"],
+                prefix_cache_tensor_names(),
+            )
+        )
+    jobs.append(
         (
             "denoise_step",
             DENOISE_ONNX,
@@ -95,7 +110,7 @@ def export_onnx(policy, batch, args: argparse.Namespace) -> dict[str, Path]:
             denoise_step_input_names(),
             ["v_t"],
         ),
-    ]
+    )
     outputs = {}
     for name, output, wrapper, inputs, input_names, output_names in jobs:
         outputs[name] = output
@@ -203,7 +218,15 @@ def _configure_fp16_precision_constraints(network) -> None:
 
 def convert_engines(args: argparse.Namespace) -> dict[str, Path]:
     engines = {}
-    engines["prefix_fp32"] = build_engine(PREFIX_ONNX, PREFIX_ENGINE, "fp32", args.workspace_gb, args.force_convert)
+    if args.build_prefix_engine:
+        prefix_engine = PREFIX_FP32_ENGINE if args.prefix_precision == "fp32" else PREFIX_FP16_CONSTRAINED_ENGINE
+        engines[f"prefix_{args.prefix_precision}"] = build_engine(
+            PREFIX_ONNX,
+            prefix_engine,
+            args.prefix_precision,
+            args.workspace_gb,
+            args.force_convert,
+        )
     if args.profile == "fp32":
         engines["denoise"] = build_engine(DENOISE_ONNX, DENOISE_FP32_ENGINE, "fp32", args.workspace_gb, args.force_convert)
     else:
@@ -233,16 +256,37 @@ def validate_inference(policy, batch, args: argparse.Namespace) -> dict:
         denoise_engine = DENOISE_FP32_ENGINE
     else:
         denoise_engine = DENOISE_FP16_CONSTRAINED_ENGINE
-    profile = SimplePI05TRTProfile(
-        name=args.profile,
-        prefix_engine_path=PREFIX_ENGINE,
-        denoise_engine_path=denoise_engine,
-    )
-    log(f"[INFER] Loading simple TensorRT runtime profile={args.profile}")
-    runtime = SimplePI05SplitTRTRuntime(profile)
+    if args.runtime_backend == "pure_trt":
+        profile = PurePI05TRTProfile(
+            name=args.profile,
+            prefix_engine_path=args.prefix_engine_path,
+            denoise_engine_path=denoise_engine,
+        )
+        log(f"[INFER] Loading pure TensorRT runtime profile={args.profile}")
+        runtime = PurePI05TRTRuntime(profile)
+    else:
+        profile = SimplePI05TRTProfile(
+            name=args.profile,
+            prefix_engine_path=None,
+            denoise_engine_path=denoise_engine,
+        )
+        log(f"[INFER] Loading hybrid TensorRT runtime profile={args.profile}")
+        runtime = SimplePI05SplitTRTRuntime(profile)
     log(f"[INFER] Runtime: {runtime.describe()}")
     t0 = time.perf_counter()
-    trt_actions = runtime.sample_actions(policy, images, img_masks, tokens, masks, noise)
+    if args.runtime_backend == "pure_trt":
+        trt_actions = runtime.sample_actions(
+            images=images,
+            img_masks=img_masks,
+            tokens=tokens,
+            masks=masks,
+            chunk_size=policy.config.chunk_size,
+            max_action_dim=policy.config.max_action_dim,
+            num_inference_steps=policy.config.num_inference_steps,
+            noise=noise,
+        )
+    else:
+        trt_actions = runtime.sample_actions(policy, images, img_masks, tokens, masks, noise)
     trt_dt = time.perf_counter() - t0
 
     action_dim = policy.config.output_features["action"].shape[0]
@@ -272,7 +316,7 @@ def main() -> None:
         raise RuntimeError("CUDA is required for simple PI0.5 TensorRT pipeline.")
 
     policy_path = args.policy_path.expanduser().resolve()
-    log("[PIPELINE] Simple PI0.5 split TensorRT pipeline")
+    log("[PIPELINE] Simple PI0.5 hybrid TensorRT pipeline")
     log(f"[PIPELINE] policy_path={policy_path}")
     log(f"[PIPELINE] profile={args.profile}")
     log(f"[PIPELINE] report={args.report}")
@@ -283,7 +327,7 @@ def main() -> None:
     batch = make_policy_batch(policy_path, task=args.task, seed=args.seed)
     log(f"[PIPELINE] Policy/batch ready in {time.perf_counter() - t0:.2f}s")
 
-    report = {"policy_path": str(policy_path), "profile": args.profile}
+    report = {"policy_path": str(policy_path), "profile": args.profile, "runtime_backend": args.runtime_backend}
     if not args.convert_only and not args.validate_only:
         report["onnx"] = {k: str(v) for k, v in export_onnx(policy, batch, args).items()}
     if not args.export_only and not args.validate_only:

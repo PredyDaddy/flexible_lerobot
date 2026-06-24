@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Artifact metadata helpers for PI0.5 split TensorRT deployments."""
+"""Artifact metadata helpers for PI0.5 hybrid TensorRT deployments."""
 
 from __future__ import annotations
 
@@ -12,11 +12,12 @@ from typing import Any
 
 @dataclass
 class PI05SplitTRTArtifactMetadata:
-    """Human- and script-readable description of a split TensorRT artifact set."""
+    """Human- and script-readable description of a hybrid TensorRT artifact set."""
 
     policy_path: str
-    prefix_engine_path: str
+    prefix_engine_path: str | None
     denoise_engine_path: str
+    prefix_backend: str = "torch"
     precision: str = "fp32"
     model_dtype: str = "float32"
     num_layers: int = 18
