@@ -203,6 +203,10 @@ lerobot-info="lerobot.scripts.lerobot_info:main"
 lerobot-find-joint-limits="lerobot.scripts.lerobot_find_joint_limits:main"
 lerobot-imgtransform-viz="lerobot.scripts.lerobot_imgtransform_viz:main"
 lerobot-edit-dataset="lerobot.scripts.lerobot_edit_dataset:main"
+jz-lerobot-vector-bridge="lerobot.robots.jz_robot.bridge_capture.ros_action_bridge:main"
+jz-lerobot-raw-recorder="lerobot.robots.jz_robot.bridge_capture.raw_recorder:main"
+jz-lerobot-validate-raw="lerobot.robots.jz_robot.bridge_capture.validate_raw:main"
+jz-lerobot-convert-raw="lerobot.robots.jz_robot.bridge_capture.convert_raw_to_lerobot:main"
 
 # ---------------- Tool Configurations ----------------
 [tool.setuptools.packages.find]

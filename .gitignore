@@ -189,3 +189,16 @@ assets
 my_devs/docs/gr00t_trt/Isaac-GR00T-n1.5-release
 
 google
+
+data_collection
+
+cqy
+!cqy/
+cqy/*
+!cqy/allign/
+cqy/allign/*
+!cqy/allign/head_alignment_service.py
+!cqy/allign/run_head_alignment_service.sh
+!tests/cqy/
+tests/cqy/*
+!tests/cqy/test_head_alignment_service.py

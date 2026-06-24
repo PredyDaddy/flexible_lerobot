@@ -1,0 +1,119 @@
+robot:
+  name: jz_dual_arm
+  namespace: /robot1
+  orin_ip: 192.168.50.10
+  collector_ip: 192.168.50.20
+  ros_domain_id: 50
+
+recording:
+  output_root: /home/test/datasets/jz_raw
+  sample_rate_hz: 20
+  image_format: jpg
+  image_quality: 95
+  max_camera_delta_ms: 25
+  max_state_delta_ms: 10
+  max_action_delta_ms: 10
+
+cameras:
+  camera_head:
+    rtsp_url: rtsp://192.168.50.10:8554/robot_camera/camera_head
+    width: 1280
+    height: 720
+    fps: 30
+    transport: tcp
+  camera_left:
+    rtsp_url: rtsp://192.168.50.10:8554/robot_camera/camera_left
+    width: 640
+    height: 480
+    fps: 30
+    transport: tcp
+  camera_right:
+    rtsp_url: rtsp://192.168.50.10:8554/robot_camera/camera_right
+    width: 640
+    height: 480
+    fps: 30
+    transport: tcp
+  camera_chest:
+    rtsp_url: rtsp://192.168.50.10:8554/robot_camera/camera_chest
+    width: 1280
+    height: 720
+    fps: 30
+    transport: tcp
+
+state:
+  topic: /robot1/lerobot/state
+  names:
+    - left_joint1
+    - left_joint2
+    - left_joint3
+    - left_joint4
+    - left_joint5
+    - left_joint6
+    - left_joint7
+    - right_joint1
+    - right_joint2
+    - right_joint3
+    - right_joint4
+    - right_joint5
+    - right_joint6
+    - right_joint7
+    - left_gripper_width
+    - right_gripper_width
+  sources:
+    - id: left_arm_state
+      topic: /robot1/arm_left/joint_states
+      type: sensor_msgs/msg/JointState
+      names: [left_joint1, left_joint2, left_joint3, left_joint4, left_joint5, left_joint6, left_joint7]
+    - id: right_arm_state
+      topic: /robot1/arm_right/joint_states
+      type: sensor_msgs/msg/JointState
+      names: [right_joint1, right_joint2, right_joint3, right_joint4, right_joint5, right_joint6, right_joint7]
+    - id: left_gripper_state
+      topic: /robot1/left_gripper/gripper_status
+      type: std_msgs/msg/Float64MultiArray
+      names: [left_gripper_width, left_gripper_force]
+      include_names: [left_gripper_width]
+    - id: right_gripper_state
+      topic: /robot1/right_gripper/gripper_status
+      type: std_msgs/msg/Float64MultiArray
+      names: [right_gripper_width, right_gripper_force]
+      include_names: [right_gripper_width]
+
+action:
+  topic: /robot1/lerobot/action
+  names:
+    - left_joint1
+    - left_joint2
+    - left_joint3
+    - left_joint4
+    - left_joint5
+    - left_joint6
+    - left_joint7
+    - right_joint1
+    - right_joint2
+    - right_joint3
+    - right_joint4
+    - right_joint5
+    - right_joint6
+    - right_joint7
+    - left_gripper_width
+    - right_gripper_width
+  sources:
+    - id: left_arm_action
+      topic: /robot1/telecon/arm_left/joint_commands_input
+      type: sensor_msgs/msg/JointState
+      names: [left_joint1, left_joint2, left_joint3, left_joint4, left_joint5, left_joint6, left_joint7]
+    - id: right_arm_action
+      topic: /robot1/telecon/arm_right/joint_commands_input
+      type: sensor_msgs/msg/JointState
+      names: [right_joint1, right_joint2, right_joint3, right_joint4, right_joint5, right_joint6, right_joint7]
+    - id: left_gripper_action
+      topic: /robot1/left_gripper/gripper_commands
+      type: std_msgs/msg/Float64MultiArray
+      names: [left_gripper_width, left_gripper_force]
+      include_names: [left_gripper_width]
+    - id: right_gripper_action
+      topic: /robot1/right_gripper/gripper_commands
+      type: std_msgs/msg/Float64MultiArray
+      names: [right_gripper_width, right_gripper_force]
+      include_names: [right_gripper_width]

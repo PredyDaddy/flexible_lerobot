@@ -79,7 +79,7 @@ ros2 topic echo /robot1/right_gripper/gripper_commands --once
   cd /home/test/workspace/flexible_lerobot
   python -u -m my_devs.jz_robot.run_record_jz_three_realsense \
     --dataset-repo-id local/jz_pick_place_three_rs \
-    --dataset-root /home/test/data/lerobot/jz_pick_place_three_rs_run7 \
+    --dataset-root /home/test/data/lerobot/yanshi2_1 \
     --dataset-task "pick and place with dual arms and grippers" \
     --robot-id jz_dual_arm_rs \
     --use-gripper true \
@@ -87,9 +87,9 @@ ros2 topic echo /robot1/right_gripper/gripper_commands --once
     --state-timeout-s 0.2 \
     --use-external-commands true \
     --teleop-connect-timeout-s 0 \
-    --num-episodes 2 \
-    --episode-time-s 15 \
-    --reset-time-s 5 \
+    --num-episodes 3 \
+    --episode-time-s 12 \
+    --reset-time-s 1 \
     --fps 30 \
     --display-data false \
     --play-sounds true
@@ -116,8 +116,8 @@ ros2 topic echo /robot1/right_gripper/gripper_commands --once
 cd /home/test/workspace/flexible_lerobot
 python -u -m my_devs.jz_robot.run_replay_jz_three_realsense \
   --dataset-repo-id local/jz_pick_place_three_rs \
-  --dataset-root /home/test/data/lerobot/jz_pick_place_three_rs_run1 \
-  --episode 1 \
+  --dataset-root /home/test/data/lerobot/yanshi1_2 \
+  --episode 0 \
   --robot-id jz_dual_arm_rs \
   --use-gripper true \
   --init-state-timeout-s 0 \
