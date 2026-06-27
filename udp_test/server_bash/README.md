@@ -69,6 +69,20 @@ bash udp_test/server_bash/orin_arm/stop.sh
 
 stop 脚本会读取对应 `pids/` 文件并停止脚本启动的后台进程。
 
+注意：
+
+```text
+Ctrl-C 只会停止 tail -f，不会停止后台 Python 服务。
+停止服务必须运行 stop.sh。
+```
+
+查看是否还有残留进程：
+
+```bash
+bash udp_test/server_bash/x86/status.sh
+bash udp_test/server_bash/orin_arm/status.sh
+```
+
 ## 默认 IP
 
 ```text

@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--print-every", type=int, default=1)
     parser.add_argument("--skip-cameras", action="store_true", help="Only check UDP state observation.")
     parser.add_argument("--allowed-sender-ip", default=None, help="Override allowed Orin UDP sender IP.")
+    parser.add_argument("--continue-on-stale", action="store_true", help="Keep monitoring across stale UDP gaps.")
     return parser.parse_args()
 
 
@@ -52,9 +53,20 @@ def main() -> int:
     period_s = 1.0 / args.hz
     try:
         robot.connect()
-        for idx in range(1, args.count + 1):
+        idx = 0
+        stale_count = 0
+        while idx < args.count:
             started = time.monotonic()
-            obs = robot.get_observation()
+            try:
+                obs = robot.get_observation()
+            except TimeoutError as exc:
+                stale_count += 1
+                if not args.continue_on_stale:
+                    raise
+                print(f"[x86 jz_robot_udp observation check] WARN stale_count={stale_count}: {exc}", flush=True)
+                time.sleep(period_s)
+                continue
+            idx += 1
             if idx == 1 or (args.print_every > 0 and idx % args.print_every == 0):
                 image_shapes = {key: tuple(value.shape) for key, value in obs.items() if hasattr(value, "shape")}
                 numeric_count = sum(1 for value in obs.values() if isinstance(value, int | float))

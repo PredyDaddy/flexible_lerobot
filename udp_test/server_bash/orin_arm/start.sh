@@ -16,6 +16,9 @@ read -r -a PYTHON_ARGS <<< "$PYTHON_CMD"
 
 cd "$ROOT_DIR"
 
+PID_FILE="$PID_DIR/ros_state_udp_bridge.pid"
+bash "$ROOT_DIR/udp_test/server_bash/orin_arm/stop.sh"
+
 echo "[orin_arm/start] READONLY ONLY"
 if [[ "$RUN_READINESS" == "1" ]]; then
   echo "[orin_arm/start] local readiness check..."
@@ -32,7 +35,7 @@ nohup "${PYTHON_ARGS[@]}" udp_test/test_scripts/arm_side/orin_ros_state_udp_brid
   --hz "$STATE_HZ" \
   --print-every "$STATE_HZ" \
   > "$LOG_DIR/ros_state_udp_bridge.log" 2>&1 &
-echo "$!" > "$PID_DIR/ros_state_udp_bridge.pid"
+echo "$!" > "$PID_FILE"
 
-echo "[orin_arm/start] started pid=$(cat "$PID_DIR/ros_state_udp_bridge.pid")"
+echo "[orin_arm/start] started pid=$(cat "$PID_FILE")"
 echo "[orin_arm/start] log: $LOG_DIR/ros_state_udp_bridge.log"
