@@ -64,7 +64,7 @@ x86 上先运行：
 
 ```bash
 cd /path/to/flexible_lerobot
-conda run -n lerobot_flex python udp_test/test_scripts/x86_side/x86_jz_robot_udp_observation_check.py \
+conda run --no-capture-output -n lerobot_flex python udp_test/test_scripts/x86_side/x86_jz_robot_udp_observation_check.py \
   --robot-config src/lerobot/configs/robot/jz_robot_udp_three_rtsp.yaml \
   --count 20 \
   --hz 5
@@ -91,7 +91,7 @@ SUMMARY: PASS observations=20
 如果只想先测 UDP state，不测 RTSP 相机：
 
 ```bash
-conda run -n lerobot_flex python udp_test/test_scripts/x86_side/x86_jz_robot_udp_observation_check.py \
+conda run --no-capture-output -n lerobot_flex python udp_test/test_scripts/x86_side/x86_jz_robot_udp_observation_check.py \
   --robot-config src/lerobot/configs/robot/jz_robot_udp_three_rtsp.yaml \
   --count 20 \
   --hz 5 \
@@ -101,7 +101,7 @@ conda run -n lerobot_flex python udp_test/test_scripts/x86_side/x86_jz_robot_udp
 没有 ROS 环境时，也可以用 fake state 先测 `JZRobotUDP`：
 
 ```bash
-conda run -n lerobot_flex python udp_test/test_scripts/arm_side/orin_udp_state_sender.py \
+conda run --no-capture-output -n lerobot_flex python udp_test/test_scripts/arm_side/orin_udp_state_sender.py \
   --bind-ip 127.0.0.1 \
   --target-ip 127.0.0.1 \
   --target-port 39010 \

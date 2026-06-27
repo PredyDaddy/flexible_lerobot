@@ -10,7 +10,7 @@ OBS_COUNT="${OBS_COUNT:-0}"
 OBS_HZ="${OBS_HZ:-5}"
 ROBOT_CONFIG="${ROBOT_CONFIG:-$ROOT_DIR/src/lerobot/configs/robot/jz_robot_udp_three_rtsp.yaml}"
 SKIP_CAMERAS="${SKIP_CAMERAS:-0}"
-PYTHON_CMD="${PYTHON_CMD:-conda run -n lerobot_flex python}"
+PYTHON_CMD="${PYTHON_CMD:-conda run --no-capture-output -n lerobot_flex python}"
 read -r -a PYTHON_ARGS <<< "$PYTHON_CMD"
 
 cd "$ROOT_DIR"
