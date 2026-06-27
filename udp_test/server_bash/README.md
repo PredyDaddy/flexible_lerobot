@@ -30,7 +30,7 @@ tail -f udp_test/server_bash/x86/logs/jz_robot_udp_observation_check.log
 默认使用：
 
 ```text
-conda run -n lerobot python
+conda run -n lerobot_flex python
 ```
 
 ### 2. Orin 上启动 ROS 状态 UDP 桥
