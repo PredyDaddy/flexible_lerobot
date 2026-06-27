@@ -1,0 +1,59 @@
+# JZRobot UDP readonly config for x86-side observation tests.
+
+type: jz_robot_udp
+id: jz_robot_udp_three_rtsp
+
+bind_ip: 0.0.0.0
+state_port: 39010
+allowed_sender_ip: 192.168.1.81
+connect_timeout_s: 300.0
+state_timeout_s: 1.0
+receive_buffer_size: 65535
+
+left_joint_names:
+  - left_joint1
+  - left_joint2
+  - left_joint3
+  - left_joint4
+  - left_joint5
+  - left_joint6
+  - left_joint7
+
+right_joint_names:
+  - right_joint1
+  - right_joint2
+  - right_joint3
+  - right_joint4
+  - right_joint5
+  - right_joint6
+  - right_joint7
+
+use_gripper: true
+
+rtsp_cameras:
+  camera_head:
+    url: rtsp://192.168.1.81:8554/robot_camera/camera_head
+    fps: 30
+    width: 1280
+    height: 720
+    timeout_ms: 5000
+    warmup_frames: 1
+    color_mode: rgb
+
+  camera_left:
+    url: rtsp://192.168.1.81:8554/robot_camera/camera_left
+    fps: 30
+    width: 640
+    height: 480
+    timeout_ms: 5000
+    warmup_frames: 1
+    color_mode: rgb
+
+  camera_right:
+    url: rtsp://192.168.1.81:8554/robot_camera/camera_right
+    fps: 30
+    width: 640
+    height: 480
+    timeout_ms: 5000
+    warmup_frames: 1
+    color_mode: rgb

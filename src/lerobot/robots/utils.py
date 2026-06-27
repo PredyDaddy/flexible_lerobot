@@ -60,6 +60,10 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .jz_robot import JZRobot
 
         return JZRobot(config)
+    elif config.type == "jz_robot_udp":
+        from .jz_robot_udp import JZRobotUDP
+
+        return JZRobotUDP(config)
     elif config.type == "reachy2":
         from .reachy2 import Reachy2Robot
 

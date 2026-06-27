@@ -2,7 +2,7 @@
 
 本文档用于讨论后续新增 `jz_robot_udp` 机器人接口时的技术栈、模块边界和推荐落地方式。
 
-当前文档只描述方案，不代表已经接入控制能力。
+当前文档描述第一版只读落地方案。当前已经开始接入 `jz_robot_udp`，但不代表已经接入控制能力。
 
 ## 目标
 
@@ -44,6 +44,8 @@ send_action()
              |                                | +----------+----------+ |
              | UDP state packets              |            ^            |
              +--------------------------------+------------+            |
+             | RTSP camera streams                         |
+             +-------------------------------------------->|
                                               |                         |
                                               +-------------------------+
 ```
@@ -105,7 +107,8 @@ src/lerobot/robots/jz_robot_udp
 remote robot client
 x86 侧运行
 不依赖 ROS2
-通过 UDP 获取 observation
+通过 UDP 获取关节/夹爪状态
+通过 RTSP 获取相机图像
 后续通过 UDP 发送 action
 ```
 
@@ -126,6 +129,7 @@ threading or asyncio
 
 ```text
 Python standard library + JSON
+RTSP camera via OpenCV/cv2
 ```
 
 原因：
@@ -174,6 +178,7 @@ src/lerobot/robots/jz_robot_udp/
   protocol.py
   udp_client.py
   state_cache.py
+  rtsp_camera.py
 ```
 
 Orin bridge 可以单独放：
@@ -247,6 +252,7 @@ observation_features
 ```text
 config_jz_robot_udp.py
   定义 IP、端口、timeout、joint names、feature 配置
+  第一版默认只接受 allowed_sender_ip=192.168.1.81 的状态包
 
 protocol.py
   定义 UDP packet schema
@@ -291,23 +297,33 @@ safety_gate.py
 
 ## UDP Packet 初始建议
 
-第一阶段 state packet：
+第一阶段 state packet 已固定为 JSON：
 
 ```text
 {
   "version": 1,
   "type": "state",
+  "robot": "robot1",
   "seq": 123,
-  "robot_id": "robot1",
-  "timestamp_ns": 123456789,
-  "payload": {
-    "arm_left": {
-      "joint_names": ["..."],
-      "position": [...]
+  "stamp_ns": 123456789,
+  "joints": {
+    "left": {
+      "left_joint1": 0.0,
+      "...": 0.0
     },
-    "arm_right": {
-      "joint_names": ["..."],
-      "position": [...]
+    "right": {
+      "right_joint1": 0.0,
+      "...": 0.0
+    }
+  },
+  "grippers": {
+    "left": {
+      "width": 0.0,
+      "force": 0.0
+    },
+    "right": {
+      "width": 0.0,
+      "force": 0.0
     }
   }
 }
@@ -328,11 +344,18 @@ connected
 
 ## observation_features 建议
 
-第一阶段只接双臂关节状态：
+第一阶段接双臂关节、夹爪状态、三路 RTSP 相机：
 
 ```text
 left_<joint>.pos: float
 right_<joint>.pos: float
+left_gripper.width: float
+left_gripper.force: float
+right_gripper.width: float
+right_gripper.force: float
+camera_head: image
+camera_left: image
+camera_right: image
 ```
 
 示例：
@@ -385,6 +408,12 @@ send_action() disabled
 
 ```text
 raise RuntimeError("JZRobotUDP action sending is disabled in readonly mode")
+```
+
+当前实现使用更具体的异常：
+
+```text
+raise NotImplementedError(...)
 ```
 
 控制阶段再做：
@@ -459,4 +488,3 @@ JZRobotUDP 负责 lerobot Robot 接口
 不控制夹爪
 不操控机器人
 ```
-

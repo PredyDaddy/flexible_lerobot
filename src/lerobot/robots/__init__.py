@@ -18,3 +18,4 @@ from .config import RobotConfig
 from .robot import Robot
 from .utils import make_robot_from_config
 from . import jz_robot as jz_robot
+from . import jz_robot_udp as jz_robot_udp
