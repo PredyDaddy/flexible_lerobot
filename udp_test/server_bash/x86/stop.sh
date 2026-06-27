@@ -7,6 +7,9 @@ PATTERN="udp_test/test_scripts/x86_side/x86_jz_robot_udp_observation_check.py"
 
 stop_pid() {
   local pid="$1"
+  if [[ "$pid" == "$$" || "$pid" == "$PPID" ]]; then
+    return
+  fi
   if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
     echo "[x86/stop] stopping pid=$pid"
     kill "$pid" 2>/dev/null || true

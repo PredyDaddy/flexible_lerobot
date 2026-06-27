@@ -39,6 +39,7 @@ rtsp_cameras:
     timeout_ms: 5000
     warmup_frames: 1
     color_mode: rgb
+    transport: tcp
 
   camera_left:
     url: rtsp://192.168.1.81:8554/robot_camera/camera_left
@@ -48,6 +49,7 @@ rtsp_cameras:
     timeout_ms: 5000
     warmup_frames: 1
     color_mode: rgb
+    transport: tcp
 
   camera_right:
     url: rtsp://192.168.1.81:8554/robot_camera/camera_right
@@ -57,3 +59,4 @@ rtsp_cameras:
     timeout_ms: 5000
     warmup_frames: 1
     color_mode: rgb
+    transport: tcp

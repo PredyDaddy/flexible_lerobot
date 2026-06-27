@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import socket
 import sys
 import time
@@ -27,6 +28,12 @@ from my_devs.jz_robot.common import DEFAULT_ROBOT_CONFIG, load_robot_config
 
 LEFT = "left"
 RIGHT = "right"
+STOP_REQUESTED = False
+
+
+def request_stop(_signum: int, _frame: Any) -> None:
+    global STOP_REQUESTED
+    STOP_REQUESTED = True
 
 
 class ReadonlyStateCollector:
@@ -97,6 +104,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    signal.signal(signal.SIGINT, request_stop)
+    signal.signal(signal.SIGTERM, request_stop)
+
     args = parse_args()
     robot_cfg = load_robot_config(args.robot_config)
     collector = ReadonlyStateCollector(robot_cfg)
@@ -148,8 +158,11 @@ def main() -> int:
 
     try:
         deadline = time.monotonic() + args.wait_timeout_s
-        while not collector.ready() and time.monotonic() < deadline:
+        while not STOP_REQUESTED and not collector.ready() and time.monotonic() < deadline:
             executor.spin_once(timeout_sec=0.05)
+        if STOP_REQUESTED:
+            print("[orin ros state udp bridge] stop requested before initial state ready", flush=True)
+            return 0
         if not collector.ready():
             print(f"[orin ros state udp bridge] initial state timeout counts={collector.counts}", flush=True)
             return 1
@@ -157,7 +170,7 @@ def main() -> int:
         seq = 0
         period_s = 1.0 / args.hz
         next_send = time.monotonic()
-        while args.count <= 0 or seq < args.count:
+        while not STOP_REQUESTED and (args.count <= 0 or seq < args.count):
             executor.spin_once(timeout_sec=0.0)
             now = time.monotonic()
             if now < next_send:
@@ -175,9 +188,16 @@ def main() -> int:
         return 0
     finally:
         sock.close()
-        executor.shutdown()
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            executor.shutdown()
+        except Exception:
+            pass
+        try:
+            node.destroy_node()
+        except Exception:
+            pass
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from .config_jz_robot_udp import RTSPCameraConfig
@@ -21,6 +22,8 @@ class RTSPCamera:
 
         if self.is_connected:
             return
+        if self.config.transport == "tcp":
+            os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
         cap = cv2.VideoCapture(self.config.url)
         cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.config.timeout_ms)
         cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, self.config.timeout_ms)
