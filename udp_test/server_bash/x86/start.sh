@@ -10,6 +10,7 @@ OBS_COUNT="${OBS_COUNT:-0}"
 OBS_HZ="${OBS_HZ:-5}"
 ROBOT_CONFIG="${ROBOT_CONFIG:-$ROOT_DIR/src/lerobot/configs/robot/jz_robot_udp_three_rtsp.yaml}"
 SKIP_CAMERAS="${SKIP_CAMERAS:-0}"
+AUTO_TAIL="${AUTO_TAIL:-1}"
 PYTHON_CMD="${PYTHON_CMD:-conda run --no-capture-output -n lerobot_flex python}"
 read -r -a PYTHON_ARGS <<< "$PYTHON_CMD"
 
@@ -42,3 +43,7 @@ echo "$!" > "$PID_FILE"
 
 echo "[x86/start] started pid=$(cat "$PID_FILE")"
 echo "[x86/start] log: $LOG_DIR/jz_robot_udp_observation_check.log"
+if [[ "$AUTO_TAIL" == "1" ]]; then
+  echo "[x86/start] following log now. Ctrl-C only exits tail; use x86/stop.sh to stop service."
+  tail -f "$LOG_DIR/jz_robot_udp_observation_check.log"
+fi

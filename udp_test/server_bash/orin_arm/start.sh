@@ -12,6 +12,7 @@ STATE_PORT="${STATE_PORT:-39010}"
 STATE_HZ="${STATE_HZ:-20}"
 PYTHON_CMD="${PYTHON_CMD:-python}"
 RUN_READINESS="${RUN_READINESS:-0}"
+AUTO_TAIL="${AUTO_TAIL:-1}"
 read -r -a PYTHON_ARGS <<< "$PYTHON_CMD"
 
 cd "$ROOT_DIR"
@@ -39,3 +40,7 @@ echo "$!" > "$PID_FILE"
 
 echo "[orin_arm/start] started pid=$(cat "$PID_FILE")"
 echo "[orin_arm/start] log: $LOG_DIR/ros_state_udp_bridge.log"
+if [[ "$AUTO_TAIL" == "1" ]]; then
+  echo "[orin_arm/start] following log now. Ctrl-C only exits tail; use orin_arm/stop.sh to stop service."
+  tail -f "$LOG_DIR/ros_state_udp_bridge.log"
+fi

@@ -24,7 +24,6 @@ x86: UDP state + RTSP cameras -> JZRobotUDP.get_observation()
 ```bash
 cd /path/to/flexible_lerobot
 bash udp_test/server_bash/x86/start.sh
-tail -f udp_test/server_bash/x86/logs/jz_robot_udp_observation_check.log
 ```
 
 默认使用：
@@ -38,7 +37,6 @@ conda run --no-capture-output -n lerobot_flex python
 ```bash
 cd /home/data/test/workspace/flexible_lerobot
 bash udp_test/server_bash/orin_arm/start.sh
-tail -f udp_test/server_bash/orin_arm/logs/ros_state_udp_bridge.log
 ```
 
 Orin 端需要在 ROS2/rclpy 可用的终端里运行。默认使用当前终端的 `python`，如果你要显式指定：
@@ -74,6 +72,13 @@ stop 脚本会读取对应 `pids/` 文件并停止脚本启动的后台进程。
 ```text
 Ctrl-C 只会停止 tail -f，不会停止后台 Python 服务。
 停止服务必须运行 stop.sh。
+```
+
+`start.sh` 默认会在启动后台服务后自动进入 `tail -f` 看日志。只想启动、不想自动看日志时：
+
+```bash
+AUTO_TAIL=0 bash udp_test/server_bash/x86/start.sh
+AUTO_TAIL=0 bash udp_test/server_bash/orin_arm/start.sh
 ```
 
 查看是否还有残留进程：
