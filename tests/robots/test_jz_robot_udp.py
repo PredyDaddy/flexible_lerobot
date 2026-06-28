@@ -23,6 +23,8 @@ from lerobot.robots.jz_robot_udp.protocol import (
     make_jz_robot_udp_command_packet,
 )
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
+from lerobot.teleoperators.config import TeleoperatorConfig
+from lerobot.teleoperators.utils import make_teleoperator_from_config
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ORIN_COMMAND_RECEIVER = REPO_ROOT / "udp_test/test_scripts/arm_side/orin_udp_command_receiver.py"
@@ -332,3 +334,30 @@ def test_jz_robot_udp_sender_filter_rejects_unexpected_sender() -> None:
 
     with pytest.raises(RuntimeError, match="unexpected sender"):
         robot.get_observation()
+
+
+def test_jz_robot_udp_constant_teleop_matches_robot_action_features() -> None:
+    from lerobot.teleoperators.jz_robot_udp_constant import JZRobotUDPConstantTeleopConfig
+
+    robot = JZRobotUDP(make_config())
+    teleop = make_teleoperator_from_config(JZRobotUDPConstantTeleopConfig())
+
+    assert teleop.action_features == robot.action_features
+    assert teleop.feedback_features == {}
+    assert teleop.is_calibrated
+    assert not teleop.is_connected
+
+    teleop.connect()
+    try:
+        action = teleop.get_action()
+    finally:
+        teleop.disconnect()
+
+    assert action == {key: 0.0 for key in robot.action_features}
+    assert not teleop.is_connected
+
+
+def test_jz_robot_udp_constant_teleop_is_registered_for_draccus() -> None:
+    from lerobot.teleoperators.jz_robot_udp_constant import JZRobotUDPConstantTeleopConfig
+
+    assert TeleoperatorConfig.get_choice_name(JZRobotUDPConstantTeleopConfig) == "jz_robot_udp_constant"

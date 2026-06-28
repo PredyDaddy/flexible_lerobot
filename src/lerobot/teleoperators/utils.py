@@ -85,6 +85,10 @@ def make_teleoperator_from_config(config: TeleoperatorConfig) -> Teleoperator:
         from .jz_command_teleop import JZCommandTeleop
 
         return JZCommandTeleop(config)
+    elif config.type == "jz_robot_udp_constant":
+        from .jz_robot_udp_constant import JZRobotUDPConstantTeleop
+
+        return JZRobotUDPConstantTeleop(config)
     else:
         try:
             return cast(Teleoperator, make_device_from_device_class(config))
