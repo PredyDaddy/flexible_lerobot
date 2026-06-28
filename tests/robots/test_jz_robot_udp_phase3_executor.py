@@ -297,6 +297,30 @@ def test_joint_absolute_range_and_delta_gates_reject_publish() -> None:
     assert len(publisher.published) == 1
 
 
+def test_joint_absolute_range_bypass_still_enforces_delta_gate() -> None:
+    cfg = complete_config(
+        execution=COMMAND_MODE_ARMED,
+        max_publish_hz=100.0,
+        allow_joint_position_limit_bypass=True,
+    )
+    cfg.initial_joint_positions = {joint: 1.99 for joint in joint_names()}
+    executor, publisher = make_executor(cfg)
+
+    bypassed = process(executor, command_packet(left_value=2.0, right_value=2.0), monotonic_s=10.0)
+    assert bypassed.accepted
+    assert bypassed.publish
+    assert bypassed.reason == "published"
+
+    too_large_delta = process(
+        executor,
+        command_packet(seq=2, left_value=2.5, right_value=2.5),
+        monotonic_s=10.1,
+    )
+    assert not too_large_delta.accepted
+    assert too_large_delta.reason == "joint_delta_limit"
+    assert len(publisher.published) == 1
+
+
 def test_first_armed_command_requires_initial_joint_and_gripper_state() -> None:
     cfg = complete_config(execution=COMMAND_MODE_ARMED)
     cfg.initial_joint_positions = {}
