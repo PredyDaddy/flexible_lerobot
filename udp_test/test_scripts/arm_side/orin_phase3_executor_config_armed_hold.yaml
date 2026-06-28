@@ -39,6 +39,7 @@ timeouts:
 
 rate_limits:
   max_publish_hz: 2.0
+allow_publish_rate_limit_bypass: true
 
 joint_position_limits:
   left_joint1: [-0.076844637, -0.016844637]
@@ -57,7 +58,7 @@ joint_position_limits:
   right_joint7: [-0.320544949, -0.260544949]
 
 # Phase 3 armed on-robot validation: bypass motion numeric limits for on-robot validation.
-# Other gates still apply, including sender IP, armed ack, packet freshness, and publish rate.
+# Other gates still apply, including sender IP, armed ack, and packet freshness.
 allow_joint_position_limit_bypass: true
 allow_joint_delta_limit_bypass: true
 allow_gripper_limit_bypass: true

@@ -66,6 +66,7 @@ class Phase3ExecutorConfig:
     max_clock_skew_s: float = 1.0
     command_timeout_s: float = 0.3
     max_publish_hz: float = 10.0
+    allow_publish_rate_limit_bypass: bool = False
     qos_depth: int = 10
     armed_env_var: str = ARMED_ENV_VAR
 
@@ -214,6 +215,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG) -> Phase3ExecutorConfig:
     cfg.max_clock_skew_s = raw.get("max_clock_skew_s", timeouts.get("max_clock_skew_s", cfg.max_clock_skew_s))
     cfg.command_timeout_s = raw.get("command_timeout_s", timeouts.get("command_timeout_s", cfg.command_timeout_s))
     cfg.max_publish_hz = raw.get("max_publish_hz", rate.get("max_publish_hz", cfg.max_publish_hz))
+    cfg.allow_publish_rate_limit_bypass = bool(
+        raw.get("allow_publish_rate_limit_bypass", cfg.allow_publish_rate_limit_bypass)
+    )
     cfg.qos_depth = raw.get("qos_depth", cfg.qos_depth)
 
     cfg.left_arm_command_topic = topics.get(
@@ -392,6 +396,7 @@ def startup_banner(cfg: Phase3ExecutorConfig, *, publish_enabled: bool) -> str:
             f"left_gripper_topic={cfg.left_gripper_command_topic}",
             f"right_gripper_topic={cfg.right_gripper_command_topic}",
             f"max_publish_hz={cfg.max_publish_hz}",
+            f"allow_publish_rate_limit_bypass={cfg.allow_publish_rate_limit_bypass}",
             f"command_timeout_s={cfg.command_timeout_s}",
             f"allow_joint_position_limit_bypass={cfg.allow_joint_position_limit_bypass}",
             f"allow_joint_delta_limit_bypass={cfg.allow_joint_delta_limit_bypass}",
@@ -547,7 +552,7 @@ class Phase3CommandExecutor:
         if self.cfg.execution == COMMAND_MODE_ARMED and command.mode != COMMAND_MODE_ARMED:
             return self._reject("packet_not_armed", seq)
 
-        if self.cfg.execution == COMMAND_MODE_ARMED:
+        if self.cfg.execution == COMMAND_MODE_ARMED and not self.cfg.allow_publish_rate_limit_bypass:
             period_s = 1.0 / float(self.cfg.max_publish_hz)
             if (
                 self.last_publish_monotonic_s is not None

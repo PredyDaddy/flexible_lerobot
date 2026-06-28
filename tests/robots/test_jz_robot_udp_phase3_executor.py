@@ -419,6 +419,23 @@ def test_publish_rate_limit_drops_fast_packets_without_bursting() -> None:
     assert len(publisher.published) == 1
 
 
+def test_publish_rate_limit_bypass_allows_fast_packets_when_explicitly_enabled() -> None:
+    cfg = complete_config(
+        execution=COMMAND_MODE_ARMED,
+        max_publish_hz=10.0,
+        allow_publish_rate_limit_bypass=True,
+    )
+    executor, publisher = make_executor(cfg)
+
+    first = process(executor, command_packet(seq=1), monotonic_s=10.0)
+    second = process(executor, command_packet(seq=2), monotonic_s=10.01)
+
+    assert first.publish
+    assert second.publish
+    assert executor.counters.rate_limited == 0
+    assert len(publisher.published) == 2
+
+
 def test_command_timeout_marks_inactive_without_publishing_stop_pose() -> None:
     cfg = complete_config(execution=COMMAND_MODE_ARMED)
     executor, publisher = make_executor(cfg)
