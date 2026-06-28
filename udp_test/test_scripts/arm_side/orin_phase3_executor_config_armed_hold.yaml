@@ -41,20 +41,20 @@ rate_limits:
   max_publish_hz: 2.0
 
 joint_position_limits:
-  left_joint1: [-0.056844637, -0.036844637]
-  left_joint2: [-1.248346072, -1.228346072]
-  left_joint3: [0.205879783, 0.225879783]
-  left_joint4: [-1.557408979, -1.537408979]
-  left_joint5: [1.215692328, 1.235692328]
-  left_joint6: [0.178024316, 0.198024316]
-  left_joint7: [-0.056739917, -0.036739917]
-  right_joint1: [0.033196897, 0.053196897]
-  right_joint2: [1.206581787, 1.226581787]
-  right_joint3: [-0.198024316, -0.178024316]
-  right_joint4: [1.527722396, 1.547722396]
-  right_joint5: [-1.214643768, -1.194643768]
-  right_joint6: [-0.168894777, -0.148894777]
-  right_joint7: [-0.299323224, -0.279323224]
+  left_joint1: [-0.076844637, -0.016844637]
+  left_joint2: [-1.268311051, -1.208311051]
+  left_joint3: [0.185844862, 0.245844862]
+  left_joint4: [-1.577635747, -1.517635747]
+  left_joint5: [1.195657441, 1.255657441]
+  left_joint6: [0.158024316, 0.218024316]
+  left_joint7: [-0.077054078, -0.017054078]
+  right_joint1: [0.013371430, 0.073371430]
+  right_joint2: [1.186564343, 1.246564343]
+  right_joint3: [-0.218024316, -0.158024316]
+  right_joint4: [1.507774727, 1.567774727]
+  right_joint5: [-1.234608747, -1.174608747]
+  right_joint6: [-0.188894777, -0.128894777]
+  right_joint7: [-0.307140827, -0.247140827]
 
 max_joint_delta_per_step:
   default: 0.002
@@ -62,19 +62,19 @@ max_joint_delta_per_step:
 
 initial_joint_positions:
   left_joint1: -0.046844637
-  left_joint2: -1.238346072
-  left_joint3: 0.215879783
-  left_joint4: -1.547408979
-  left_joint5: 1.225692328
+  left_joint2: -1.238311051
+  left_joint3: 0.215844862
+  left_joint4: -1.547635747
+  left_joint5: 1.225657441
   left_joint6: 0.188024316
-  left_joint7: -0.046739917
-  right_joint1: 0.043196897
-  right_joint2: 1.216581787
+  left_joint7: -0.047054078
+  right_joint1: 0.043371430
+  right_joint2: 1.216564343
   right_joint3: -0.188024316
-  right_joint4: 1.537722396
-  right_joint5: -1.204643768
+  right_joint4: 1.537774727
+  right_joint5: -1.204608747
   right_joint6: -0.158894777
-  right_joint7: -0.289323224
+  right_joint7: -0.277140827
 
 gripper_limits:
   left:
