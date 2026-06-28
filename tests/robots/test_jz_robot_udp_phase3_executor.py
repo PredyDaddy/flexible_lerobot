@@ -363,6 +363,33 @@ def test_gripper_range_and_delta_gates_reject_publish() -> None:
     assert len(publisher.published) == 1
 
 
+def test_gripper_range_bypass_still_enforces_delta_gate() -> None:
+    cfg = complete_config(
+        execution=COMMAND_MODE_ARMED,
+        max_publish_hz=100.0,
+        allow_gripper_limit_bypass=True,
+    )
+    cfg.initial_gripper_state = {
+        "left": {"width": 199.0, "force": 199.0},
+        "right": {"width": 199.0, "force": 199.0},
+    }
+    executor, publisher = make_executor(cfg)
+
+    bypassed = process(executor, command_packet(gripper_width=200.0, gripper_force=200.0), monotonic_s=10.0)
+    assert bypassed.accepted
+    assert bypassed.publish
+    assert bypassed.reason == "published"
+
+    too_large_delta = process(
+        executor,
+        command_packet(seq=2, gripper_width=250.0, gripper_force=250.0),
+        monotonic_s=10.1,
+    )
+    assert not too_large_delta.accepted
+    assert too_large_delta.reason == "gripper_delta_limit"
+    assert len(publisher.published) == 1
+
+
 def test_publish_rate_limit_drops_fast_packets_without_bursting() -> None:
     cfg = complete_config(execution=COMMAND_MODE_ARMED, max_publish_hz=10.0)
     executor, publisher = make_executor(cfg)

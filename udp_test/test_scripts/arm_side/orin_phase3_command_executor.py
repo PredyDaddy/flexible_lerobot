@@ -83,6 +83,7 @@ class Phase3ExecutorConfig:
     max_joint_delta_overrides: dict[str, Any] = field(default_factory=dict)
     initial_joint_positions: dict[str, Any] = field(default_factory=dict)
     gripper_limits: dict[str, GripperLimits] = field(default_factory=dict)
+    allow_gripper_limit_bypass: bool = False
     initial_gripper_state: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -249,6 +250,7 @@ def load_config(path: str | Path = DEFAULT_CONFIG) -> Phase3ExecutorConfig:
     cfg.gripper_limits = {
         side: _coerce_gripper_limits(value) for side, value in _as_mapping(raw.get("gripper_limits")).items()
     }
+    cfg.allow_gripper_limit_bypass = bool(raw.get("allow_gripper_limit_bypass", cfg.allow_gripper_limit_bypass))
     return cfg
 
 
@@ -389,6 +391,7 @@ def startup_banner(cfg: Phase3ExecutorConfig, *, publish_enabled: bool) -> str:
             f"command_timeout_s={cfg.command_timeout_s}",
             f"allow_joint_position_limit_bypass={cfg.allow_joint_position_limit_bypass}",
             f"allow_joint_delta_limit_bypass={cfg.allow_joint_delta_limit_bypass}",
+            f"allow_gripper_limit_bypass={cfg.allow_gripper_limit_bypass}",
         ]
     )
     return "\n".join(lines)
@@ -658,10 +661,11 @@ class Phase3CommandExecutor:
             force_range = _finite_range(limits.force)
             if width_range is None or force_range is None:
                 return "gripper_limits"
-            if fields["width"] < width_range[0] or fields["width"] > width_range[1]:
-                return "gripper_limit"
-            if fields["force"] < force_range[0] or fields["force"] > force_range[1]:
-                return "gripper_limit"
+            if not self.cfg.allow_gripper_limit_bypass:
+                if fields["width"] < width_range[0] or fields["width"] > width_range[1]:
+                    return "gripper_limit"
+                if fields["force"] < force_range[0] or fields["force"] > force_range[1]:
+                    return "gripper_limit"
 
         baseline = self.last_gripper_state
         if baseline is None:

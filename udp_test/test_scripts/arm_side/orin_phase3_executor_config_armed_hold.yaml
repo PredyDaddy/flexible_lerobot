@@ -56,10 +56,11 @@ joint_position_limits:
   right_joint6: [-0.188982045, -0.128982045]
   right_joint7: [-0.320544949, -0.260544949]
 
-# Phase 3 armed on-robot validation: bypass joint absolute window and per-step joint delta.
-# Other gates still apply, including gripper limits, sender IP, armed ack, and publish rate.
+# Phase 3 armed on-robot validation: bypass joint windows and gripper absolute range.
+# Other gates still apply, including gripper delta, sender IP, armed ack, and publish rate.
 allow_joint_position_limit_bypass: true
 allow_joint_delta_limit_bypass: true
+allow_gripper_limit_bypass: true
 
 max_joint_delta_per_step:
   default: 0.01
