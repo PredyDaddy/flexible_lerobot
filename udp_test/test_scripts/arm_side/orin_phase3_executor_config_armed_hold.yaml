@@ -1,0 +1,97 @@
+execution: "armed"
+robot: "robot1"
+
+network:
+  bind_ip: "192.168.1.81"
+  allowed_sender_ip: "192.168.1.106"
+  command_port: 39020
+  buffer_size: 65535
+
+topics:
+  left_arm_command_topic: "/robot1/telecon/arm_left/joint_commands_input"
+  right_arm_command_topic: "/robot1/telecon/arm_right/joint_commands_input"
+  left_gripper_command_topic: "/robot1/left_gripper/gripper_commands"
+  right_gripper_command_topic: "/robot1/right_gripper/gripper_commands"
+
+left_joint_names:
+  - "left_joint1"
+  - "left_joint2"
+  - "left_joint3"
+  - "left_joint4"
+  - "left_joint5"
+  - "left_joint6"
+  - "left_joint7"
+
+right_joint_names:
+  - "right_joint1"
+  - "right_joint2"
+  - "right_joint3"
+  - "right_joint4"
+  - "right_joint5"
+  - "right_joint6"
+  - "right_joint7"
+
+timeouts:
+  max_command_age_s: 0.25
+  max_clock_skew_s: 1.0
+  command_timeout_s: 0.3
+  socket_timeout_s: 0.2
+
+rate_limits:
+  max_publish_hz: 2.0
+
+joint_position_limits:
+  left_joint1: [-0.056844637, -0.036844637]
+  left_joint2: [-1.248346072, -1.228346072]
+  left_joint3: [0.205879783, 0.225879783]
+  left_joint4: [-1.557408979, -1.537408979]
+  left_joint5: [1.215692328, 1.235692328]
+  left_joint6: [0.178024316, 0.198024316]
+  left_joint7: [-0.056739917, -0.036739917]
+  right_joint1: [0.033196897, 0.053196897]
+  right_joint2: [1.206581787, 1.226581787]
+  right_joint3: [-0.198024316, -0.178024316]
+  right_joint4: [1.527722396, 1.547722396]
+  right_joint5: [-1.214643768, -1.194643768]
+  right_joint6: [-0.168894777, -0.148894777]
+  right_joint7: [-0.299323224, -0.279323224]
+
+max_joint_delta_per_step:
+  default: 0.002
+  overrides: {}
+
+initial_joint_positions:
+  left_joint1: -0.046844637
+  left_joint2: -1.238346072
+  left_joint3: 0.215879783
+  left_joint4: -1.547408979
+  left_joint5: 1.225692328
+  left_joint6: 0.188024316
+  left_joint7: -0.046739917
+  right_joint1: 0.043196897
+  right_joint2: 1.216581787
+  right_joint3: -0.188024316
+  right_joint4: 1.537722396
+  right_joint5: -1.204643768
+  right_joint6: -0.158894777
+  right_joint7: -0.289323224
+
+gripper_limits:
+  left:
+    width: [98.0, 100.0]
+    force: [0.0, 2.0]
+    max_width_delta_per_step: 1.0
+    max_force_delta_per_step: 1.0
+  right:
+    width: [98.0, 100.0]
+    force: [6.0, 8.0]
+    max_width_delta_per_step: 1.0
+    max_force_delta_per_step: 1.0
+
+initial_gripper_state:
+  left:
+    width: 99.0
+    force: 0.0
+  right:
+    width: 99.0
+    force: 7.0
