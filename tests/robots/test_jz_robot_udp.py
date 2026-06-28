@@ -449,6 +449,18 @@ def test_jz_robot_udp_constant_teleop_is_registered_for_draccus() -> None:
     assert TeleoperatorConfig.get_choice_name(JZRobotUDPConstantTeleopConfig) == "jz_robot_udp_constant"
 
 
+def test_jz_robot_udp_send_action_accepts_numpy_scalar_values() -> None:
+    import numpy as np
+
+    robot = JZRobotUDP(make_config(send_action_transport="local"))
+    robot._is_connected = True
+    action = {key: np.float32(index) for index, key in enumerate(robot.action_features)}
+
+    returned = robot.send_action(action)
+
+    assert returned == {key: float(index) for index, key in enumerate(robot.action_features)}
+
+
 def test_jz_robot_udp_hold_teleop_maps_observation_to_action() -> None:
     from lerobot.teleoperators.jz_robot_udp_hold import JZRobotUDPHoldTeleopConfig
 

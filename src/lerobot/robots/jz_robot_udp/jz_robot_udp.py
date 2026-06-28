@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from functools import cached_property
+from numbers import Real
 from typing import Any
 
 from lerobot.processor import RobotAction, RobotObservation
@@ -260,7 +261,7 @@ class JZRobotUDP(Robot):
         float_action: RobotAction = {}
         for key in self.action_features:
             value = action[key]
-            if isinstance(value, bool) or not isinstance(value, int | float):
+            if isinstance(value, bool) or not isinstance(value, Real):
                 raise ValueError(f"JZRobotUDP action {key} must be numeric")
             float_action[key] = float(value)
         return float_action
