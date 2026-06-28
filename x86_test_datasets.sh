@@ -9,7 +9,7 @@ PYTHONPATH_VALUE="${PYTHONPATH_VALUE:-src}"
 DATASET_ROOT="${DATASET_ROOT:-tests/outputs/jz_robot_udp_hold_phase3_dry_run_003}"
 
 run_python() {
-  PYTHONPATH="$PYTHONPATH_VALUE" $PYTHON_CMD "$@"
+  PYTHONPATH="$PYTHONPATH_VALUE" DATASET_ROOT="$DATASET_ROOT" $PYTHON_CMD "$@"
 }
 
 inspect_actions() {
@@ -19,11 +19,13 @@ inspect_actions() {
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
-root = Path("${DATASET_ROOT}")
+root = Path(os.environ["DATASET_ROOT"])
 parquet = root / "data/chunk-000/file-000.parquet"
 info_json = root / "meta/info.json"
 stats_json = root / "meta/stats.json"
@@ -50,6 +52,44 @@ else:
 df = pd.read_parquet(parquet)
 print("rows", len(df))
 print("cols", len(df.columns))
+
+if "action" in df.columns:
+    print("action_columns 1")
+    print("  action_col action")
+    print("observation_state_columns", int("observation.state" in df.columns))
+    if "observation.state" in df.columns:
+        print("  obs_state_col observation.state")
+
+    action_values = np.stack(df["action"].to_numpy())
+    nonzero_count = int(np.count_nonzero(action_values))
+    all_zero = nonzero_count == 0
+    print("action_summary")
+    print(
+        f"  action: shape={action_values.shape} first={float(action_values.flat[0]):.9f} "
+        f"min={float(action_values.min()):.9f} max={float(action_values.max()):.9f} "
+        f"mean={float(action_values.mean()):.9f} nonzero={nonzero_count}/{action_values.size}"
+    )
+    print("all_action_values_zero", all_zero)
+    if all_zero:
+        raise SystemExit("ERROR action values are all zero; do not replay this dataset on hardware")
+
+    print("hold_action_vs_observation")
+    if "observation.state" in df.columns:
+        obs_values = np.stack(df["observation.state"].to_numpy())
+        diff = np.abs(action_values - obs_values)
+        max_abs_diff = float(diff.max())
+        print(f"  action ~= observation.state: max_abs_diff={max_abs_diff:.12f}")
+        print("matched_action_observation_columns", action_values.shape[1] if action_values.ndim > 1 else 1)
+        print("max_abs_diff", f"{max_abs_diff:.12f}")
+        if max_abs_diff > 1e-9:
+            raise SystemExit("ERROR action values do not exactly match observation hold values")
+    else:
+        print("WARN no observation.state column could be matched to action")
+        print("matched_action_observation_columns", 0)
+        print("max_abs_diff", "0.000000000000")
+
+    print("SUMMARY: PASS dataset action inspection")
+    raise SystemExit(0)
 
 action_cols = [col for col in df.columns if col.startswith("action.")]
 obs_state_cols = [col for col in df.columns if col.startswith("observation.state.")]
