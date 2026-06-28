@@ -78,6 +78,7 @@ class Phase3ExecutorConfig:
     right_joint_names: list[str] = field(default_factory=lambda: DEFAULT_RIGHT_JOINT_NAMES.copy())
     joint_position_limits: dict[str, tuple[Any, Any] | list[Any]] = field(default_factory=dict)
     allow_joint_position_limit_bypass: bool = False
+    allow_joint_delta_limit_bypass: bool = False
     max_joint_delta_per_step: Any = 0.02
     max_joint_delta_overrides: dict[str, Any] = field(default_factory=dict)
     initial_joint_positions: dict[str, Any] = field(default_factory=dict)
@@ -232,6 +233,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG) -> Phase3ExecutorConfig:
     cfg.allow_joint_position_limit_bypass = bool(
         raw.get("allow_joint_position_limit_bypass", cfg.allow_joint_position_limit_bypass)
     )
+    cfg.allow_joint_delta_limit_bypass = bool(
+        raw.get("allow_joint_delta_limit_bypass", cfg.allow_joint_delta_limit_bypass)
+    )
     cfg.initial_joint_positions = dict(raw.get("initial_joint_positions", cfg.initial_joint_positions))
     cfg.initial_gripper_state = dict(raw.get("initial_gripper_state", cfg.initial_gripper_state))
 
@@ -384,6 +388,7 @@ def startup_banner(cfg: Phase3ExecutorConfig, *, publish_enabled: bool) -> str:
             f"max_publish_hz={cfg.max_publish_hz}",
             f"command_timeout_s={cfg.command_timeout_s}",
             f"allow_joint_position_limit_bypass={cfg.allow_joint_position_limit_bypass}",
+            f"allow_joint_delta_limit_bypass={cfg.allow_joint_delta_limit_bypass}",
         ]
     )
     return "\n".join(lines)
@@ -629,7 +634,7 @@ class Phase3CommandExecutor:
             max_delta = self._max_joint_delta(joint)
             if max_delta is None:
                 return "max_joint_delta_unconfigured"
-            if abs(position - baseline[joint]) > max_delta:
+            if not self.cfg.allow_joint_delta_limit_bypass and abs(position - baseline[joint]) > max_delta:
                 return "joint_delta_limit"
         return None
 
