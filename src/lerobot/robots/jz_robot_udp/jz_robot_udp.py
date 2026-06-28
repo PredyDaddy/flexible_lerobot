@@ -13,7 +13,6 @@ from lerobot.utils.decorators import check_if_already_connected, check_if_not_co
 from ..robot import Robot
 from .config_jz_robot_udp import JZRobotUDPConfig
 from .protocol import (
-    COMMAND_MODE_DRY_RUN,
     encode_jz_robot_udp_command_packet,
     make_jz_robot_udp_command_packet,
 )
@@ -209,14 +208,15 @@ class JZRobotUDP(Robot):
             robot=self.config.command_robot,
             seq=self._command_seq,
             stamp_ns=time.time_ns(),
-            mode=COMMAND_MODE_DRY_RUN,
+            mode=self.config.send_action_execution,
             actions=self._command_actions(float_action),
         )
         encoded = encode_jz_robot_udp_command_packet(packet)
 
         if self.config.send_action_transport == "local":
             logger.info(
-                "JZRobotUDP DRY_RUN local command seq=%s mode=%s robot=%s action_key_count=%s action_keys=%s",
+                "JZRobotUDP command seq=%s mode=%s transport=local robot=%s target=local "
+                "action_key_count=%s action_keys=%s",
                 packet["seq"],
                 packet["mode"],
                 packet["robot"],
@@ -232,7 +232,8 @@ class JZRobotUDP(Robot):
                 )
             sent_bytes = self._command_sender.send(encoded)
             logger.info(
-                "JZRobotUDP DRY_RUN UDP command seq=%s mode=%s robot=%s action_key_count=%s target=%s:%s bytes=%s",
+                "JZRobotUDP command seq=%s mode=%s transport=udp robot=%s action_key_count=%s "
+                "target=%s:%s bytes=%s",
                 packet["seq"],
                 packet["mode"],
                 packet["robot"],

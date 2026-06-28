@@ -6,6 +6,7 @@ import ast
 import math
 import socket
 import time
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -13,6 +14,8 @@ import pytest
 
 from lerobot.robots.jz_robot_udp import JZRobotUDP, JZRobotUDPConfig
 from lerobot.robots.jz_robot_udp.protocol import (
+    COMMAND_MODE_ARMED,
+    COMMAND_MODE_DRY_RUN,
     COMMAND_MESSAGE_TYPE,
     PROTOCOL_VERSION,
     STATE_MESSAGE_TYPE,
@@ -25,6 +28,10 @@ from lerobot.robots.jz_robot_udp.protocol import (
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
+from udp_test.test_scripts.x86_side.x86_jz_robot_udp_send_action_check import (
+    make_observation_delta_action,
+    validate_args,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ORIN_COMMAND_RECEIVER = REPO_ROOT / "udp_test/test_scripts/arm_side/orin_udp_command_receiver.py"
@@ -96,9 +103,15 @@ def test_jz_robot_udp_command_config_defaults_are_safe() -> None:
     assert cfg.command_timeout_s == 0.2
 
 
-@pytest.mark.parametrize("execution", ["active", "armed", "execute", "publish", ""])
-def test_jz_robot_udp_command_config_rejects_non_dry_run_execution(execution: str) -> None:
-    with pytest.raises(ValueError, match="dry_run"):
+def test_jz_robot_udp_command_config_accepts_explicit_armed_execution() -> None:
+    cfg = JZRobotUDPConfig(send_action_execution=COMMAND_MODE_ARMED)
+
+    assert cfg.send_action_execution == COMMAND_MODE_ARMED
+
+
+@pytest.mark.parametrize("execution", ["active", "execute", "publish", ""])
+def test_jz_robot_udp_command_config_rejects_unknown_execution(execution: str) -> None:
+    with pytest.raises(ValueError, match="send_action_execution"):
         JZRobotUDPConfig(send_action_execution=execution)
 
 
@@ -119,12 +132,13 @@ def test_state_packet_round_trip_validates_schema() -> None:
     assert decoded["grippers"]["right"]["force"] == 2.0
 
 
-def test_command_packet_round_trip_validates_schema() -> None:
+@pytest.mark.parametrize("mode", [COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED])
+def test_command_packet_accepts_dry_run_and_armed_modes(mode: str) -> None:
     packet = make_jz_robot_udp_command_packet(
         robot="robot1",
         seq=1,
         stamp_ns=123,
-        mode="dry_run",
+        mode=mode,
         actions=sample_command_actions(),
     )
 
@@ -135,9 +149,21 @@ def test_command_packet_round_trip_validates_schema() -> None:
     assert decoded["robot"] == "robot1"
     assert decoded["seq"] == 1
     assert decoded["stamp_ns"] == 123
-    assert decoded["mode"] == "dry_run"
+    assert decoded["mode"] == mode
     assert decoded["actions"]["left"]["left_joint1"] == 1.0
     assert decoded["actions"]["grippers"]["right"]["force"] == 2.0
+
+
+@pytest.mark.parametrize("mode", ["active", "execute", "publish", ""])
+def test_command_packet_rejects_unknown_modes(mode: str) -> None:
+    with pytest.raises(Exception, match="mode"):
+        make_jz_robot_udp_command_packet(
+            robot="robot1",
+            seq=1,
+            stamp_ns=123,
+            mode=mode,
+            actions=sample_command_actions(),
+        )
 
 
 @pytest.mark.parametrize(
@@ -148,10 +174,12 @@ def test_command_packet_round_trip_validates_schema() -> None:
         (lambda packet: packet.pop("stamp_ns"), "stamp_ns"),
         (lambda packet: packet.__setitem__("seq", True), "seq"),
         (lambda packet: packet.__setitem__("stamp_ns", False), "stamp_ns"),
-        (lambda packet: packet.__setitem__("mode", "execute"), "dry_run"),
+        (lambda packet: packet.__setitem__("mode", "execute"), "mode"),
         (lambda packet: packet["actions"]["grippers"]["left"].__setitem__("velocity", 0.1), "velocity"),
         (lambda packet: packet["actions"]["left"].__setitem__("left_joint1", math.nan), "finite"),
         (lambda packet: packet["actions"]["right"].__setitem__("right_joint1", math.inf), "finite"),
+        (lambda packet: packet["actions"]["left"].__setitem__("left_joint2", True), "numeric"),
+        (lambda packet: packet["actions"]["grippers"]["right"].__setitem__("force", False), "numeric"),
     ],
 )
 def test_command_packet_rejects_invalid_cases(mutation, match: str) -> None:
@@ -273,6 +301,63 @@ def test_jz_robot_udp_udp_dry_run_send_action_sends_command_packet() -> None:
     assert decoded["actions"]["left"]["left_joint1"] == 1.0
     assert decoded["actions"]["right"]["right_joint7"] == 17.0
     assert decoded["actions"]["grippers"]["left"]["width"] == 0.01
+
+
+def test_jz_robot_udp_udp_armed_send_action_sends_armed_command_packet_only() -> None:
+    receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    receiver.bind(("127.0.0.1", 0))
+    receiver.settimeout(1.0)
+    _, port = receiver.getsockname()
+    robot = JZRobotUDP(
+        make_config(
+            command_target_ip="127.0.0.1",
+            command_target_port=port,
+            send_action_transport="udp",
+            send_action_execution=COMMAND_MODE_ARMED,
+        )
+    )
+    robot._is_connected = True
+
+    try:
+        robot.send_action(sample_action())
+        data, _sender = receiver.recvfrom(65535)
+    finally:
+        robot.disconnect()
+        receiver.close()
+
+    decoded = decode_jz_robot_udp_command_packet(data)
+    assert decoded["mode"] == COMMAND_MODE_ARMED
+    assert robot._command_seq == 1
+
+
+def test_x86_send_action_check_builds_observation_delta_action() -> None:
+    robot = JZRobotUDP(make_config())
+    observation = {key: float(index) for index, key in enumerate(robot.action_features)}
+
+    action = make_observation_delta_action(
+        robot.action_features,
+        observation,
+        delta_key="left_left_joint1.pos",
+        delta_value=0.001,
+    )
+
+    assert action["left_left_joint1.pos"] == observation["left_left_joint1.pos"] + 0.001
+    unchanged_keys = set(robot.action_features) - {"left_left_joint1.pos"}
+    assert all(action[key] == observation[key] for key in unchanged_keys)
+
+
+def test_x86_send_action_check_observation_delta_requires_real_observation_connection() -> None:
+    args = Namespace(
+        count=1,
+        hz=1.0,
+        command_target_port=39020,
+        action_source="observation_delta",
+        command_only=True,
+        delta_key="left_left_joint1.pos",
+    )
+
+    with pytest.raises(ValueError, match="--no-command-only"):
+        validate_args(args)
 
 
 def test_orin_command_receiver_has_no_ros_publish_path() -> None:

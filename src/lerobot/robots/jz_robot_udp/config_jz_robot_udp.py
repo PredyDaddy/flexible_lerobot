@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..config import RobotConfig
+from .protocol import COMMAND_MODES
 
 DEFAULT_LEFT_JOINT_NAMES = [
     "left_joint1",
@@ -91,8 +92,8 @@ class JZRobotUDPConfig(RobotConfig):
             raise ValueError(f"command_target_port must be in 1..65535, got {self.command_target_port}")
         if self.send_action_transport not in ("local", "udp"):
             raise ValueError("send_action_transport must be 'local' or 'udp'")
-        if self.send_action_execution != "dry_run":
-            raise ValueError("send_action_execution must be 'dry_run' in Phase 2")
+        if self.send_action_execution not in COMMAND_MODES:
+            raise ValueError(f"send_action_execution must be one of {COMMAND_MODES}")
         if not isinstance(self.command_robot, str) or not self.command_robot:
             raise ValueError("command_robot must be a non-empty string")
         if isinstance(self.command_timeout_s, bool) or not isinstance(self.command_timeout_s, int | float):

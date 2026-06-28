@@ -27,12 +27,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--hz", type=float, default=5.0)
     parser.add_argument("--transport", choices=("local", "udp"), default="local")
-    parser.add_argument("--execution", choices=("dry_run",), default="dry_run")
+    parser.add_argument("--execution", choices=("dry_run", "armed"), default="dry_run")
     parser.add_argument("--command-only", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--skip-cameras", action="store_true")
     parser.add_argument("--command-target-ip", default=None)
     parser.add_argument("--command-target-port", type=int, default=None)
     parser.add_argument("--allowed-sender-ip", default=None)
+    parser.add_argument("--action-source", choices=("zero", "observation_delta"), default="zero")
+    parser.add_argument("--delta-key", default=None)
+    parser.add_argument("--delta-value", type=float, default=0.0)
     parser.add_argument("--print-every", type=int, default=1)
     return parser.parse_args()
 
@@ -46,7 +49,7 @@ def set_if_present(obj: object, name: str, value: object) -> None:
         setattr(obj, name, value)
 
 
-def configure_phase2(robot_cfg: RobotConfig, args: argparse.Namespace) -> None:
+def configure_command_check(robot_cfg: RobotConfig, args: argparse.Namespace) -> None:
     set_if_present(robot_cfg, "send_action_transport", args.transport)
     set_if_present(robot_cfg, "send_action_execution", args.execution)
     if args.command_target_ip is not None:
@@ -67,6 +70,32 @@ def make_zero_action(action_features: dict[str, object]) -> dict[str, float]:
     return {key: 0.0 for key in action_features}
 
 
+def make_observation_delta_action(
+    action_features: dict[str, object],
+    observation: dict[str, object],
+    *,
+    delta_key: str | None,
+    delta_value: float,
+) -> dict[str, float]:
+    if not action_features:
+        raise RuntimeError("JZRobotUDP.action_features is empty.")
+    if delta_key is not None and delta_key not in action_features:
+        raise ValueError(f"--delta-key must be an action feature key, got {delta_key!r}")
+
+    action: dict[str, float] = {}
+    for key in action_features:
+        if key not in observation:
+            raise RuntimeError(f"Observation is missing action key {key!r}; cannot build observation_delta action")
+        value = observation[key]
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise RuntimeError(f"Observation key {key!r} is not numeric: {type(value).__name__}")
+        action[key] = float(value)
+
+    if delta_key is not None:
+        action[delta_key] += delta_value
+    return action
+
+
 def mark_connected_for_command_only(robot: object) -> None:
     if hasattr(robot, "_is_connected"):
         # Command-only mode intentionally bypasses state/RTSP connection so the check exercises send_action only.
@@ -79,8 +108,12 @@ def clear_command_only_connection_flag(robot: object) -> None:
 
 
 def print_startup(args: argparse.Namespace) -> None:
-    print("PHASE2 COMMAND DRY-RUN ONLY", flush=True)
-    print("This script does not enable robot execution.", flush=True)
+    print("JZRobotUDP command packet sender check", flush=True)
+    print("x86 only sends command packets; x86 does not publish ROS topics or control the robot.", flush=True)
+    print(
+        "An armed packet can publish only if the Orin Phase 3 executor is armed and all safety gates pass.",
+        flush=True,
+    )
     print(
         "[x86 send_action check] "
         f"config={Path(args.robot_config).resolve()} transport={args.transport} "
@@ -89,17 +122,24 @@ def print_startup(args: argparse.Namespace) -> None:
     )
 
 
-def main() -> int:
-    args = parse_args()
+def validate_args(args: argparse.Namespace) -> None:
     if args.count < 0:
         raise ValueError("--count must be non-negative")
     if args.hz <= 0:
         raise ValueError("--hz must be positive")
     if args.command_target_port is not None and not 0 < args.command_target_port <= 65535:
         raise ValueError("--command-target-port must be in 1..65535")
+    if args.action_source == "observation_delta" and args.command_only:
+        raise ValueError("--action-source observation_delta requires --no-command-only so the script can read observation")
+    if args.action_source == "zero" and args.delta_key is not None:
+        raise ValueError("--delta-key is only valid with --action-source observation_delta")
+
+def main() -> int:
+    args = parse_args()
+    validate_args(args)
 
     robot_cfg = load_robot_config(args.robot_config)
-    configure_phase2(robot_cfg, args)
+    configure_command_check(robot_cfg, args)
     robot = make_robot_from_config(robot_cfg)
 
     print_startup(args)
@@ -112,15 +152,29 @@ def main() -> int:
         else:
             robot.connect()
 
-        action = make_zero_action(robot.action_features)
+        if args.action_source == "zero":
+            action = make_zero_action(robot.action_features)
+        else:
+            observation = robot.get_observation()
+            action = make_observation_delta_action(
+                robot.action_features,
+                observation,
+                delta_key=args.delta_key,
+                delta_value=args.delta_value,
+            )
+            print(
+                "[x86 send_action check] observation_delta action built "
+                f"delta_key={args.delta_key} delta_value={args.delta_value}",
+                flush=True,
+            )
         for idx in range(1, args.count + 1):
             started = time.monotonic()
             returned = robot.send_action(dict(action))
             commands += 1
             if idx == 1 or (args.print_every > 0 and idx % args.print_every == 0):
                 print(
-                    "[x86 send_action check] DRY_RUN sent "
-                    f"idx={idx} action_keys={len(action)} returned_keys={len(returned)}",
+                    "[x86 send_action check] sent "
+                    f"idx={idx} execution={args.execution} action_keys={len(action)} returned_keys={len(returned)}",
                     flush=True,
                 )
             elapsed_s = time.monotonic() - started

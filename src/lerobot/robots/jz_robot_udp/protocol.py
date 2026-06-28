@@ -10,6 +10,8 @@ PROTOCOL_VERSION = 1
 STATE_MESSAGE_TYPE = "state"
 COMMAND_MESSAGE_TYPE = "command"
 COMMAND_MODE_DRY_RUN = "dry_run"
+COMMAND_MODE_ARMED = "armed"
+COMMAND_MODES = (COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED)
 COMMAND_ACTION_SIDES = ("left", "right")
 COMMAND_GRIPPER_SIDES = ("left", "right")
 COMMAND_GRIPPER_FIELDS = ("width", "force")
@@ -121,8 +123,8 @@ def validate_jz_robot_udp_command_packet(packet: Any) -> None:
         raise ProtocolError("command packet seq must be an integer")
     if isinstance(packet.get("stamp_ns"), bool) or not isinstance(packet.get("stamp_ns"), int):
         raise ProtocolError("command packet stamp_ns must be an integer")
-    if packet.get("mode") != COMMAND_MODE_DRY_RUN:
-        raise ProtocolError("command packet mode must be dry_run")
+    if packet.get("mode") not in COMMAND_MODES:
+        raise ProtocolError(f"command packet mode must be one of {COMMAND_MODES}")
 
     actions = packet.get("actions")
     if not isinstance(actions, dict):

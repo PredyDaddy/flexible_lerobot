@@ -5,3 +5,5 @@ echo "[orin_arm/status] matching ROS state UDP bridge processes:"
 pgrep -af "udp_test/test_scripts/arm_side/orin_ros_state_udp_bridge.py" || true
 echo "[orin_arm/status] matching UDP command dry-run receiver processes:"
 pgrep -af "udp_test/test_scripts/arm_side/orin_udp_command_receiver.py" || true
+echo "[orin_arm/status] matching Phase 3 command executor processes:"
+pgrep -af "udp_test/test_scripts/arm_side/orin_phase3_command_executor.py" || true
