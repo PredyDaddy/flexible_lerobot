@@ -448,6 +448,22 @@ def test_command_timeout_marks_inactive_without_publishing_stop_pose() -> None:
     assert len(publisher.published) == 1
 
 
+def test_command_timeout_allows_new_sequence_to_start() -> None:
+    cfg = complete_config(execution=COMMAND_MODE_ARMED, allow_publish_rate_limit_bypass=True)
+    executor, publisher = make_executor(cfg)
+
+    assert process(executor, command_packet(seq=299), monotonic_s=10.0).publish
+    assert executor.check_command_timeout(monotonic_s=10.31)
+
+    restarted = process(executor, command_packet(seq=1), monotonic_s=10.32)
+
+    assert restarted.accepted
+    assert restarted.publish
+    assert restarted.reason == "published"
+    assert executor.counters.last_seq == 1
+    assert len(publisher.published) == 2
+
+
 def test_shutdown_closes_adapter_without_extra_publish() -> None:
     cfg = complete_config(execution=COMMAND_MODE_ARMED)
     executor, publisher = make_executor(cfg)

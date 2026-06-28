@@ -737,6 +737,11 @@ class Phase3CommandExecutor:
         if monotonic_s - self.last_valid_command_monotonic_s <= float(self.cfg.command_timeout_s):
             return False
         self.active = False
+        self.counters.last_seq = None
+        self.last_joint_positions = None
+        self.last_gripper_state = None
+        self.last_publish_monotonic_s = None
+        self.last_valid_command_monotonic_s = None
         self.counters.timeout += 1
         return True
 
