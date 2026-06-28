@@ -84,6 +84,7 @@ class Phase3ExecutorConfig:
     initial_joint_positions: dict[str, Any] = field(default_factory=dict)
     gripper_limits: dict[str, GripperLimits] = field(default_factory=dict)
     allow_gripper_limit_bypass: bool = False
+    allow_gripper_delta_limit_bypass: bool = False
     initial_gripper_state: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -251,6 +252,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG) -> Phase3ExecutorConfig:
         side: _coerce_gripper_limits(value) for side, value in _as_mapping(raw.get("gripper_limits")).items()
     }
     cfg.allow_gripper_limit_bypass = bool(raw.get("allow_gripper_limit_bypass", cfg.allow_gripper_limit_bypass))
+    cfg.allow_gripper_delta_limit_bypass = bool(
+        raw.get("allow_gripper_delta_limit_bypass", cfg.allow_gripper_delta_limit_bypass)
+    )
     return cfg
 
 
@@ -392,6 +396,7 @@ def startup_banner(cfg: Phase3ExecutorConfig, *, publish_enabled: bool) -> str:
             f"allow_joint_position_limit_bypass={cfg.allow_joint_position_limit_bypass}",
             f"allow_joint_delta_limit_bypass={cfg.allow_joint_delta_limit_bypass}",
             f"allow_gripper_limit_bypass={cfg.allow_gripper_limit_bypass}",
+            f"allow_gripper_delta_limit_bypass={cfg.allow_gripper_delta_limit_bypass}",
         ]
     )
     return "\n".join(lines)
@@ -685,10 +690,11 @@ class Phase3CommandExecutor:
             force_delta = _positive_finite(limits.max_force_delta_per_step)
             if width_delta is None or force_delta is None:
                 return "gripper_limits"
-            if abs(fields["width"] - baseline[side]["width"]) > width_delta:
-                return "gripper_delta_limit"
-            if abs(fields["force"] - baseline[side]["force"]) > force_delta:
-                return "gripper_delta_limit"
+            if not self.cfg.allow_gripper_delta_limit_bypass:
+                if abs(fields["width"] - baseline[side]["width"]) > width_delta:
+                    return "gripper_delta_limit"
+                if abs(fields["force"] - baseline[side]["force"]) > force_delta:
+                    return "gripper_delta_limit"
         return None
 
     def _remember_command(self, command: ValidatedCommand, monotonic_s: float) -> None:
