@@ -461,6 +461,30 @@ def test_jz_robot_udp_send_action_accepts_numpy_scalar_values() -> None:
     assert returned == {key: float(index) for index, key in enumerate(robot.action_features)}
 
 
+def test_jz_robot_udp_send_action_accepts_single_value_tensors() -> None:
+    torch = pytest.importorskip("torch")
+
+    robot = JZRobotUDP(make_config(send_action_transport="local"))
+    robot._is_connected = True
+    action = {key: torch.tensor([float(index)]) for index, key in enumerate(robot.action_features)}
+
+    returned = robot.send_action(action)
+
+    assert returned == {key: float(index) for index, key in enumerate(robot.action_features)}
+
+
+def test_jz_robot_udp_send_action_rejects_non_scalar_tensors() -> None:
+    torch = pytest.importorskip("torch")
+
+    robot = JZRobotUDP(make_config(send_action_transport="local"))
+    robot._is_connected = True
+    action = sample_action()
+    action["left_left_joint1.pos"] = torch.tensor([1.0, 2.0])
+
+    with pytest.raises(ValueError, match="scalar numeric"):
+        robot.send_action(action)
+
+
 def test_jz_robot_udp_hold_teleop_maps_observation_to_action() -> None:
     from lerobot.teleoperators.jz_robot_udp_hold import JZRobotUDPHoldTeleopConfig
 

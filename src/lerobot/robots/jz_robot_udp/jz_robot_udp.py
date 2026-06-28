@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from functools import cached_property
 from numbers import Real
@@ -260,11 +261,28 @@ class JZRobotUDP(Robot):
 
         float_action: RobotAction = {}
         for key in self.action_features:
-            value = action[key]
-            if isinstance(value, bool) or not isinstance(value, Real):
-                raise ValueError(f"JZRobotUDP action {key} must be numeric")
-            float_action[key] = float(value)
+            float_action[key] = self._action_value_to_float(key, action[key])
         return float_action
+
+    def _action_value_to_float(self, key: str, value: Any) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"JZRobotUDP action {key} must be numeric")
+        if isinstance(value, Real):
+            float_value = float(value)
+        elif hasattr(value, "numel") and hasattr(value, "item"):
+            if value.numel() != 1:
+                raise ValueError(f"JZRobotUDP action {key} must be a scalar numeric value")
+            float_value = float(value.item())
+        elif hasattr(value, "size") and hasattr(value, "item"):
+            if value.size != 1:
+                raise ValueError(f"JZRobotUDP action {key} must be a scalar numeric value")
+            float_value = float(value.item())
+        else:
+            raise ValueError(f"JZRobotUDP action {key} must be numeric")
+
+        if not math.isfinite(float_value):
+            raise ValueError(f"JZRobotUDP action {key} must be finite")
+        return float_value
 
     def _command_actions(self, action: RobotAction) -> dict[str, Any]:
         command_actions: dict[str, Any] = {
