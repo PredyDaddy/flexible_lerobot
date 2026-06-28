@@ -33,6 +33,7 @@ from udp_test.test_scripts.x86_side.x86_jz_robot_udp_send_action_check import (
     make_observation_delta_action,
     validate_args,
 )
+from udp_test.test_scripts.x86_side.x86_jz_robot_udp_replay_action_check import action_vector_to_dict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ORIN_COMMAND_RECEIVER = REPO_ROOT / "udp_test/test_scripts/arm_side/orin_udp_command_receiver.py"
@@ -483,6 +484,15 @@ def test_jz_robot_udp_send_action_rejects_non_scalar_tensors() -> None:
 
     with pytest.raises(ValueError, match="scalar numeric"):
         robot.send_action(action)
+
+
+def test_replay_action_check_maps_action_vector_to_robot_action() -> None:
+    import numpy as np
+
+    names = ["left_left_joint1.pos", "left_left_joint2.pos"]
+    action = action_vector_to_dict(np.array([1.25, 2.5], dtype=np.float32), names)
+
+    assert action == {"left_left_joint1.pos": pytest.approx(1.25), "left_left_joint2.pos": pytest.approx(2.5)}
 
 
 def test_jz_robot_udp_hold_teleop_maps_observation_to_action() -> None:
