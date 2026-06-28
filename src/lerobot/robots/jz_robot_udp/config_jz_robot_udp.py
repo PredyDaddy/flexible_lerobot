@@ -66,6 +66,13 @@ class JZRobotUDPConfig(RobotConfig):
     connect_timeout_s: float = 5.0
     state_timeout_s: float = 0.5
 
+    command_target_ip: str = "192.168.1.81"
+    command_target_port: int = 39020
+    send_action_transport: str = "local"
+    send_action_execution: str = "dry_run"
+    command_robot: str = "robot1"
+    command_timeout_s: float = 0.2
+
     rtsp_cameras: dict[str, RTSPCameraConfig] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -78,3 +85,17 @@ class JZRobotUDPConfig(RobotConfig):
             raise ValueError(f"state_port must be in 1..65535, got {self.state_port}")
         if self.receive_buffer_size <= 0:
             raise ValueError("receive_buffer_size must be positive")
+        if isinstance(self.command_target_port, bool) or not isinstance(self.command_target_port, int):
+            raise ValueError(f"command_target_port must be an integer in 1..65535, got {self.command_target_port}")
+        if self.command_target_port <= 0 or self.command_target_port > 65535:
+            raise ValueError(f"command_target_port must be in 1..65535, got {self.command_target_port}")
+        if self.send_action_transport not in ("local", "udp"):
+            raise ValueError("send_action_transport must be 'local' or 'udp'")
+        if self.send_action_execution != "dry_run":
+            raise ValueError("send_action_execution must be 'dry_run' in Phase 2")
+        if not isinstance(self.command_robot, str) or not self.command_robot:
+            raise ValueError("command_robot must be a non-empty string")
+        if isinstance(self.command_timeout_s, bool) or not isinstance(self.command_timeout_s, int | float):
+            raise ValueError("command_timeout_s must be positive")
+        if self.command_timeout_s <= 0:
+            raise ValueError("command_timeout_s must be positive")

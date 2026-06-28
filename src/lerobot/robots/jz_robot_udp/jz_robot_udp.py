@@ -12,9 +12,14 @@ from lerobot.utils.decorators import check_if_already_connected, check_if_not_co
 
 from ..robot import Robot
 from .config_jz_robot_udp import JZRobotUDPConfig
+from .protocol import (
+    COMMAND_MODE_DRY_RUN,
+    encode_jz_robot_udp_command_packet,
+    make_jz_robot_udp_command_packet,
+)
 from .rtsp_camera import RTSPCamera
 from .state_cache import StateCache
-from .udp_client import UDPStateReceiver
+from .udp_client import UDPCommandSender, UDPStateReceiver
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,8 @@ class JZRobotUDP(Robot):
             cache=self._state_cache,
             buffer_size=config.receive_buffer_size,
         )
+        self._command_sender: UDPCommandSender | None = None
+        self._command_seq = 0
         self._is_connected = False
 
     @property
@@ -86,7 +93,12 @@ class JZRobotUDP(Robot):
 
     @cached_property
     def action_features(self) -> dict[str, type]:
-        return {}
+        return {
+            **self._left_motors_ft,
+            **self._right_motors_ft,
+            **self._left_gripper_ft,
+            **self._right_gripper_ft,
+        }
 
     @property
     def is_connected(self) -> bool:
@@ -191,13 +203,95 @@ class JZRobotUDP(Robot):
 
     @check_if_not_connected
     def send_action(self, action: RobotAction) -> RobotAction:
-        raise NotImplementedError(
-            "JZRobotUDP is readonly in this phase: send_action() is disabled and sends no UDP control packet."
+        float_action = self._validate_and_float_action(action)
+        self._command_seq += 1
+        packet = make_jz_robot_udp_command_packet(
+            robot=self.config.command_robot,
+            seq=self._command_seq,
+            stamp_ns=time.time_ns(),
+            mode=COMMAND_MODE_DRY_RUN,
+            actions=self._command_actions(float_action),
         )
+        encoded = encode_jz_robot_udp_command_packet(packet)
+
+        if self.config.send_action_transport == "local":
+            logger.info(
+                "JZRobotUDP DRY_RUN local command seq=%s mode=%s robot=%s action_key_count=%s action_keys=%s",
+                packet["seq"],
+                packet["mode"],
+                packet["robot"],
+                len(float_action),
+                sorted(float_action),
+            )
+        elif self.config.send_action_transport == "udp":
+            if self._command_sender is None:
+                self._command_sender = UDPCommandSender(
+                    target_ip=self.config.command_target_ip,
+                    target_port=self.config.command_target_port,
+                    timeout_s=self.config.command_timeout_s,
+                )
+            sent_bytes = self._command_sender.send(encoded)
+            logger.info(
+                "JZRobotUDP DRY_RUN UDP command seq=%s mode=%s robot=%s action_key_count=%s target=%s:%s bytes=%s",
+                packet["seq"],
+                packet["mode"],
+                packet["robot"],
+                len(float_action),
+                self.config.command_target_ip,
+                self.config.command_target_port,
+                sent_bytes,
+            )
+        else:
+            raise RuntimeError(f"unsupported send_action_transport: {self.config.send_action_transport}")
+
+        return float_action
+
+    def _validate_and_float_action(self, action: RobotAction) -> RobotAction:
+        expected_keys = set(self.action_features)
+        action_keys = set(action)
+        missing = sorted(expected_keys - action_keys)
+        unexpected = sorted(action_keys - expected_keys)
+        if missing:
+            raise ValueError(f"JZRobotUDP action is missing keys: {missing}")
+        if unexpected:
+            raise ValueError(f"JZRobotUDP action has unexpected keys: {unexpected}")
+
+        float_action: RobotAction = {}
+        for key in self.action_features:
+            value = action[key]
+            if isinstance(value, bool) or not isinstance(value, int | float):
+                raise ValueError(f"JZRobotUDP action {key} must be numeric")
+            float_action[key] = float(value)
+        return float_action
+
+    def _command_actions(self, action: RobotAction) -> dict[str, Any]:
+        command_actions: dict[str, Any] = {
+            LEFT: {},
+            RIGHT: {},
+            "grippers": {
+                LEFT: {},
+                RIGHT: {},
+            },
+        }
+        for joint in self.config.left_joint_names:
+            command_actions[LEFT][joint] = action[f"{LEFT}_{joint}.pos"]
+        for joint in self.config.right_joint_names:
+            command_actions[RIGHT][joint] = action[f"{RIGHT}_{joint}.pos"]
+        if self.config.use_gripper:
+            for side in (LEFT, RIGHT):
+                command_actions["grippers"][side][GRIPPER_WIDTH] = action[f"{side}_gripper.{GRIPPER_WIDTH}"]
+                command_actions["grippers"][side][GRIPPER_FORCE] = action[f"{side}_gripper.{GRIPPER_FORCE}"]
+        else:
+            command_actions["grippers"][LEFT] = {GRIPPER_WIDTH: 0.0, GRIPPER_FORCE: 0.0}
+            command_actions["grippers"][RIGHT] = {GRIPPER_WIDTH: 0.0, GRIPPER_FORCE: 0.0}
+        return command_actions
 
     @check_if_not_connected
     def disconnect(self) -> None:
         for camera in self.cameras.values():
             camera.disconnect()
         self._receiver.stop()
+        if self._command_sender is not None:
+            self._command_sender.close()
+            self._command_sender = None
         self._is_connected = False

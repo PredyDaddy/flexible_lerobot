@@ -69,3 +69,30 @@ class UDPStateReceiver:
                 logger.exception("Ignoring invalid UDP state packet from %s", sender)
                 continue
             self.cache.update(packet, sender)
+
+
+class UDPCommandSender:
+    """UDP sender for Phase 2 command dry-run packets.
+
+    This helper only sends bytes to a configured target. It does not receive state,
+    publish ROS messages, or encode any robot execution semantics.
+    """
+
+    def __init__(self, target_ip: str, target_port: int, timeout_s: float = 0.2):
+        self.target_ip = target_ip
+        self.target_port = target_port
+        self.timeout_s = timeout_s
+        self._socket: socket.socket | None = None
+
+    def send(self, data: bytes) -> int:
+        sock = self._socket
+        if sock is None:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(self.timeout_s)
+            self._socket = sock
+        return sock.sendto(data, (self.target_ip, self.target_port))
+
+    def close(self) -> None:
+        if self._socket is not None:
+            self._socket.close()
+            self._socket = None

@@ -10,6 +10,13 @@ connect_timeout_s: 300.0
 state_timeout_s: 1.0
 receive_buffer_size: 65535
 
+command_target_ip: 192.168.1.81
+command_target_port: 39020
+send_action_transport: local
+send_action_execution: dry_run
+command_robot: robot1
+command_timeout_s: 0.2
+
 left_joint_names:
   - left_joint1
   - left_joint2
