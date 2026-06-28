@@ -28,6 +28,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
+from lerobot.scripts.lerobot_record import _get_teleop_action
 from udp_test.test_scripts.x86_side.x86_jz_robot_udp_send_action_check import (
     make_observation_delta_action,
     validate_args,
@@ -446,3 +447,34 @@ def test_jz_robot_udp_constant_teleop_is_registered_for_draccus() -> None:
     from lerobot.teleoperators.jz_robot_udp_constant import JZRobotUDPConstantTeleopConfig
 
     assert TeleoperatorConfig.get_choice_name(JZRobotUDPConstantTeleopConfig) == "jz_robot_udp_constant"
+
+
+def test_jz_robot_udp_hold_teleop_maps_observation_to_action() -> None:
+    from lerobot.teleoperators.jz_robot_udp_hold import JZRobotUDPHoldTeleopConfig
+
+    robot = JZRobotUDP(make_config())
+    teleop = make_teleoperator_from_config(JZRobotUDPHoldTeleopConfig())
+    observation = {key: float(index) for index, key in enumerate(robot.action_features)}
+
+    action = teleop.get_action_from_observation(observation)
+
+    assert teleop.action_features == robot.action_features
+    assert action == observation
+
+
+def test_jz_robot_udp_hold_teleop_rejects_missing_observation_keys() -> None:
+    from lerobot.teleoperators.jz_robot_udp_hold import JZRobotUDPHoldTeleopConfig
+
+    teleop = make_teleoperator_from_config(JZRobotUDPHoldTeleopConfig())
+
+    with pytest.raises(RuntimeError, match="missing"):
+        teleop.get_action_from_observation({"left_left_joint1.pos": 0.0})
+
+
+def test_record_action_getter_uses_observation_aware_teleop() -> None:
+    from lerobot.teleoperators.jz_robot_udp_hold import JZRobotUDPHoldTeleopConfig
+
+    teleop = make_teleoperator_from_config(JZRobotUDPHoldTeleopConfig())
+    observation = {key: float(index) for index, key in enumerate(teleop.action_features)}
+
+    assert _get_teleop_action(teleop, observation) == observation

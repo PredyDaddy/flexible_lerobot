@@ -116,6 +116,7 @@ from lerobot.teleoperators import (  # noqa: F401
     homunculus,
     jz_command_teleop,
     jz_robot_udp_constant,
+    jz_robot_udp_hold,
     koch_leader,
     make_teleoperator_from_config,
     omx_leader,
@@ -258,6 +259,12 @@ class RecordConfig:
 """
 
 
+def _get_teleop_action(teleop: Teleoperator, obs: RobotObservation) -> RobotAction:
+    if hasattr(teleop, "get_action_from_observation"):
+        return teleop.get_action_from_observation(obs)
+    return teleop.get_action()
+
+
 @safe_stop_image_writer
 def record_loop(
     robot: Robot,
@@ -350,7 +357,7 @@ def record_loop(
             act_processed_policy: RobotAction = make_robot_action(action_values, dataset.features)
 
         elif policy is None and isinstance(teleop, Teleoperator):
-            act = teleop.get_action()
+            act = _get_teleop_action(teleop, obs)
 
             # Applies a pipeline to the raw teleop action, default is IdentityProcessor
             act_processed_teleop = teleop_action_processor((act, obs))
