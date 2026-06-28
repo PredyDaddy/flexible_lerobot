@@ -42,19 +42,19 @@ rate_limits:
 
 joint_position_limits:
   left_joint1: [-0.076844637, -0.016844637]
-  left_joint2: [-1.268311051, -1.208311051]
-  left_joint3: [0.185844862, 0.245844862]
-  left_joint4: [-1.577635747, -1.517635747]
-  left_joint5: [1.195657441, 1.255657441]
-  left_joint6: [0.158024316, 0.218024316]
-  left_joint7: [-0.077054078, -0.017054078]
-  right_joint1: [0.013371430, 0.073371430]
+  left_joint2: [-1.268346072, -1.208346072]
+  left_joint3: [0.186019399, 0.246019399]
+  left_joint4: [-1.577373958, -1.517373958]
+  left_joint5: [1.195674884, 1.255674884]
+  left_joint6: [0.157343646, 0.217343646]
+  left_joint7: [-0.076705013, -0.016705013]
+  right_joint1: [0.013196897, 0.073196897]
   right_joint2: [1.186564343, 1.246564343]
   right_joint3: [-0.218024316, -0.158024316]
-  right_joint4: [1.507774727, 1.567774727]
-  right_joint5: [-1.234608747, -1.174608747]
-  right_joint6: [-0.188894777, -0.128894777]
-  right_joint7: [-0.307140827, -0.247140827]
+  right_joint4: [1.507704819, 1.567704819]
+  right_joint5: [-1.234626191, -1.174626191]
+  right_joint6: [-0.188982045, -0.128982045]
+  right_joint7: [-0.320544949, -0.260544949]
 
 max_joint_delta_per_step:
   default: 0.01
@@ -62,19 +62,19 @@ max_joint_delta_per_step:
 
 initial_joint_positions:
   left_joint1: -0.046844637
-  left_joint2: -1.238311051
-  left_joint3: 0.215844862
-  left_joint4: -1.547635747
-  left_joint5: 1.225657441
-  left_joint6: 0.188024316
-  left_joint7: -0.047054078
-  right_joint1: 0.043371430
+  left_joint2: -1.238346072
+  left_joint3: 0.216019399
+  left_joint4: -1.547373958
+  left_joint5: 1.225674884
+  left_joint6: 0.187343646
+  left_joint7: -0.046705013
+  right_joint1: 0.043196897
   right_joint2: 1.216564343
   right_joint3: -0.188024316
-  right_joint4: 1.537774727
-  right_joint5: -1.204608747
-  right_joint6: -0.158894777
-  right_joint7: -0.277140827
+  right_joint4: 1.537704819
+  right_joint5: -1.204626191
+  right_joint6: -0.158982045
+  right_joint7: -0.290544949
 
 gripper_limits:
   left:
