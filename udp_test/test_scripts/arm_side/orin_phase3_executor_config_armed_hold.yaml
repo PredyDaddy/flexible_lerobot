@@ -57,7 +57,7 @@ joint_position_limits:
   right_joint7: [-0.307140827, -0.247140827]
 
 max_joint_delta_per_step:
-  default: 0.002
+  default: 0.01
   overrides: {}
 
 initial_joint_positions:
