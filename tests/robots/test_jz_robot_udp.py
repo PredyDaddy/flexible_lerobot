@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
+import os
 import socket
 import time
 from argparse import Namespace
@@ -13,6 +14,7 @@ from unittest.mock import Mock
 import pytest
 
 from lerobot.robots.jz_robot_udp import JZRobotUDP, JZRobotUDPConfig
+from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
 from lerobot.robots.jz_robot_udp.protocol import (
     COMMAND_MODE_ARMED,
     COMMAND_MODE_DRY_RUN,
@@ -25,6 +27,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
     encode_state_packet,
     make_jz_robot_udp_command_packet,
 )
+from lerobot.robots.jz_robot_udp.rtsp_camera import configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
@@ -103,6 +106,17 @@ def test_jz_robot_udp_command_config_defaults_are_safe() -> None:
     assert cfg.send_action_execution == "dry_run"
     assert cfg.command_robot == "robot1"
     assert cfg.command_timeout_s == 0.2
+
+
+def test_rtsp_camera_configures_low_latency_tcp_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENCV_FFMPEG_CAPTURE_OPTIONS", raising=False)
+    cfg = RTSPCameraConfig(url="rtsp://192.168.1.81:8554/robot_camera/camera_head", transport="tcp")
+
+    configure_opencv_rtsp_environment(cfg)
+
+    assert os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] == (
+        "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0"
+    )
 
 
 def test_jz_robot_udp_command_config_accepts_explicit_armed_execution() -> None:

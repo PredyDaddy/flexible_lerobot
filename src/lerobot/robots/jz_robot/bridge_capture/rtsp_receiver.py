@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import threading
 from dataclasses import dataclass
 from typing import Any
@@ -9,6 +10,8 @@ from .config import CameraConfig
 from .time_utils import now_wall_time_ns
 from .types import TimestampedPayload
 
+LOW_LATENCY_TCP_OPTIONS = "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0"
+
 
 @dataclass(frozen=True)
 class FramePayload:
@@ -16,6 +19,11 @@ class FramePayload:
     frame_index: int
     pts_ns: int
     image: Any
+
+
+def configure_opencv_rtsp_environment(camera: CameraConfig) -> None:
+    if camera.transport == "tcp":
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = LOW_LATENCY_TCP_OPTIONS
 
 
 class OpenCvRtspReceiver:
@@ -47,7 +55,9 @@ class OpenCvRtspReceiver:
     def _run(self) -> None:
         import cv2
 
+        configure_opencv_rtsp_environment(self.camera)
         cap = cv2.VideoCapture(self.camera.rtsp_url)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         frame_index = 0
         try:
             while not self._stop.is_set():

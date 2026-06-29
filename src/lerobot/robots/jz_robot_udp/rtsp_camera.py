@@ -7,6 +7,13 @@ from typing import Any
 
 from .config_jz_robot_udp import RTSPCameraConfig
 
+LOW_LATENCY_TCP_OPTIONS = "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0"
+
+
+def configure_opencv_rtsp_environment(config: RTSPCameraConfig) -> None:
+    if config.transport == "tcp":
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = LOW_LATENCY_TCP_OPTIONS
+
 
 class RTSPCamera:
     def __init__(self, config: RTSPCameraConfig):
@@ -22,9 +29,9 @@ class RTSPCamera:
 
         if self.is_connected:
             return
-        if self.config.transport == "tcp":
-            os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+        configure_opencv_rtsp_environment(self.config)
         cap = cv2.VideoCapture(self.config.url)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.config.timeout_ms)
         cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, self.config.timeout_ms)
         if not cap.isOpened():
