@@ -13,7 +13,7 @@ run_python() {
 }
 
 inspect_actions() {
-  echo "[x86_test_datasets] inspect dataset actions"
+  echo "[x86_test_datasets] inspect dataset action/state semantics"
   echo "[x86_test_datasets] DATASET_ROOT=$DATASET_ROOT"
   run_python - <<'PY'
 from __future__ import annotations
@@ -53,42 +53,76 @@ df = pd.read_parquet(parquet)
 print("rows", len(df))
 print("cols", len(df.columns))
 
+def print_vector_summary(label, values, names):
+    values = np.asarray(values, dtype=np.float64)
+    nonzero_count = int(np.count_nonzero(values))
+    print(f"{label}_summary")
+    print(
+        f"  {label}: shape={values.shape} first={float(values.flat[0]):.9f} "
+        f"min={float(values.min()):.9f} max={float(values.max()):.9f} "
+        f"mean={float(values.mean()):.9f} nonzero={nonzero_count}/{values.size}"
+    )
+    print(f"{label}_per_dim")
+    for idx, name in enumerate(names):
+        series = values[:, idx]
+        min_value = float(series.min())
+        max_value = float(series.max())
+        amplitude = max_value - min_value
+        print(
+            f"  {idx:02d} {name}: start={float(series[0]):.9f} min={min_value:.9f} "
+            f"max={max_value:.9f} amp_rad={amplitude:.9f} amp_deg={np.degrees(amplitude):.3f}"
+        )
+    return nonzero_count
+
 if "action" in df.columns:
-    print("action_columns 1")
-    print("  action_col action")
-    print("observation_state_columns", int("observation.state" in df.columns))
-    if "observation.state" in df.columns:
-        print("  obs_state_col observation.state")
+    action_names = None
+    obs_names = None
+    if info_json.exists():
+        features = info.get("features", {})
+        action_names = features.get("action", {}).get("names")
+        obs_names = features.get("observation.state", {}).get("names")
 
     action_values = np.stack(df["action"].to_numpy())
-    nonzero_count = int(np.count_nonzero(action_values))
+    if action_values.ndim == 1:
+        action_values = action_values.reshape(-1, 1)
+    action_names = action_names or [f"action[{idx}]" for idx in range(action_values.shape[1])]
+
+    print("action_columns", 1)
+    print("  action_col action")
+    nonzero_count = print_vector_summary("action", action_values, action_names)
     all_zero = nonzero_count == 0
-    print("action_summary")
-    print(
-        f"  action: shape={action_values.shape} first={float(action_values.flat[0]):.9f} "
-        f"min={float(action_values.min()):.9f} max={float(action_values.max()):.9f} "
-        f"mean={float(action_values.mean()):.9f} nonzero={nonzero_count}/{action_values.size}"
-    )
     print("all_action_values_zero", all_zero)
     if all_zero:
         raise SystemExit("ERROR action values are all zero; do not replay this dataset on hardware")
 
-    print("hold_action_vs_observation")
     if "observation.state" in df.columns:
         obs_values = np.stack(df["observation.state"].to_numpy())
-        diff = np.abs(action_values - obs_values)
-        max_abs_diff = float(diff.max())
-        print(f"  action ~= observation.state: max_abs_diff={max_abs_diff:.12f}")
-        print("matched_action_observation_columns", action_values.shape[1] if action_values.ndim > 1 else 1)
-        print("max_abs_diff", f"{max_abs_diff:.12f}")
-        if max_abs_diff > 1e-9:
-            raise SystemExit("ERROR action values do not exactly match observation hold values")
-    else:
-        print("WARN no observation.state column could be matched to action")
-        print("matched_action_observation_columns", 0)
-        print("max_abs_diff", "0.000000000000")
+        if obs_values.ndim == 1:
+            obs_values = obs_values.reshape(-1, 1)
+        obs_names = obs_names or [f"observation.state[{idx}]" for idx in range(obs_values.shape[1])]
+        print("observation_state_columns", 1)
+        print("  obs_state_col observation.state")
+        print_vector_summary("observation_state", obs_values, obs_names)
 
-    print("SUMMARY: PASS dataset action inspection")
+        shared_dim = min(action_values.shape[1], obs_values.shape[1])
+        diff = np.abs(action_values[:, :shared_dim] - obs_values[:, :shared_dim])
+        max_abs_diff = float(diff.max()) if diff.size else 0.0
+        mean_abs_diff = float(diff.mean()) if diff.size else 0.0
+        equal_to_state = max_abs_diff <= 1e-9
+        print("action_vs_observation_state")
+        print("  compared_dims", shared_dim)
+        print("  max_abs_diff", f"{max_abs_diff:.12f}")
+        print("  mean_abs_diff", f"{mean_abs_diff:.12f}")
+        print("  action_is_feedback_state_copy", equal_to_state)
+        if equal_to_state:
+            print("  SEMANTICS: old hold dataset; action is a copy of feedback observation.state")
+        else:
+            print("  SEMANTICS: action differs from feedback state; verify it matches VR target/action logs")
+    else:
+        print("WARN no observation.state column could be compared to action")
+        print("observation_state_columns", 0)
+
+    print("SUMMARY: PASS dataset action/state inspection")
     raise SystemExit(0)
 
 action_cols = [col for col in df.columns if col.startswith("action.")]
@@ -172,10 +206,14 @@ print("matched_action_observation_columns", matched)
 print("max_abs_diff", f"{max_abs_diff:.12f}")
 if matched == 0:
     print("WARN no action columns could be matched to observation columns")
-elif max_abs_diff > 1e-9:
-    raise SystemExit("ERROR action values do not exactly match observation hold values")
+elif max_abs_diff <= 1e-9:
+    print("action_is_feedback_state_copy", True)
+    print("SEMANTICS: old hold dataset; action is a copy of feedback observation.state")
+else:
+    print("action_is_feedback_state_copy", False)
+    print("SEMANTICS: action differs from feedback state; verify it matches VR target/action logs")
 
-print("SUMMARY: PASS dataset action inspection")
+print("SUMMARY: PASS dataset action/state inspection")
 PY
 }
 
@@ -185,12 +223,19 @@ list_files() {
   find "$DATASET_ROOT" -maxdepth 3 -type f -print | sort
 }
 
+analyze_action_state() {
+  echo "[x86_test_datasets] analyze action/state amplitudes"
+  echo "[x86_test_datasets] DATASET_ROOT=$DATASET_ROOT"
+  run_python my_devs/jz_robot/analyze_lerobot_action_state.py --dataset-root "$DATASET_ROOT" "$@"
+}
+
 usage() {
   cat <<'EOF'
 Usage: bash x86_test_datasets.sh [command]
 
 Commands:
-  inspect_actions  Inspect action values and compare action.* with observation.*. Default.
+  inspect_actions  Inspect action values, amplitudes, and action-vs-state semantics. Default.
+  analyze          Run reusable action/state amplitude analyzer. Extra args are passed through.
   list_files       List dataset files.
 
 Env:
@@ -202,6 +247,7 @@ EOF
 
 case "${1:-inspect_actions}" in
   inspect_actions) inspect_actions ;;
+  analyze) shift; analyze_action_state "$@" ;;
   list_files) list_files ;;
   help|-h|--help) usage ;;
   *)

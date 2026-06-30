@@ -21,11 +21,15 @@ from lerobot.robots.jz_robot_udp.protocol import (
     COMMAND_MESSAGE_TYPE,
     PROTOCOL_VERSION,
     STATE_MESSAGE_TYPE,
+    TARGET_ACTION_MESSAGE_TYPE,
+    decode_target_action_packet,
     decode_jz_robot_udp_command_packet,
     decode_state_packet,
+    encode_target_action_packet,
     encode_jz_robot_udp_command_packet,
     encode_state_packet,
     make_jz_robot_udp_command_packet,
+    make_jz_robot_udp_target_action_packet,
 )
 from lerobot.robots.jz_robot_udp.rtsp_camera import configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
@@ -81,6 +85,15 @@ def sample_command_actions() -> dict:
             "right": {"width": 0.02, "force": 2.0},
         },
     }
+
+
+def sample_target_action_packet(seq: int = 8) -> dict:
+    return make_jz_robot_udp_target_action_packet(
+        robot="robot1",
+        seq=seq,
+        stamp_ns=987654321,
+        actions=sample_command_actions(),
+    )
 
 
 def make_config(**overrides) -> JZRobotUDPConfig:
@@ -168,6 +181,21 @@ def test_command_packet_accepts_dry_run_and_armed_modes(mode: str) -> None:
     assert decoded["mode"] == mode
     assert decoded["actions"]["left"]["left_joint1"] == 1.0
     assert decoded["actions"]["grippers"]["right"]["force"] == 2.0
+
+
+def test_target_action_packet_round_trip_validates_schema() -> None:
+    packet = sample_target_action_packet()
+
+    decoded = decode_target_action_packet(encode_target_action_packet(packet))
+
+    assert decoded["version"] == PROTOCOL_VERSION
+    assert decoded["type"] == TARGET_ACTION_MESSAGE_TYPE
+    assert decoded["robot"] == "robot1"
+    assert decoded["seq"] == 8
+    assert decoded["stamp_ns"] == 987654321
+    assert decoded["actions"]["left"]["left_joint1"] == 1.0
+    assert decoded["actions"]["right"]["right_joint7"] == 17.0
+    assert decoded["actions"]["grippers"]["left"]["width"] == 0.01
 
 
 @pytest.mark.parametrize("mode", ["active", "execute", "publish", ""])

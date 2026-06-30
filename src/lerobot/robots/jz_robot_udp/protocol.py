@@ -9,6 +9,7 @@ from typing import Any
 PROTOCOL_VERSION = 1
 STATE_MESSAGE_TYPE = "state"
 COMMAND_MESSAGE_TYPE = "command"
+TARGET_ACTION_MESSAGE_TYPE = "target_action"
 COMMAND_MODE_DRY_RUN = "dry_run"
 COMMAND_MODE_ARMED = "armed"
 COMMAND_MODES = (COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED)
@@ -56,6 +57,25 @@ def make_jz_robot_udp_command_packet(
     return packet
 
 
+def make_jz_robot_udp_target_action_packet(
+    *,
+    robot: str,
+    seq: int,
+    stamp_ns: int,
+    actions: dict[str, Any],
+) -> dict[str, Any]:
+    packet = {
+        "version": PROTOCOL_VERSION,
+        "type": TARGET_ACTION_MESSAGE_TYPE,
+        "robot": robot,
+        "seq": seq,
+        "stamp_ns": stamp_ns,
+        "actions": actions,
+    }
+    validate_target_action_packet(packet)
+    return packet
+
+
 def encode_jz_robot_udp_command_packet(packet: dict[str, Any]) -> bytes:
     validate_jz_robot_udp_command_packet(packet)
     return json.dumps(packet, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -67,6 +87,20 @@ def decode_jz_robot_udp_command_packet(data: bytes) -> dict[str, Any]:
     except Exception as exc:
         raise ProtocolError(f"failed to decode command packet as JSON: {exc}") from exc
     validate_jz_robot_udp_command_packet(packet)
+    return packet
+
+
+def encode_target_action_packet(packet: dict[str, Any]) -> bytes:
+    validate_target_action_packet(packet)
+    return json.dumps(packet, separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+
+def decode_target_action_packet(data: bytes) -> dict[str, Any]:
+    try:
+        packet = json.loads(data.decode("utf-8"))
+    except Exception as exc:
+        raise ProtocolError(f"failed to decode target action packet as JSON: {exc}") from exc
+    validate_target_action_packet(packet)
     return packet
 
 
@@ -126,38 +160,60 @@ def validate_jz_robot_udp_command_packet(packet: Any) -> None:
     if packet.get("mode") not in COMMAND_MODES:
         raise ProtocolError(f"command packet mode must be one of {COMMAND_MODES}")
 
-    actions = packet.get("actions")
+    _validate_actions_object(packet.get("actions"), "command packet actions")
+
+
+def validate_target_action_packet(packet: Any) -> None:
+    if not isinstance(packet, dict):
+        raise ProtocolError("target action packet must be a JSON object")
+    if set(packet) != {"version", "type", "robot", "seq", "stamp_ns", "actions"}:
+        extra = sorted(set(packet) - {"version", "type", "robot", "seq", "stamp_ns", "actions"})
+        missing = sorted({"version", "type", "robot", "seq", "stamp_ns", "actions"} - set(packet))
+        raise ProtocolError(f"target action packet keys mismatch: missing={missing}, extra={extra}")
+    if packet.get("version") != PROTOCOL_VERSION:
+        raise ProtocolError(f"unsupported target action protocol version: {packet.get('version')}")
+    if packet.get("type") != TARGET_ACTION_MESSAGE_TYPE:
+        raise ProtocolError(f"unsupported target action message type: {packet.get('type')}")
+    if not isinstance(packet.get("robot"), str) or not packet["robot"]:
+        raise ProtocolError("target action packet robot must be a non-empty string")
+    if isinstance(packet.get("seq"), bool) or not isinstance(packet.get("seq"), int):
+        raise ProtocolError("target action packet seq must be an integer")
+    if isinstance(packet.get("stamp_ns"), bool) or not isinstance(packet.get("stamp_ns"), int):
+        raise ProtocolError("target action packet stamp_ns must be an integer")
+
+    _validate_actions_object(packet.get("actions"), "target action packet actions")
+
+
+def _validate_actions_object(actions: Any, name: str) -> None:
     if not isinstance(actions, dict):
-        raise ProtocolError("command packet actions must be an object")
+        raise ProtocolError(f"{name} must be an object")
     allowed_action_keys = {"left", "right", "grippers"}
     if set(actions) != allowed_action_keys:
         extra = sorted(set(actions) - allowed_action_keys)
         missing = sorted(allowed_action_keys - set(actions))
-        raise ProtocolError(f"command packet actions keys mismatch: missing={missing}, extra={extra}")
+        raise ProtocolError(f"{name} keys mismatch: missing={missing}, extra={extra}")
 
     for side in COMMAND_ACTION_SIDES:
         if not isinstance(actions.get(side), dict):
-            raise ProtocolError(f"command packet actions.{side} must be an object")
-        _validate_number_map(actions[side], f"actions.{side}")
+            raise ProtocolError(f"{name}.{side} must be an object")
+        _validate_number_map(actions[side], f"{name}.{side}")
 
     grippers = actions.get("grippers")
     if not isinstance(grippers, dict):
-        raise ProtocolError("command packet actions.grippers must be an object")
+        raise ProtocolError(f"{name}.grippers must be an object")
     if set(grippers) != set(COMMAND_GRIPPER_SIDES):
         extra = sorted(set(grippers) - set(COMMAND_GRIPPER_SIDES))
         missing = sorted(set(COMMAND_GRIPPER_SIDES) - set(grippers))
-        raise ProtocolError(f"command packet actions.grippers keys mismatch: missing={missing}, extra={extra}")
+        raise ProtocolError(f"{name}.grippers keys mismatch: missing={missing}, extra={extra}")
     for side in COMMAND_GRIPPER_SIDES:
         if not isinstance(grippers.get(side), dict):
-            raise ProtocolError(f"command packet actions.grippers.{side} must be an object")
+            raise ProtocolError(f"{name}.grippers.{side} must be an object")
         fields = grippers[side]
         if set(fields) != set(COMMAND_GRIPPER_FIELDS):
             extra = sorted(set(fields) - set(COMMAND_GRIPPER_FIELDS))
             missing = sorted(set(COMMAND_GRIPPER_FIELDS) - set(fields))
-            raise ProtocolError(
-                f"command packet actions.grippers.{side} keys mismatch: missing={missing}, extra={extra}"
-            )
-        _validate_number_map(fields, f"actions.grippers.{side}")
+            raise ProtocolError(f"{name}.grippers.{side} keys mismatch: missing={missing}, extra={extra}")
+        _validate_number_map(fields, f"{name}.grippers.{side}")
 
 
 def _validate_number_map(values: dict[str, Any], name: str) -> None:

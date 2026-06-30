@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import socket
 import threading
+from collections.abc import Callable
+from typing import Any
 
-from .protocol import ProtocolError, decode_state_packet
+from .protocol import ProtocolError, decode_state_packet, decode_target_action_packet
 from .state_cache import StateCache
 
 logger = logging.getLogger(__name__)
@@ -15,11 +17,21 @@ logger = logging.getLogger(__name__)
 class UDPStateReceiver:
     """Background UDP receiver for readonly JZRobot state packets."""
 
-    def __init__(self, bind_ip: str, port: int, cache: StateCache, buffer_size: int = 65535):
+    def __init__(
+        self,
+        bind_ip: str,
+        port: int,
+        cache: StateCache,
+        buffer_size: int = 65535,
+        decoder: Callable[[bytes], dict[str, Any]] = decode_state_packet,
+        label: str = "state",
+    ):
         self.bind_ip = bind_ip
         self.port = port
         self.cache = cache
         self.buffer_size = buffer_size
+        self.decoder = decoder
+        self.label = label
         self._socket: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -37,7 +49,11 @@ class UDPStateReceiver:
         sock.settimeout(0.2)
         self._socket = sock
         self._stop_event.clear()
-        self._thread = threading.Thread(target=self._run, name="jz_robot_udp_state_receiver", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"jz_robot_udp_{self.label}_receiver",
+            daemon=True,
+        )
         self._thread.start()
 
     def stop(self) -> None:
@@ -64,11 +80,25 @@ class UDPStateReceiver:
                 return
 
             try:
-                packet = decode_state_packet(data)
+                packet = self.decoder(data)
             except ProtocolError:
-                logger.exception("Ignoring invalid UDP state packet from %s", sender)
+                logger.exception("Ignoring invalid UDP %s packet from %s", self.label, sender)
                 continue
             self.cache.update(packet, sender)
+
+
+class UDPTargetActionReceiver(UDPStateReceiver):
+    """Background UDP receiver for readonly JZRobot target-action packets."""
+
+    def __init__(self, bind_ip: str, port: int, cache: StateCache, buffer_size: int = 65535):
+        super().__init__(
+            bind_ip=bind_ip,
+            port=port,
+            cache=cache,
+            buffer_size=buffer_size,
+            decoder=decode_target_action_packet,
+            label="target_action",
+        )
 
 
 class UDPCommandSender:

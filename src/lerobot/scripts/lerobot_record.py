@@ -117,6 +117,7 @@ from lerobot.teleoperators import (  # noqa: F401
     jz_command_teleop,
     jz_robot_udp_constant,
     jz_robot_udp_hold,
+    jz_robot_udp_target_action,
     koch_leader,
     make_teleoperator_from_config,
     omx_leader,

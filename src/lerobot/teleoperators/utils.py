@@ -93,6 +93,10 @@ def make_teleoperator_from_config(config: TeleoperatorConfig) -> Teleoperator:
         from .jz_robot_udp_hold import JZRobotUDPHoldTeleop
 
         return JZRobotUDPHoldTeleop(config)
+    elif config.type == "jz_robot_udp_target_action":
+        from .jz_robot_udp_target_action import JZRobotUDPTargetActionTeleop
+
+        return JZRobotUDPTargetActionTeleop(config)
     else:
         try:
             return cast(Teleoperator, make_device_from_device_class(config))
