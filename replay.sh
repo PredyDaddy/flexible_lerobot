@@ -1,0 +1,13 @@
+PYTHONPATH=src conda run --no-capture-output -n lerobot_flex python -m lerobot.scripts.lerobot_replay \
+    --robot.type=jz_robot_udp \
+    --robot.send_action_transport=udp \
+    --robot.send_action_execution=armed \
+    --robot.command_target_ip=192.168.1.81 \
+    --robot.command_target_port=39020 \
+    --robot.allowed_sender_ip=192.168.1.81 \
+    --robot.rtsp_cameras='{}' \
+    --dataset.repo_id=local/jz_robot_udp_vr_record_with_cameras_003 \
+    --dataset.root=tests/outputs/jz_robot_udp_vr_record_with_cameras_003 \
+    --dataset.episode=0 \
+    --dataset.fps=15 \
+    --play_sounds=true
