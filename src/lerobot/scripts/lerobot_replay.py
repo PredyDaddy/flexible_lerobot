@@ -81,7 +81,7 @@ class DatasetReplayConfig:
     episode: int
     # Root directory where the dataset will be stored (e.g. 'dataset/path').
     root: str | Path | None = None
-    # Limit the frames per second. By default, uses the policy fps.
+    # Replay frames per second. Defaults to 30 for backward compatibility.
     fps: int = 30
 
 
@@ -102,8 +102,12 @@ def replay(cfg: ReplayConfig):
 
     robot = make_robot_from_config(cfg.robot)
     dataset = LeRobotDataset(cfg.dataset.repo_id, root=cfg.dataset.root, episodes=[cfg.dataset.episode])
+    if cfg.dataset.fps <= 0:
+        raise ValueError(f"dataset.fps must be positive, got {cfg.dataset.fps}")
+    replay_fps = cfg.dataset.fps
 
-    # Filter dataset to only include frames from the specified episode since episodes are chunked in dataset V3.0
+    # Filter dataset to only include frames from the specified episode since
+    # episodes are chunked in dataset V3.0.
     episode_frames = dataset.hf_dataset.filter(lambda x: x["episode_index"] == cfg.dataset.episode)
     actions = episode_frames.select_columns(ACTION)
 
@@ -125,7 +129,7 @@ def replay(cfg: ReplayConfig):
         _ = robot.send_action(processed_action)
 
         dt_s = time.perf_counter() - start_episode_t
-        precise_sleep(max(1 / dataset.fps - dt_s, 0.0))
+        precise_sleep(max(1 / replay_fps - dt_s, 0.0))
 
     robot.disconnect()
 

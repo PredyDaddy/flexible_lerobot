@@ -121,3 +121,50 @@ def test_record_and_replay(tmp_path):
         mock_get_safe_version.return_value = "v3.0"
         mock_snapshot_download.return_value = str(tmp_path / "record_and_replay")
         replay(replay_cfg)
+
+
+def test_replay_uses_configured_fps_when_provided(tmp_path):
+    robot_cfg = MockRobotConfig()
+    teleop_cfg = MockTeleopConfig()
+    record_dataset_cfg = DatasetRecordConfig(
+        repo_id=DUMMY_REPO_ID,
+        single_task="Dummy task",
+        root=tmp_path / "record_and_replay_fps_override",
+        num_episodes=1,
+        episode_time_s=0.1,
+        push_to_hub=False,
+    )
+    record_cfg = RecordConfig(
+        robot=robot_cfg,
+        dataset=record_dataset_cfg,
+        teleop=teleop_cfg,
+        play_sounds=False,
+    )
+    replay_dataset_cfg = DatasetReplayConfig(
+        repo_id=DUMMY_REPO_ID,
+        episode=0,
+        root=tmp_path / "record_and_replay_fps_override",
+        fps=15,
+    )
+    replay_cfg = ReplayConfig(
+        robot=robot_cfg,
+        dataset=replay_dataset_cfg,
+        play_sounds=False,
+    )
+
+    record(record_cfg)
+
+    sleeps = []
+
+    # Mock the revision to prevent Hub calls during replay
+    with (
+        patch("lerobot.datasets.lerobot_dataset.get_safe_version") as mock_get_safe_version,
+        patch("lerobot.datasets.lerobot_dataset.snapshot_download") as mock_snapshot_download,
+        patch("lerobot.scripts.lerobot_replay.precise_sleep", side_effect=sleeps.append),
+    ):
+        mock_get_safe_version.return_value = "v3.0"
+        mock_snapshot_download.return_value = str(tmp_path / "record_and_replay_fps_override")
+        replay(replay_cfg)
+
+    assert sleeps
+    assert max(sleeps) > 1 / 20
