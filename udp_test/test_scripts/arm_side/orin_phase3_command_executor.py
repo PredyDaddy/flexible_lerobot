@@ -129,6 +129,7 @@ class ExecutorCounters:
     unexpected_sender: int = 0
     rejected_by_gate: int = 0
     published: int = 0
+    hold_published: int = 0
     dry_run: int = 0
     rate_limited: int = 0
     timeout: int = 0
@@ -488,6 +489,7 @@ class Phase3CommandExecutor:
         self.last_gripper_state: dict[str, dict[str, float]] | None = None
         self.last_publish_monotonic_s: float | None = None
         self.last_valid_command_monotonic_s: float | None = None
+        self.latest_target: ValidatedCommand | None = None
 
     def process_packet(
         self,
@@ -556,7 +558,7 @@ class Phase3CommandExecutor:
             period_s = 1.0 / float(self.cfg.max_publish_hz)
             if (
                 self.last_publish_monotonic_s is not None
-                and monotonic_s - self.last_publish_monotonic_s < period_s
+                and monotonic_s - self.last_publish_monotonic_s < period_s - 1e-12
             ):
                 self.counters.rate_limited += 1
                 return self._reject("rate_limited", seq)
@@ -571,11 +573,7 @@ class Phase3CommandExecutor:
             return self._reject("publisher_unavailable", seq)
 
         self._remember_command(command, monotonic_s)
-        self.publisher_adapter.publish_command(command)
-        self.counters.published += 1
-        self.counters.last_published_seq = seq
-        self.last_publish_monotonic_s = monotonic_s
-        return GateDecision(accepted=True, publish=True, reason="published", seq=seq, command=command)
+        return self._publish_command(command, monotonic_s=monotonic_s, reason="published")
 
     def _dry_run_missing_limits_reason(self, reason: str) -> bool:
         return reason in {
@@ -713,6 +711,7 @@ class Phase3CommandExecutor:
             "right": {"width": command.right_gripper[0], "force": command.right_gripper[1]},
         }
         self.last_valid_command_monotonic_s = monotonic_s
+        self.latest_target = command
         self.active = True
 
     def _remember_seq_for_dry_run(self, command: ValidatedCommand) -> None:
@@ -742,8 +741,50 @@ class Phase3CommandExecutor:
         self.last_gripper_state = None
         self.last_publish_monotonic_s = None
         self.last_valid_command_monotonic_s = None
+        self.latest_target = None
         self.counters.timeout += 1
         return True
+
+    def publish_latest_target(self, *, monotonic_s: float | None = None) -> GateDecision:
+        monotonic_s = time.monotonic() if monotonic_s is None else monotonic_s
+        if not self.active or self.latest_target is None:
+            return GateDecision(accepted=False, publish=False, reason="inactive")
+        if self.check_command_timeout(monotonic_s=monotonic_s):
+            return GateDecision(accepted=False, publish=False, reason="hold_timeout")
+        if self.cfg.execution != COMMAND_MODE_ARMED:
+            return GateDecision(
+                accepted=True,
+                publish=False,
+                reason="dry_run_hold",
+                seq=self.latest_target.seq,
+                command=self.latest_target,
+            )
+        if self.publisher_adapter is None:
+            return self._reject("publisher_unavailable", self.latest_target.seq)
+
+        period_s = 1.0 / float(self.cfg.max_publish_hz)
+        if (
+            self.last_publish_monotonic_s is not None
+            and monotonic_s - self.last_publish_monotonic_s < period_s - 1e-12
+        ):
+            return GateDecision(
+                accepted=False,
+                publish=False,
+                reason="publish_interval_not_elapsed",
+                seq=self.latest_target.seq,
+                command=self.latest_target,
+            )
+
+        decision = self._publish_command(self.latest_target, monotonic_s=monotonic_s, reason="hold_published")
+        self.counters.hold_published += 1
+        return decision
+
+    def _publish_command(self, command: ValidatedCommand, *, monotonic_s: float, reason: str) -> GateDecision:
+        self.publisher_adapter.publish_command(command)
+        self.counters.published += 1
+        self.counters.last_published_seq = command.seq
+        self.last_publish_monotonic_s = monotonic_s
+        return GateDecision(accepted=True, publish=True, reason=reason, seq=command.seq, command=command)
 
     def request_shutdown(self) -> None:
         self.shutdown_requested = True
@@ -757,7 +798,8 @@ class Phase3CommandExecutor:
             "SUMMARY: "
             f"received={self.counters.received} invalid={self.counters.invalid} "
             f"unexpected_sender={self.counters.unexpected_sender} rejected_by_gate={self.counters.rejected_by_gate} "
-            f"published={self.counters.published} dry_run={self.counters.dry_run} "
+            f"published={self.counters.published} hold_published={self.counters.hold_published} "
+            f"dry_run={self.counters.dry_run} "
             f"rate_limited={self.counters.rate_limited} timeout={self.counters.timeout} "
             f"seq_gap_count={self.counters.seq_gap_count} last_seq={self.counters.last_seq} "
             f"last_published_seq={self.counters.last_published_seq} reject_reasons={self.counters.reject_reasons}"
@@ -821,16 +863,27 @@ def main() -> int:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.bind((cfg.bind_ip, cfg.command_port))
-            sock.settimeout(float(cfg.socket_timeout_s))
+            sock.settimeout(min(float(cfg.socket_timeout_s), 1.0 / float(cfg.max_publish_hz)))
             while not _SHUTDOWN_REQUESTED and not executor.shutdown_requested:
                 if args.count and accepted_count >= args.count:
                     break
-                if executor.check_command_timeout():
-                    print("[orin phase3 executor] COMMAND_TIMEOUT: stopped accepting stale activity", flush=True)
                 try:
                     data, sender = sock.recvfrom(int(cfg.buffer_size))
                 except socket.timeout:
+                    hold_decision = executor.publish_latest_target()
+                    if hold_decision.reason == "hold_published":
+                        print(
+                            "[orin phase3 executor] "
+                            f"HOLD_PUBLISH seq={hold_decision.seq} published={executor.counters.published} "
+                            f"hold_published={executor.counters.hold_published}",
+                            flush=True,
+                        )
+                    elif hold_decision.reason == "hold_timeout":
+                        print("[orin phase3 executor] HOLD_TIMEOUT: cleared latest target", flush=True)
                     continue
+
+                if executor.check_command_timeout():
+                    print("[orin phase3 executor] HOLD_TIMEOUT: cleared latest target", flush=True)
 
                 try:
                     packet = decode_jz_robot_udp_command_packet(data)

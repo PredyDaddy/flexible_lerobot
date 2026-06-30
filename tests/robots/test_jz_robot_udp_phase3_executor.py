@@ -224,6 +224,73 @@ def test_armed_packet_publishes_only_four_expected_messages_with_ros_mapping() -
     assert executor.counters.last_published_seq == 1
 
 
+def test_armed_executor_holds_latest_target_between_udp_packets() -> None:
+    cfg = complete_config(execution=COMMAND_MODE_ARMED, max_publish_hz=10.0, command_timeout_s=0.25)
+    executor, publisher = make_executor(cfg)
+    packet = command_packet(left_value=0.01, right_value=-0.01, gripper_width=1.0, gripper_force=2.0)
+
+    first = process(executor, packet, monotonic_s=10.0)
+    too_soon = executor.publish_latest_target(monotonic_s=10.05)
+    held = executor.publish_latest_target(monotonic_s=10.10)
+
+    assert first.accepted
+    assert first.publish
+    assert too_soon.reason == "publish_interval_not_elapsed"
+    assert not too_soon.publish
+    assert held.accepted
+    assert held.publish
+    assert held.reason == "hold_published"
+    assert len(publisher.published) == 2
+    assert publisher.published[1].left_arm.position == [0.01] * 7
+    assert publisher.published[1].right_arm.position == [-0.01] * 7
+    assert executor.counters.published == 2
+    assert executor.counters.hold_published == 1
+    assert executor.counters.last_published_seq == 1
+
+
+def test_new_armed_command_replaces_latest_target_for_hold_publish() -> None:
+    cfg = complete_config(execution=COMMAND_MODE_ARMED, max_publish_hz=10.0, command_timeout_s=0.25)
+    executor, publisher = make_executor(cfg)
+
+    assert process(
+        executor,
+        command_packet(seq=1, left_value=0.01, right_value=-0.01),
+        monotonic_s=10.0,
+    ).publish
+    assert process(
+        executor,
+        command_packet(seq=2, left_value=0.02, right_value=-0.02),
+        monotonic_s=10.10,
+    ).publish
+    held = executor.publish_latest_target(monotonic_s=10.20)
+
+    assert held.accepted
+    assert held.publish
+    assert held.reason == "hold_published"
+    assert held.seq == 2
+    assert len(publisher.published) == 3
+    assert publisher.published[-1].left_arm.position == [0.02] * 7
+    assert publisher.published[-1].right_arm.position == [-0.02] * 7
+    assert executor.counters.last_published_seq == 2
+
+
+def test_hold_timeout_clears_latest_target_without_extra_publish() -> None:
+    cfg = complete_config(execution=COMMAND_MODE_ARMED, max_publish_hz=10.0, command_timeout_s=0.25)
+    executor, publisher = make_executor(cfg)
+
+    assert process(executor, command_packet(), monotonic_s=10.0).publish
+    timed_out = executor.publish_latest_target(monotonic_s=10.26)
+    inactive = executor.publish_latest_target(monotonic_s=10.40)
+
+    assert timed_out.reason == "hold_timeout"
+    assert not timed_out.publish
+    assert inactive.reason == "inactive"
+    assert not executor.active
+    assert executor.latest_target is None
+    assert executor.counters.timeout == 1
+    assert len(publisher.published) == 1
+
+
 def test_sender_ip_gate_rejects_unexpected_sender_without_publish() -> None:
     cfg = complete_config(execution=COMMAND_MODE_ARMED)
     executor, publisher = make_executor(cfg)
