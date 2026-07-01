@@ -198,7 +198,7 @@ google
 my_devs/docs/act_trt/reference_docs/trt_act/export_models/*.onnx
 
 my_devs/vla_engineering/realtime-vla-v2-main
-my_devs/vla_engineering/vlash-main
+
 
 *.png
 
