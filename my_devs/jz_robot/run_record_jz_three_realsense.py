@@ -59,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--img-height", type=int, default=None)
     parser.add_argument("--camera-fps", type=int, default=None)
     parser.add_argument("--warmup-s", type=int, default=None)
+    parser.add_argument("--connect-cameras", type=parse_bool, nargs="?", const=True, default=True)
     parser.add_argument("--head-image-topic", default=env_optional("HEAD_IMAGE_TOPIC"))
     parser.add_argument("--left-image-topic", default=env_optional("LEFT_IMAGE_TOPIC"))
     parser.add_argument("--right-image-topic", default=env_optional("RIGHT_IMAGE_TOPIC"))
@@ -132,6 +133,9 @@ def main() -> None:
         camera_timeout_ms=args.camera_timeout_ms,
     )
 
+    if not args.connect_cameras:
+        robot_cfg.cameras = {}
+
     teleop_cfg = build_jz_command_teleop_config(
         robot_cfg,
         teleop_id=args.teleop_id,
@@ -171,7 +175,8 @@ def main() -> None:
         "[INFO] dataset: "
         f"repo_id={args.dataset_repo_id}, root={maybe_path(args.dataset_root)}, task={args.dataset_task}, "
         f"episodes={args.num_episodes}, episode_time_s={args.episode_time_s}, reset_time_s={args.reset_time_s}, "
-        f"fps={args.fps}, video={args.video}, push_to_hub={args.push_to_hub}"
+        f"fps={args.fps}, video={args.video}, connect_cameras={args.connect_cameras}, "
+        f"push_to_hub={args.push_to_hub}"
     )
     print(
         "[INFO] teleop: "
