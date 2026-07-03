@@ -24,11 +24,11 @@ TELEOP_MODE="${TELEOP_MODE:-target_action}"
 
 DATASET_NAME="${DATASET_NAME:-jz_robot_udp_vr_target_action_001}"
 DATASET_ROOT="${DATASET_ROOT:-tests/outputs/${DATASET_NAME}}"
-NUM_EPISODES="${NUM_EPISODES:-1}"
-EPISODE_TIME_S="${EPISODE_TIME_S:-10}"
-RESET_TIME_S="${RESET_TIME_S:-0}"
+NUM_EPISODES="${NUM_EPISODES:-2}"
+EPISODE_TIME_S="${EPISODE_TIME_S:-20}"
+RESET_TIME_S="${RESET_TIME_S:-10}"
 RECORD_FPS="${RECORD_FPS:-30}"
-DISPLAY_DATA="${DISPLAY_DATA:-true}"
+DISPLAY_DATA="${DISPLAY_DATA:-false}"
 PLAY_SOUNDS="${PLAY_SOUNDS:-true}"
 
 ROBOT_SEND_ACTION_TRANSPORT="${ROBOT_SEND_ACTION_TRANSPORT:-local}"
@@ -101,6 +101,7 @@ echo "[record.sh] dataset=${DATASET_ROOT}"
 echo "[record.sh] teleop_mode=${TELEOP_MODE} orin=${ORIN_IP} state_port=${STATE_PORT}"
 echo "[record.sh] target_action_port=${TARGET_ACTION_PORT}"
 echo "[record.sh] robot_send_action_transport=${ROBOT_SEND_ACTION_TRANSPORT}"
+echo "[record.sh] display_data=${DISPLAY_DATA}"
 
 PYTHONPATH=src conda run --no-capture-output -n "$CONDA_ENV" \
   python -m lerobot.scripts.lerobot_record \
