@@ -1,3 +1,69 @@
+# 我自己的使用
+
+30:
+    优点：更频繁闭环，物体位置偏了也能更快纠正
+    缺点：动作连续性略弱一点，推理请求更频繁
+
+  50:
+    优点：完整执行模型规划的 50-step chunk，动作最连续
+    缺点：1.67 秒内不重新看图，如果抓取偏了、橡皮滑了、机械臂走歪了，会晚一点纠正
+
+
+```bash
+ cd /data/cqy_workspace/flexible_lerobot/my_devs/openpi_train && \
+    DEFAULT_PROMPT="Put the eraser into the small box" \
+    PORT=8000 \
+    bash easy_use/serve_robot_policy_10epoch_bs48.sh
+
+
+cd /data/cqy_workspace/flexible_lerobot/my_devs/openpi_train && \
+    HOST=localhost \
+    PORT=8000 \
+    bash easy_use/run_robot_remote_client.sh \
+      --task "Put the eraser into the small box" \
+      --robot-id hfy_follower \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --calib-dir /home/cqy/.cache/huggingface/lerobot/calibration/robots/so_follower \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --top-cam-fourcc YUYV \
+      --wrist-cam-fourcc MJPG \
+      --img-width 640 \
+      --img-height 480 \
+      --fps 30 \
+      --run-time-s 20 \
+      --max-relative-target 10 \
+      --motor-io-retries 10 \
+      --execute-actions false
+
+  如果这个能跑通，再打开动作：
+
+cd /data/cqy_workspace/flexible_lerobot/my_devs/openpi_train && \
+    HOST=localhost \
+    PORT=8000 \
+    EXECUTE_ACTIONS=true \
+    bash easy_use/run_robot_remote_client.sh \
+      --task "Put the eraser into the small box" \
+      --robot-id hfy_follower \
+      --robot-port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00 \
+      --calib-dir /home/cqy/.cache/huggingface/lerobot/calibration/robots/so_follower \
+      --top-cam /dev/video4 \
+      --wrist-cam /dev/video6 \
+      --top-cam-fourcc YUYV \
+      --wrist-cam-fourcc MJPG \
+      --img-width 640 \
+      --img-height 480 \
+      --fps 30 \
+      --run-time-s 60 \
+      --max-relative-target 10 \
+      --motor-io-retries 10 \
+      --action-chunk-steps 30
+```
+
+
+
+
+
 # OpenPI SO101 10 Epoch LoRA 训练与实机推理工作报告
 
 日期：2026-07-03
