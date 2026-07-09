@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 
 def resolve_repo_root(script_path: Path) -> Path:
@@ -47,6 +48,7 @@ from my_devs.train.pi.so101.rtc_pi05.server.remote_policy_client import RemotePo
 DEFAULT_TASK = "Put the eraser into the small box"
 DEFAULT_ROBOT_PORT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00"
 DEFAULT_CALIB_DIR = "/home/cqy/.cache/huggingface/lerobot/calibration/robots/so_follower"
+DEFAULT_MOTOR_IO_RETRIES = 10
 LOG_PREFIX = "[RTC-PI05-CLIENT]"
 KNOWN_NON_FOLLOWER_PORTS = {
     "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123582-if00": "known leader/main-arm port in this setup",
@@ -109,6 +111,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-action-delta", type=optional_float, default=optional_float(os.getenv("MAX_ACTION_DELTA")))
     parser.add_argument("--request-timeout-s", type=float, default=float(os.getenv("REQUEST_TIMEOUT_S", "120")))
     parser.add_argument("--metrics-log-interval-s", type=float, default=float(os.getenv("METRICS_LOG_INTERVAL_S", "2")))
+    parser.add_argument(
+        "--motor-write-retries",
+        type=int,
+        default=None,
+        help="Deprecated alias for --motor-io-retries.",
+    )
+    parser.add_argument(
+        "--motor-io-retries",
+        type=int,
+        default=int(os.getenv("MOTOR_IO_RETRIES", os.getenv("MOTOR_WRITE_RETRIES", str(DEFAULT_MOTOR_IO_RETRIES)))),
+        help="Minimum retries for motor read/sync_read/write/sync_write calls; 0 matches native LeRobot.",
+    )
     parser.add_argument("--assume-calibrated", type=parse_bool, nargs="?", const=True, default=env_bool("ASSUME_CALIBRATED", False))
     parser.add_argument(
         "--allow-known-non-follower-port",
@@ -144,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
         metrics_log_interval_s=args.metrics_log_interval_s,
         request_timeout_s=args.request_timeout_s,
     )
+    motor_io_retries = args.motor_io_retries if args.motor_write_retries is None else args.motor_write_retries
     print_resolved_config(args, config)
     if args.dry_run:
         print(f"{LOG_PREFIX} DRY_RUN passed.")
@@ -169,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     from lerobot.robots import make_robot_from_config
 
     robot = make_robot_from_config(robot_cfg)
+    patch_motor_bus_retries(robot, motor_io_retries)
     try:
         with maybe_auto_accept_calibration(args.assume_calibrated):
             robot.connect()
@@ -292,6 +308,65 @@ def validate_robot_port(robot_port: str, *, allow_known_non_follower: bool = Fal
         f"Refusing to use robot-port={robot_port!r}: {reason}. "
         f"For SO101 follower inference use {DEFAULT_ROBOT_PORT!r}."
     )
+
+
+def patch_motor_bus_retries(robot: Any, retries: int) -> None:
+    retries = max(int(retries), 0)
+    if retries <= 0:
+        print(f"{LOG_PREFIX} Motor bus I/O uses native LeRobot retry behavior.")
+        return
+    try:
+        bus = robot.bus
+        original_read = bus.read
+        original_sync_read = bus.sync_read
+        original_write = bus.write
+        original_sync_write = bus.sync_write
+    except AttributeError:
+        print(f"{LOG_PREFIX} Robot has no motor bus; skip motor I/O retry patch.")
+        return
+
+    def read_with_min_retries(
+        data_name: str,
+        motor: str,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_read(data_name, motor, normalize=normalize, num_retry=max(num_retry, retries))
+
+    def sync_read_with_min_retries(
+        data_name: str,
+        motors: str | list[str] | None = None,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_sync_read(data_name, motors, normalize=normalize, num_retry=max(num_retry, retries))
+
+    def write_with_min_retries(
+        data_name: str,
+        motor: str | None,
+        value: int | float | list | tuple,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_write(data_name, motor, value, normalize=normalize, num_retry=max(num_retry, retries))
+
+    def sync_write_with_min_retries(
+        data_name: str,
+        values: Any,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
+    ) -> Any:
+        return original_sync_write(data_name, values, normalize=normalize, num_retry=max(num_retry, retries))
+
+    bus.read = read_with_min_retries
+    bus.sync_read = sync_read_with_min_retries
+    bus.write = write_with_min_retries
+    bus.sync_write = sync_write_with_min_retries
+    print(f"{LOG_PREFIX} Motor bus read/write calls will use at least {retries} retries.")
 
 
 @contextmanager
