@@ -30,11 +30,13 @@ from my_devs.train.pi.so101.rtc_pi05.trt_server.trt_policy_service import (  # n
     TRTPolicyServiceConfig,
     validate_runtime_assets,
 )
+from my_devs.train.pi.so101.pure_trt.runtime.paths import default_paths  # noqa: E402
 
 
-DEFAULT_RUNTIME_ASSETS_DIR = Path("my_devs/openpi_trt/artifacts/pi05_runtime_assets")
-DEFAULT_PREFIX_ENGINE = Path("my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine")
-DEFAULT_DENOISE_ENGINE = Path("my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine")
+PURE_TRT_PATHS = default_paths()
+DEFAULT_RUNTIME_ASSETS_DIR = PURE_TRT_PATHS.runtime_assets_dir
+DEFAULT_PREFIX_ENGINE = PURE_TRT_PATHS.prefix_fp16_constrained_engine
+DEFAULT_DENOISE_ENGINE = PURE_TRT_PATHS.denoise_fp16_constrained_engine
 LOG_PREFIX = "[RTC-PI05-TRT-SERVER]"
 
 

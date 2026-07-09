@@ -17,15 +17,16 @@ def resolve_repo_root(start: Path) -> Path:
 
 
 REPO_ROOT = resolve_repo_root(Path(__file__))
-OPENPI_TRT_DIR = REPO_ROOT / "my_devs" / "openpi_trt"
-for _path in (REPO_ROOT, OPENPI_TRT_DIR):
-    if _path.as_posix() not in sys.path:
-        sys.path.insert(0, _path.as_posix())
+if REPO_ROOT.as_posix() not in sys.path:
+    sys.path.insert(0, REPO_ROOT.as_posix())
 
 from lerobot.policies.rtc.configuration_rtc import RTCConfig  # noqa: E402
 from lerobot.policies.rtc.modeling_rtc import RTCProcessor  # noqa: E402
 from lerobot.utils.constants import ACTION, OBS_LANGUAGE_ATTENTION_MASK, OBS_LANGUAGE_TOKENS  # noqa: E402
-from runtime.pure_pi05_trt import PurePI05TRTPolicyAdapter, PurePI05TRTRuntime  # noqa: E402
+from my_devs.train.pi.so101.pure_trt.runtime.pure_pi05_trt import (  # noqa: E402
+    PurePI05TRTPolicyAdapter,
+    PurePI05TRTRuntime,
+)
 
 
 class RTCPurePI05TRTPolicyAdapter(PurePI05TRTPolicyAdapter):

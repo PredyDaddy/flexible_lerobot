@@ -22,10 +22,8 @@ def resolve_repo_root(start: Path) -> Path:
 
 
 REPO_ROOT = resolve_repo_root(Path(__file__))
-OPENPI_TRT_DIR = REPO_ROOT / "my_devs" / "openpi_trt"
-for _path in (REPO_ROOT, OPENPI_TRT_DIR):
-    if _path.as_posix() not in sys.path:
-        sys.path.insert(0, _path.as_posix())
+if REPO_ROOT.as_posix() not in sys.path:
+    sys.path.insert(0, REPO_ROOT.as_posix())
 
 from lerobot.policies.rtc.configuration_rtc import RTCConfig  # noqa: E402
 from lerobot.policies.utils import prepare_observation_for_inference  # noqa: E402
@@ -37,7 +35,10 @@ from lerobot.processor.converters import (  # noqa: E402
     transition_to_policy_action,
 )
 from lerobot.utils.utils import get_safe_torch_device  # noqa: E402
-from runtime.pure_pi05_trt import PurePI05TRTProfile, PurePI05TRTRuntime  # noqa: E402
+from my_devs.train.pi.so101.pure_trt.runtime.pure_pi05_trt import (  # noqa: E402
+    PurePI05TRTProfile,
+    PurePI05TRTRuntime,
+)
 
 from my_devs.train.pi.so101.rtc_pi05.server.policy_service import (  # noqa: E402
     ensure_chunk_batch,

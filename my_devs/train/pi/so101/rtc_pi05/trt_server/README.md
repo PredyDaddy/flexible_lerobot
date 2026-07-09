@@ -11,6 +11,15 @@ runtime assets + prefix_cache TensorRT engine + denoise_step TensorRT engine
 RTC guidance is applied in the Python denoise loop. The TensorRT engines still
 run the ordinary prefix and denoise boundaries.
 
+Before using this server, stage or build the pure TRT artifacts:
+
+```bash
+conda run --no-capture-output -n lerobot_flex \
+python my_devs/train/pi/so101/pure_trt/scripts/stage_existing_artifacts.py \
+  --mode symlink \
+  --force
+```
+
 ## Safe Checks
 
 Argument and file-path check only:
@@ -18,10 +27,10 @@ Argument and file-path check only:
 ```bash
 conda run --no-capture-output -n lerobot_flex \
 python my_devs/train/pi/so101/rtc_pi05/trt_server/run_trt_policy_server.py \
-  --runtime-assets-dir my_devs/openpi_trt/artifacts/pi05_runtime_assets \
+  --runtime-assets-dir my_devs/train/pi/so101/pure_trt/artifacts/pi05_runtime_assets \
   --profile fp16_constrained \
-  --prefix-engine-path my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
-  --denoise-engine-path my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
+  --prefix-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
+  --denoise-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
   --enable-rtc true \
   --dry-run true
 ```
@@ -33,10 +42,10 @@ conda run --no-capture-output -n lerobot_flex \
 python my_devs/train/pi/so101/rtc_pi05/trt_server/run_trt_policy_server.py \
   --host 127.0.0.1 \
   --port 8090 \
-  --runtime-assets-dir my_devs/openpi_trt/artifacts/pi05_runtime_assets \
+  --runtime-assets-dir my_devs/train/pi/so101/pure_trt/artifacts/pi05_runtime_assets \
   --profile fp16_constrained \
-  --prefix-engine-path my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
-  --denoise-engine-path my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
+  --prefix-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
+  --denoise-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
   --enable-rtc true \
   --rtc-execution-horizon 10 \
   --rtc-max-guidance-weight 10.0 \
@@ -52,10 +61,10 @@ conda run --no-capture-output -n lerobot_flex \
 python my_devs/train/pi/so101/rtc_pi05/trt_server/run_trt_policy_server.py \
   --host 127.0.0.1 \
   --port 8090 \
-  --runtime-assets-dir my_devs/openpi_trt/artifacts/pi05_runtime_assets \
+  --runtime-assets-dir my_devs/train/pi/so101/pure_trt/artifacts/pi05_runtime_assets \
   --profile fp16_constrained \
-  --prefix-engine-path my_devs/openpi_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
-  --denoise-engine-path my_devs/openpi_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
+  --prefix-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_prefix_cache_b1_fp16_constrained.engine \
+  --denoise-engine-path my_devs/train/pi/so101/pure_trt/artifacts/pi05_so101_denoise_step_b1_fp16_constrained.engine \
   --enable-rtc true \
   --rtc-execution-horizon 10 \
   --rtc-max-guidance-weight 10.0
@@ -89,6 +98,7 @@ python my_devs/train/pi/so101/rtc_pi05/trt_server/run_trt_robot_client.py \
   --rtc-execution-horizon 10 \
   --metrics-log-interval-s 2 \
   --assume-calibrated true \
+  --motor-io-retries 20 \
   --confirm-control
 ```
 
