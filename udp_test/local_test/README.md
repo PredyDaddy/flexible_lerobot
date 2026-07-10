@@ -77,6 +77,42 @@ udp_test/local_test/output_media/camera_left.jpg
 udp_test/local_test/output_media/camera_right.jpg
 ```
 
+## 持续记录右侧夹爪和关节状态
+
+在 Orin 上运行：
+
+```bash
+cd /home/data/test/workspace/flexible_lerobot
+conda activate lerobot
+python udp_test/local_test/record_right_gripper_status.py
+```
+
+脚本只读执行两个命令：
+
+```bash
+ros2 topic echo /robot1/right_gripper/gripper_status
+ros2 topic echo /robot1/arm_right/joint_states
+```
+
+默认持续追加保存到两个独立日志：
+
+```text
+udp_test/local_test/logs/robot1_right_gripper_gripper_status_<启动时间>.log
+udp_test/local_test/logs/robot1_arm_right_joint_states_<启动时间>.log
+```
+
+按 `Ctrl-C` 停止记录。只写文件、不打印到屏幕：
+
+```bash
+python udp_test/local_test/record_right_gripper_status.py --no-screen
+```
+
+只记录某一个 topic：
+
+```bash
+python udp_test/local_test/record_right_gripper_status.py --topic /robot1/arm_right/joint_states
+```
+
 同时检测配置相机和 RTSP：
 
 ```bash

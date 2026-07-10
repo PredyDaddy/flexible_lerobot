@@ -18,11 +18,6 @@ for path in (str(SRC_ROOT), str(MY_DEVS_ROOT), str(REPO_ROOT)):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import rclpy
-from rclpy.executors import SingleThreadedExecutor
-from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray
-
 from my_devs.jz_robot.common import DEFAULT_ROBOT_CONFIG, load_robot_config
 
 
@@ -51,6 +46,24 @@ def ros_stamp_ns(msg: Any) -> int | None:
 
 def encode_packet(packet: dict[str, Any]) -> bytes:
     return json.dumps(packet, separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+
+def import_ros_dependencies() -> tuple[Any, Any, Any, Any]:
+    try:
+        import rclpy
+        from rclpy.executors import SingleThreadedExecutor
+        from sensor_msgs.msg import JointState
+        from std_msgs.msg import Float64MultiArray
+    except ModuleNotFoundError as exc:
+        missing = exc.name or str(exc)
+        raise RuntimeError(
+            "Missing ROS2 Python dependency "
+            f"{missing!r}. Run this Orin-side probe from a ROS2-sourced shell/environment where "
+            "`python -c 'import rclpy'` works. For example, source the ROS setup used by the "
+            "existing Orin bridge scripts before running this command. This probe is readonly and "
+            "does not publish robot commands."
+        ) from exc
+    return rclpy, SingleThreadedExecutor, JointState, Float64MultiArray
 
 
 class TimingCollector:
@@ -193,6 +206,12 @@ def main() -> int:
     signal.signal(signal.SIGTERM, request_stop)
 
     args = parse_args()
+    try:
+        rclpy, SingleThreadedExecutor, JointState, Float64MultiArray = import_ros_dependencies()
+    except RuntimeError as exc:
+        print(f"[orin_record_timing_probe] {exc}", file=sys.stderr, flush=True)
+        return 2
+
     robot_cfg = load_robot_config(args.robot_config)
     collector = TimingCollector(robot_cfg)
 
