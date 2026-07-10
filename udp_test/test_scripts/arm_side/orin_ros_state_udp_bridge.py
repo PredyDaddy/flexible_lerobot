@@ -18,7 +18,7 @@ for path in (str(SRC_ROOT), str(MY_DEVS_ROOT), str(REPO_ROOT)):
         sys.path.insert(0, path)
 
 import rclpy
-from rclpy.executors import SingleThreadedExecutor
+from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 
@@ -64,12 +64,28 @@ class ReadonlyStateCollector:
         self.counts[f"{side}_gripper"] += 1
 
     def ready(self) -> bool:
-        left_ready = all(name in self.joints[LEFT] for name in self.robot_cfg.left_joint_names)
-        right_ready = all(name in self.joints[RIGHT] for name in self.robot_cfg.right_joint_names)
-        gripper_ready = True
+        return all(not missing for missing in self.missing_inputs().values())
+
+    def missing_inputs(self) -> dict[str, list[str]]:
+        missing = {
+            "left_joints": [
+                name for name in self.robot_cfg.left_joint_names if name not in self.joints[LEFT]
+            ],
+            "right_joints": [
+                name for name in self.robot_cfg.right_joint_names if name not in self.joints[RIGHT]
+            ],
+            "left_gripper_fields": [],
+            "right_gripper_fields": [],
+        }
         if self.robot_cfg.use_gripper:
-            gripper_ready = all(field in self.grippers[side] for side in (LEFT, RIGHT) for field in ("width", "force"))
-        return left_ready and right_ready and gripper_ready
+            for side in (LEFT, RIGHT):
+                missing[f"{side}_gripper_fields"] = [
+                    field for field in ("width", "force") if field not in self.grippers[side]
+                ]
+        return missing
+
+    def readiness_details(self) -> str:
+        return f"counts={self.counts} missing={self.missing_inputs()}"
 
     def packet(self, seq: int, robot_name: str) -> dict[str, Any]:
         return {
@@ -152,7 +168,7 @@ def main() -> int:
     )
     print(
         f"[orin ros state udp bridge] local={sock.getsockname()[0]}:{sock.getsockname()[1]} "
-        f"target={target[0]}:{target[1]} hz={args.hz}",
+        f"target={target[0]}:{target[1]} hz={args.hz} wait_timeout_s={args.wait_timeout_s}",
         flush=True,
     )
 
@@ -164,7 +180,10 @@ def main() -> int:
             print("[orin ros state udp bridge] stop requested before initial state ready", flush=True)
             return 0
         if not collector.ready():
-            print(f"[orin ros state udp bridge] initial state timeout counts={collector.counts}", flush=True)
+            print(
+                f"[orin ros state udp bridge] initial state timeout {collector.readiness_details()}",
+                flush=True,
+            )
             return 1
 
         seq = 0
@@ -185,6 +204,9 @@ def main() -> int:
                     flush=True,
                 )
             next_send += period_s
+        return 0
+    except ExternalShutdownException:
+        print("[orin ros state udp bridge] ROS context shut down", flush=True)
         return 0
     finally:
         sock.close()

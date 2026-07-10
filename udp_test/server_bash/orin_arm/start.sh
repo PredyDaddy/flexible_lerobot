@@ -10,6 +10,7 @@ ORIN_IP="${ORIN_IP:-192.168.1.81}"
 X86_IP="${X86_IP:-192.168.1.106}"
 STATE_PORT="${STATE_PORT:-39010}"
 STATE_HZ="${STATE_HZ:-20}"
+STATE_WAIT_TIMEOUT_S="${STATE_WAIT_TIMEOUT_S:-15}"
 PYTHON_CMD="${PYTHON_CMD:-python}"
 RUN_READINESS="${RUN_READINESS:-0}"
 AUTO_TAIL="${AUTO_TAIL:-1}"
@@ -34,6 +35,7 @@ nohup "${PYTHON_ARGS[@]}" udp_test/test_scripts/arm_side/orin_ros_state_udp_brid
   --target-ip "$X86_IP" \
   --target-port "$STATE_PORT" \
   --hz "$STATE_HZ" \
+  --wait-timeout-s "$STATE_WAIT_TIMEOUT_S" \
   --print-every "$STATE_HZ" \
   > "$LOG_DIR/ros_state_udp_bridge.log" 2>&1 &
 echo "$!" > "$PID_FILE"

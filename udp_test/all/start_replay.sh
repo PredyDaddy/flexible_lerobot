@@ -16,7 +16,12 @@ CONFIG="${CONFIG:-$ROOT_DIR/udp_test/test_scripts/arm_side/orin_phase3_executor_
 EXECUTION="${EXECUTION:-armed}"
 PYTHON_CMD="${PYTHON_CMD:-conda run --no-capture-output -n lerobot python}"
 TAIL="${TAIL:-0}"
+LEGACY_READY_TIMEOUT_S="${READY_TIMEOUT_S:-}"
 READY_TIMEOUT_S="${READY_TIMEOUT_S:-15}"
+BRIDGE_START_TIMEOUT_S="${BRIDGE_START_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-30}}"
+STATE_WAIT_TIMEOUT_S="${STATE_WAIT_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-15}}"
+STATE_READY_TIMEOUT_S="${STATE_READY_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-20}}"
+EXECUTOR_READY_TIMEOUT_S="${EXECUTOR_READY_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-15}}"
 
 cd "$ROOT_DIR"
 
@@ -111,6 +116,10 @@ log "CONFIG=$CONFIG"
 log "EXECUTION=$EXECUTION JZ_UDP_EXECUTOR_ARMED=${JZ_UDP_EXECUTOR_ARMED:-}"
 log "PYTHON_CMD=$PYTHON_CMD"
 log "READY_TIMEOUT_S=$READY_TIMEOUT_S"
+log "BRIDGE_START_TIMEOUT_S=$BRIDGE_START_TIMEOUT_S"
+log "STATE_WAIT_TIMEOUT_S=$STATE_WAIT_TIMEOUT_S"
+log "STATE_READY_TIMEOUT_S=$STATE_READY_TIMEOUT_S"
+log "EXECUTOR_READY_TIMEOUT_S=$EXECUTOR_READY_TIMEOUT_S"
 log "logs: $LOG_DIR"
 log "pids: $PID_DIR"
 
@@ -119,6 +128,7 @@ ORIN_IP="$ORIN_IP" \
 X86_IP="$X86_IP" \
 STATE_PORT="$STATE_PORT" \
 STATE_HZ="$STATE_HZ" \
+STATE_WAIT_TIMEOUT_S="$STATE_WAIT_TIMEOUT_S" \
 PYTHON_CMD="$PYTHON_CMD" \
 AUTO_TAIL=0 \
   bash "$ORIN_ARM_DIR/start.sh"
@@ -128,8 +138,14 @@ wait_for_log_pattern \
   "ros_state_udp_bridge" \
   "$PID_DIR/ros_state_udp_bridge.pid" \
   "$LOG_DIR/ros_state_udp_bridge.log" \
+  "local=" \
+  "$BRIDGE_START_TIMEOUT_S"
+wait_for_log_pattern \
+  "ros_state_udp_bridge" \
+  "$PID_DIR/ros_state_udp_bridge.pid" \
+  "$LOG_DIR/ros_state_udp_bridge.log" \
   "sent seq=" \
-  "$READY_TIMEOUT_S"
+  "$STATE_READY_TIMEOUT_S"
 
 log "starting Phase 3 command executor..."
 CONFIG="$CONFIG" \
@@ -150,13 +166,13 @@ wait_for_log_pattern \
   "$PID_DIR/orin_phase3_command_executor.pid" \
   "$LOG_DIR/orin_phase3_command_executor.log" \
   "PHASE3 COMMAND EXECUTOR ARMED" \
-  "$READY_TIMEOUT_S"
+  "$EXECUTOR_READY_TIMEOUT_S"
 wait_for_log_pattern \
   "orin_phase3_command_executor" \
   "$PID_DIR/orin_phase3_command_executor.pid" \
   "$LOG_DIR/orin_phase3_command_executor.log" \
   "port=$COMMAND_PORT" \
-  "$READY_TIMEOUT_S"
+  "$EXECUTOR_READY_TIMEOUT_S"
 
 log "replay services ready."
 log "stop with: bash udp_test/all/stop_replay.sh"
