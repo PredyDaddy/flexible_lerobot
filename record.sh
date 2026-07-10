@@ -22,14 +22,18 @@ COMMAND_PORT="${COMMAND_PORT:-39020}"
 TARGET_ACTION_PORT="${TARGET_ACTION_PORT:-39030}"
 TELEOP_MODE="${TELEOP_MODE:-target_action}"
 
-DATASET_NAME="${DATASET_NAME:-jz_robot_udp_vr_target_action_001}"
+DATASET_NAME="${DATASET_NAME:-jz_robot_udp_vr_target_action_007}"
 DATASET_ROOT="${DATASET_ROOT:-tests/outputs/${DATASET_NAME}}"
-NUM_EPISODES="${NUM_EPISODES:-2}"
-EPISODE_TIME_S="${EPISODE_TIME_S:-20}"
-RESET_TIME_S="${RESET_TIME_S:-10}"
+NUM_EPISODES="${NUM_EPISODES:-30}"
+EPISODE_TIME_S="${EPISODE_TIME_S:-10}"
+RESET_TIME_S="${RESET_TIME_S:-5}"
 RECORD_FPS="${RECORD_FPS:-30}"
 DISPLAY_DATA="${DISPLAY_DATA:-false}"
 PLAY_SOUNDS="${PLAY_SOUNDS:-true}"
+RESUME="${RESUME:-true}"
+RTSP_WARMUP_FRAMES="${RTSP_WARMUP_FRAMES:-30}"
+RTSP_STALE_FRAME_TIMEOUT_MS="${RTSP_STALE_FRAME_TIMEOUT_MS:-1000}"
+RTSP_FFMPEG_CAPTURE_OPTIONS="${RTSP_FFMPEG_CAPTURE_OPTIONS:-}"
 
 ROBOT_SEND_ACTION_TRANSPORT="${ROBOT_SEND_ACTION_TRANSPORT:-local}"
 ROBOT_SEND_ACTION_EXECUTION="${ROBOT_SEND_ACTION_EXECUTION:-dry_run}"
@@ -50,9 +54,12 @@ COMMON_ARGS=(
       "width": 1280,
       "height": 720,
       "timeout_ms": 5000,
-      "warmup_frames": 1,
+      "warmup_frames": '"$RTSP_WARMUP_FRAMES"',
       "color_mode": "rgb",
-      "transport": "tcp"
+      "transport": "tcp",
+      "threaded_reader": true,
+      "stale_frame_timeout_ms": '"$RTSP_STALE_FRAME_TIMEOUT_MS"',
+      "ffmpeg_capture_options": "'"$RTSP_FFMPEG_CAPTURE_OPTIONS"'"
     },
     "camera_left": {
       "url": "rtsp://'"$ORIN_IP"':8554/robot_camera/camera_left",
@@ -60,9 +67,12 @@ COMMON_ARGS=(
       "width": 640,
       "height": 480,
       "timeout_ms": 5000,
-      "warmup_frames": 1,
+      "warmup_frames": '"$RTSP_WARMUP_FRAMES"',
       "color_mode": "rgb",
-      "transport": "tcp"
+      "transport": "tcp",
+      "threaded_reader": true,
+      "stale_frame_timeout_ms": '"$RTSP_STALE_FRAME_TIMEOUT_MS"',
+      "ffmpeg_capture_options": "'"$RTSP_FFMPEG_CAPTURE_OPTIONS"'"
     },
     "camera_right": {
       "url": "rtsp://'"$ORIN_IP"':8554/robot_camera/camera_right",
@@ -70,9 +80,12 @@ COMMON_ARGS=(
       "width": 640,
       "height": 480,
       "timeout_ms": 5000,
-      "warmup_frames": 1,
+      "warmup_frames": '"$RTSP_WARMUP_FRAMES"',
       "color_mode": "rgb",
-      "transport": "tcp"
+      "transport": "tcp",
+      "threaded_reader": true,
+      "stale_frame_timeout_ms": '"$RTSP_STALE_FRAME_TIMEOUT_MS"',
+      "ffmpeg_capture_options": "'"$RTSP_FFMPEG_CAPTURE_OPTIONS"'"
     }
   }'
 )
@@ -102,6 +115,9 @@ echo "[record.sh] teleop_mode=${TELEOP_MODE} orin=${ORIN_IP} state_port=${STATE_
 echo "[record.sh] target_action_port=${TARGET_ACTION_PORT}"
 echo "[record.sh] robot_send_action_transport=${ROBOT_SEND_ACTION_TRANSPORT}"
 echo "[record.sh] display_data=${DISPLAY_DATA}"
+echo "[record.sh] resume=${RESUME}"
+echo "[record.sh] rtsp_warmup_frames=${RTSP_WARMUP_FRAMES} rtsp_stale_frame_timeout_ms=${RTSP_STALE_FRAME_TIMEOUT_MS}"
+echo "[record.sh] rtsp_ffmpeg_capture_options=${RTSP_FFMPEG_CAPTURE_OPTIONS:-<default>}"
 
 PYTHONPATH=src conda run --no-capture-output -n "$CONDA_ENV" \
   python -m lerobot.scripts.lerobot_record \
@@ -117,9 +133,11 @@ PYTHONPATH=src conda run --no-capture-output -n "$CONDA_ENV" \
   --dataset.push_to_hub=false \
   --dataset.video=true \
   --dataset.vcodec=h264 \
+  --dataset.video_encoding_batch_size="$NUM_EPISODES" \
   --display_data="$DISPLAY_DATA" \
   --display_compressed_images=false \
-  --play_sounds="$PLAY_SOUNDS"
+  --play_sounds="$PLAY_SOUNDS" \
+  --resume="$RESUME"
 
 echo "[record.sh] recording finished. Analyze with:"
-echo "  DATASET_ROOT=$DATASET_ROOT bash x86_test_datasets.sh analyze"
+echo "  DATASET_ROOT=$DATASET_ROOT bash x86_test_datasets.sh inspect_actions"

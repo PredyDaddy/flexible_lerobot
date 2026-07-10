@@ -639,21 +639,35 @@ class VideoEncodingManager:
     def __enter__(self):
         return self
 
+    @staticmethod
+    def _traceback_has_function(exc_tb, function_name: str) -> bool:
+        while exc_tb is not None:
+            if exc_tb.tb_frame.f_code.co_name == function_name:
+                return True
+            exc_tb = exc_tb.tb_next
+        return False
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Handle any remaining episodes that haven't been batch encoded
         if self.dataset.episodes_since_last_encoding > 0:
-            if exc_type is not None:
-                logging.info("Exception occurred. Encoding remaining episodes before exit...")
+            if exc_type is not None and self._traceback_has_function(exc_tb, "_batch_save_episode_video"):
+                logging.info(
+                    "Skipping remaining batch video encoding because the active exception already "
+                    "occurred during batch video encoding."
+                )
             else:
-                logging.info("Recording stopped. Encoding remaining episodes...")
+                if exc_type is not None:
+                    logging.info("Exception occurred. Encoding remaining episodes before exit...")
+                else:
+                    logging.info("Recording stopped. Encoding remaining episodes...")
 
-            start_ep = self.dataset.num_episodes - self.dataset.episodes_since_last_encoding
-            end_ep = self.dataset.num_episodes
-            logging.info(
-                f"Encoding remaining {self.dataset.episodes_since_last_encoding} episodes, "
-                f"from episode {start_ep} to {end_ep - 1}"
-            )
-            self.dataset._batch_save_episode_video(start_ep, end_ep)
+                start_ep = self.dataset.num_episodes - self.dataset.episodes_since_last_encoding
+                end_ep = self.dataset.num_episodes
+                logging.info(
+                    f"Encoding remaining {self.dataset.episodes_since_last_encoding} episodes, "
+                    f"from episode {start_ep} to {end_ep - 1}"
+                )
+                self.dataset._batch_save_episode_video(start_ep, end_ep)
 
         # Finalize the dataset to properly close all writers
         self.dataset.finalize()

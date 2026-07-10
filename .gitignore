@@ -48,6 +48,10 @@ MANIFEST
 lib/
 lib64/
 
+# Keep the jz_robot_pin runtime shell helpers tracked.
+!my_devs/jz_robot_pin/lib/
+!my_devs/jz_robot_pin/lib/common.sh
+
 # PyInstaller
 *.manifest
 *.spec
@@ -202,3 +206,7 @@ cqy/allign/*
 !tests/cqy/
 tests/cqy/*
 !tests/cqy/test_head_alignment_service.py
+
+my_devs/my_var_tp
+
+my_devs/train

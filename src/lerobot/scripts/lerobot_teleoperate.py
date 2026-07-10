@@ -74,6 +74,8 @@ from lerobot.robots import (  # noqa: F401
     earthrover_mini_plus,
     hope_jr,
     jz_robot,
+    jz_robot_pin,
+    jz_robot_udp,
     koch_follower,
     make_robot_from_config,
     omx_follower,
@@ -87,6 +89,8 @@ from lerobot.teleoperators import (  # noqa: F401
     gamepad,
     homunculus,
     jz_command_teleop,
+    jz_robot_pin_target_action,
+    jz_robot_udp_target_action,
     keyboard,
     koch_leader,
     make_teleoperator_from_config,
@@ -159,7 +163,7 @@ def teleop_loop(
         obs = robot.get_observation()
 
         # Get teleop action
-        raw_action = teleop.get_action()
+        raw_action = _get_teleop_action(teleop, obs)
 
         # Process teleop action through pipeline
         teleop_action = teleop_action_processor((raw_action, obs))
@@ -195,6 +199,12 @@ def teleop_loop(
 
         if duration is not None and time.perf_counter() - start >= duration:
             return
+
+
+def _get_teleop_action(teleop: Teleoperator, obs: RobotObservation) -> RobotAction:
+    if hasattr(teleop, "get_action_from_observation"):
+        return teleop.get_action_from_observation(obs)
+    return teleop.get_action()
 
 
 @parser.wrap()

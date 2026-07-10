@@ -97,6 +97,10 @@ def make_teleoperator_from_config(config: TeleoperatorConfig) -> Teleoperator:
         from .jz_robot_udp_target_action import JZRobotUDPTargetActionTeleop
 
         return JZRobotUDPTargetActionTeleop(config)
+    elif config.type == "jz_robot_pin_target_action":
+        from .jz_robot_pin_target_action import JZRobotPinTargetActionTeleop
+
+        return JZRobotPinTargetActionTeleop(config)
     else:
         try:
             return cast(Teleoperator, make_device_from_device_class(config))

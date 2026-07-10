@@ -57,6 +57,8 @@ from lerobot.robots import (  # noqa: F401
     earthrover_mini_plus,
     hope_jr,
     jz_robot,
+    jz_robot_pin,
+    jz_robot_udp,
     koch_follower,
     make_robot_from_config,
     omx_follower,

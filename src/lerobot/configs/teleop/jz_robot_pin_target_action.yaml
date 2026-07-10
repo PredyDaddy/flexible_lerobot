@@ -1,0 +1,33 @@
+type: jz_robot_pin_target_action
+id: jz_robot_pin_target_action
+
+bind_ip: 0.0.0.0
+target_action_port: 39030
+allowed_sender_ip: 127.0.0.1
+receive_buffer_size: 65535
+
+left_joint_names:
+  - left_joint1
+  - left_joint2
+  - left_joint3
+  - left_joint4
+  - left_joint5
+  - left_joint6
+  - left_joint7
+
+right_joint_names:
+  - right_joint1
+  - right_joint2
+  - right_joint3
+  - right_joint4
+  - right_joint5
+  - right_joint6
+  - right_joint7
+
+use_gripper: true
+connect_timeout_s: 0.0
+target_action_timeout_s: 0.5
+stale_policy: hold_current
+packet_max_age_s: 1.0
+packet_max_future_skew_s: 0.25
+seq_reset_timeout_s: 1.0

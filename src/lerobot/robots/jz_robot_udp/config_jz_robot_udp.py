@@ -38,6 +38,10 @@ class RTSPCameraConfig:
     warmup_frames: int = 1
     color_mode: str = "rgb"
     transport: str = "tcp"
+    threaded_reader: bool = True
+    stale_frame_timeout_ms: int = 1000
+    read_retry_sleep_ms: int = 5
+    ffmpeg_capture_options: str | None = None
 
     def __post_init__(self) -> None:
         if not self.url.startswith("rtsp://"):
@@ -48,6 +52,14 @@ class RTSPCameraConfig:
             raise ValueError("RTSP camera color_mode must be 'rgb' or 'bgr'")
         if self.transport not in ("tcp", "udp"):
             raise ValueError("RTSP camera transport must be 'tcp' or 'udp'")
+        if self.timeout_ms <= 0:
+            raise ValueError("RTSP camera timeout_ms must be positive")
+        if self.warmup_frames < 0:
+            raise ValueError("RTSP camera warmup_frames must be non-negative")
+        if self.stale_frame_timeout_ms <= 0:
+            raise ValueError("RTSP camera stale_frame_timeout_ms must be positive")
+        if self.read_retry_sleep_ms < 0:
+            raise ValueError("RTSP camera read_retry_sleep_ms must be non-negative")
 
 
 @RobotConfig.register_subclass("jz_robot_udp")

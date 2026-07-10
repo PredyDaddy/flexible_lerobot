@@ -1291,6 +1291,13 @@ class LeRobotDataset(torch.utils.data.Dataset):
             f"Batch encoding {self.batch_encoding_size} videos for episodes {start_episode} to {end_episode - 1}"
         )
 
+        # Batched encoding reads episode metadata and data parquet files back from disk.
+        # During online recording those writers may still hold buffered rows.
+        self._close_writer()
+        self.meta._close_writer()
+        self._writer_closed_for_reading = True
+        self.meta.episodes = load_episodes(self.root)
+
         chunk_idx = self.meta.episodes[start_episode]["data/chunk_index"]
         file_idx = self.meta.episodes[start_episode]["data/file_index"]
         episode_df_path = self.root / DEFAULT_EPISODES_PATH.format(chunk_index=chunk_idx, file_index=file_idx)
@@ -1316,16 +1323,29 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 )
                 episode_df = pd.read_parquet(episode_df_path)
 
-            # Save the current episode's video metadata to the dataframe
+            # Save the current episode's video metadata to the matching episode row.
+            # On resume, a new episode parquet file starts with row index 0 even when
+            # episode_index is already 2, 3, ...; using the DataFrame index would create
+            # sparse rows with missing episode metadata.
             video_ep_metadata = {}
             for video_key in self.meta.video_keys:
                 video_ep_metadata.update(self._save_episode_video(video_key, ep_idx))
-            video_ep_metadata.pop("episode_index")
-            video_ep_df = pd.DataFrame(video_ep_metadata, index=[ep_idx]).convert_dtypes(
-                dtype_backend="pyarrow"
-            )  # allows NaN values along with integers
+            video_ep_metadata.pop("episode_index", None)
 
-            episode_df = episode_df.combine_first(video_ep_df)
+            episode_index_mask = (
+                pd.to_numeric(episode_df["episode_index"], errors="coerce") == ep_idx
+            ).fillna(False)
+            if int(episode_index_mask.sum()) != 1:
+                raise RuntimeError(
+                    f"Expected exactly one metadata row for episode {ep_idx} in {episode_df_path}, "
+                    f"found {int(episode_index_mask.sum())}."
+                )
+            for key, value in video_ep_metadata.items():
+                if key not in episode_df.columns:
+                    episode_df[key] = pd.NA
+                episode_df.loc[episode_index_mask, key] = value
+
+            episode_df = episode_df.convert_dtypes(dtype_backend="pyarrow")
             episode_df.to_parquet(episode_df_path)
             self.meta.episodes = load_episodes(self.root)
 
@@ -1438,21 +1458,29 @@ class LeRobotDataset(torch.utils.data.Dataset):
         ep_size_in_mb = get_file_size_in_mb(ep_path)
         ep_duration_in_s = get_video_duration_in_s(ep_path)
 
-        if (
-            episode_index == 0
-            or self.meta.latest_episode is None
-            or f"videos/{video_key}/chunk_index" not in self.meta.latest_episode
-        ):
+        video_chunk_key = f"videos/{video_key}/chunk_index"
+        video_file_key = f"videos/{video_key}/file_index"
+        video_to_timestamp_key = f"videos/{video_key}/to_timestamp"
+
+        def _episode_value(episode: dict, key: str):
+            value = episode[key]
+            return value[0] if isinstance(value, list) else value
+
+        latest_video_episode = (
+            self.meta.latest_episode
+            if self.meta.latest_episode is not None and video_chunk_key in self.meta.latest_episode
+            else None
+        )
+        if latest_video_episode is None and self.meta.episodes is not None:
+            for previous_episode_index in range(episode_index - 1, -1, -1):
+                previous_episode = self.meta.episodes[previous_episode_index]
+                if video_chunk_key in previous_episode:
+                    latest_video_episode = previous_episode
+                    break
+
+        if latest_video_episode is None:
             # Initialize indices for a new dataset made of the first episode data
             chunk_idx, file_idx = 0, 0
-            if self.meta.episodes is not None and len(self.meta.episodes) > 0:
-                # It means we are resuming recording, so we need to load the latest episode
-                # Update the indices to avoid overwriting the latest episode
-                old_chunk_idx = self.meta.episodes[-1][f"videos/{video_key}/chunk_index"]
-                old_file_idx = self.meta.episodes[-1][f"videos/{video_key}/file_index"]
-                chunk_idx, file_idx = update_chunk_file_indices(
-                    old_chunk_idx, old_file_idx, self.meta.chunks_size
-                )
             latest_duration_in_s = 0.0
             new_path = self.root / self.meta.video_path.format(
                 video_key=video_key, chunk_index=chunk_idx, file_index=file_idx
@@ -1461,15 +1489,15 @@ class LeRobotDataset(torch.utils.data.Dataset):
             shutil.move(str(ep_path), str(new_path))
         else:
             # Retrieve information from the latest updated video file using latest_episode
-            latest_ep = self.meta.latest_episode
-            chunk_idx = latest_ep[f"videos/{video_key}/chunk_index"][0]
-            file_idx = latest_ep[f"videos/{video_key}/file_index"][0]
+            latest_ep = latest_video_episode
+            chunk_idx = _episode_value(latest_ep, video_chunk_key)
+            file_idx = _episode_value(latest_ep, video_file_key)
 
             latest_path = self.root / self.meta.video_path.format(
                 video_key=video_key, chunk_index=chunk_idx, file_index=file_idx
             )
             latest_size_in_mb = get_file_size_in_mb(latest_path)
-            latest_duration_in_s = latest_ep[f"videos/{video_key}/to_timestamp"][0]
+            latest_duration_in_s = _episode_value(latest_ep, video_to_timestamp_key)
 
             if latest_size_in_mb + ep_size_in_mb >= self.meta.video_files_size_in_mb:
                 # Move temporary episode video to a new video file in the dataset

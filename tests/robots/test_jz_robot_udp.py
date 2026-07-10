@@ -6,7 +6,9 @@ import ast
 import math
 import os
 import socket
+import sys
 import time
+import types
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import Mock
@@ -31,7 +33,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
     make_jz_robot_udp_command_packet,
     make_jz_robot_udp_target_action_packet,
 )
-from lerobot.robots.jz_robot_udp.rtsp_camera import configure_opencv_rtsp_environment
+from lerobot.robots.jz_robot_udp.rtsp_camera import RTSPCamera, configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
@@ -121,15 +123,87 @@ def test_jz_robot_udp_command_config_defaults_are_safe() -> None:
     assert cfg.command_timeout_s == 0.2
 
 
-def test_rtsp_camera_configures_low_latency_tcp_options(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rtsp_camera_configures_tcp_capture_options(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENCV_FFMPEG_CAPTURE_OPTIONS", raising=False)
     cfg = RTSPCameraConfig(url="rtsp://192.168.1.81:8554/robot_camera/camera_head", transport="tcp")
 
     configure_opencv_rtsp_environment(cfg)
 
-    assert os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] == (
-        "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0"
+    assert os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] == "rtsp_transport;tcp"
+
+
+def test_rtsp_camera_configures_custom_capture_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENCV_FFMPEG_CAPTURE_OPTIONS", raising=False)
+    cfg = RTSPCameraConfig(
+        url="rtsp://192.168.1.81:8554/robot_camera/camera_head",
+        transport="tcp",
+        ffmpeg_capture_options="rtsp_transport;tcp|stimeout;5000000",
     )
+
+    configure_opencv_rtsp_environment(cfg)
+
+    assert os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] == "rtsp_transport;tcp|stimeout;5000000"
+
+
+def test_rtsp_camera_threaded_reader_drains_to_latest_frame(monkeypatch: pytest.MonkeyPatch) -> None:
+    import numpy as np
+
+    class FakeVideoCapture:
+        def __init__(self, _url: str):
+            self.read_count = 0
+            self.released = False
+            self.options = []
+
+        def isOpened(self) -> bool:
+            return not self.released
+
+        def set(self, prop, value) -> None:
+            self.options.append((prop, value))
+
+        def read(self):
+            time.sleep(0.001)
+            self.read_count += 1
+            frame = np.full((4, 6, 3), self.read_count % 255, dtype=np.uint8)
+            return True, frame
+
+        def release(self) -> None:
+            self.released = True
+
+    fake_cv2 = types.SimpleNamespace(
+        VideoCapture=FakeVideoCapture,
+        CAP_PROP_BUFFERSIZE=1,
+        CAP_PROP_OPEN_TIMEOUT_MSEC=2,
+        CAP_PROP_READ_TIMEOUT_MSEC=3,
+        COLOR_BGR2RGB=4,
+        cvtColor=lambda frame, _code: frame[:, :, ::-1],
+    )
+    monkeypatch.setitem(sys.modules, "cv2", fake_cv2)
+
+    camera = RTSPCamera(
+        RTSPCameraConfig(
+            url="rtsp://192.168.1.81:8554/robot_camera/camera_head",
+            width=6,
+            height=4,
+            warmup_frames=2,
+            threaded_reader=True,
+            stale_frame_timeout_ms=1000,
+            read_retry_sleep_ms=1,
+        )
+    )
+
+    camera.connect()
+    try:
+        first_read_count = camera.diagnostics["frames_read"]
+        time.sleep(0.01)
+        frame = camera.async_read()
+        later_read_count = camera.diagnostics["frames_read"]
+    finally:
+        camera.disconnect()
+
+    assert frame.shape == (4, 6, 3)
+    assert first_read_count >= 3
+    assert later_read_count > first_read_count
+    assert camera.diagnostics["read_failures"] == 0
 
 
 def test_jz_robot_udp_command_config_accepts_explicit_armed_execution() -> None:

@@ -102,6 +102,8 @@ from lerobot.robots import (  # noqa: F401
     earthrover_mini_plus,
     hope_jr,
     jz_robot,
+    jz_robot_pin,
+    jz_robot_udp,
     koch_follower,
     make_robot_from_config,
     omx_follower,
@@ -115,6 +117,7 @@ from lerobot.teleoperators import (  # noqa: F401
     bi_so_leader,
     homunculus,
     jz_command_teleop,
+    jz_robot_pin_target_action,
     jz_robot_udp_constant,
     jz_robot_udp_hold,
     jz_robot_udp_target_action,
@@ -266,6 +269,15 @@ def _get_teleop_action(teleop: Teleoperator, obs: RobotObservation) -> RobotActi
     return teleop.get_action()
 
 
+def _get_camera_frame_ages_ms(robot: Robot) -> dict[str, float | None]:
+    cameras = getattr(robot, "cameras", {})
+    ages_ms = {}
+    for key, camera in cameras.items():
+        frame_age_s = getattr(camera, "frame_age_s", None)
+        ages_ms[key] = None if frame_age_s is None else round(frame_age_s * 1000, 3)
+    return ages_ms
+
+
 @safe_stop_image_writer
 def record_loop(
     robot: Robot,
@@ -289,6 +301,7 @@ def record_loop(
     single_task: str | None = None,
     display_data: bool = False,
     display_compressed_images: bool = False,
+    episode_index: int | None = None,
 ):
     if dataset is not None and dataset.fps != fps:
         raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
@@ -326,6 +339,7 @@ def record_loop(
 
     timestamp = 0
     start_episode_t = time.perf_counter()
+    first_dataset_frame_logged = False
     while timestamp < control_time_s:
         start_loop_t = time.perf_counter()
 
@@ -390,13 +404,28 @@ def record_loop(
         # Action can eventually be clipped using `max_relative_target`,
         # so action actually sent is saved in the dataset. action = postprocessor.process(action)
         # TODO(steven, pepijn, adil): we should use a pipeline step to clip the action, so the sent action is the action that we input to the robot.
-        _sent_action = robot.send_action(robot_action_to_send)
+        sent_action = robot.send_action(robot_action_to_send)
+        action_values = sent_action
 
         # Write to dataset
         if dataset is not None:
             action_frame = build_dataset_frame(dataset.features, action_values, prefix=ACTION)
             frame = {**observation_frame, **action_frame, "task": single_task}
+            if dataset.episode_buffer is None:
+                dataset.episode_buffer = dataset.create_episode_buffer()
+            first_frame_index = dataset.episode_buffer["size"]
             dataset.add_frame(frame)
+            if not first_dataset_frame_logged:
+                logging.info(
+                    "Started recording episode %s at first saved dataset frame "
+                    "(frame_index=%s, dataset_timestamp_s=%.6f, loop_start_delay_ms=%.3f, camera_age_ms=%s)",
+                    dataset.num_episodes if episode_index is None else episode_index,
+                    first_frame_index,
+                    first_frame_index / dataset.fps,
+                    (time.perf_counter() - start_episode_t) * 1000,
+                    _get_camera_frame_ages_ms(robot),
+                )
+                first_dataset_frame_logged = True
 
         if display_data:
             log_rerun_data(
@@ -499,7 +528,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         with VideoEncodingManager(dataset):
             recorded_episodes = 0
             while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
-                log_say(f"Recording episode {dataset.num_episodes}", cfg.play_sounds)
+                logging.info("Preparing recording episode %s", dataset.num_episodes)
                 record_loop(
                     robot=robot,
                     events=events,
@@ -516,6 +545,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     single_task=cfg.dataset.single_task,
                     display_data=cfg.display_data,
                     display_compressed_images=display_compressed_images,
+                    episode_index=dataset.num_episodes,
                 )
 
                 # Execute a few seconds without recording to give time to manually reset the environment

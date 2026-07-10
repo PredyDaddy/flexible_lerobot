@@ -216,7 +216,7 @@ class JZRobotUDP(Robot):
         encoded = encode_jz_robot_udp_command_packet(packet)
 
         if self.config.send_action_transport == "local":
-            logger.info(
+            logger.debug(
                 "JZRobotUDP command seq=%s mode=%s transport=local robot=%s target=local "
                 "action_key_count=%s action_keys=%s",
                 packet["seq"],
@@ -233,7 +233,7 @@ class JZRobotUDP(Robot):
                     timeout_s=self.config.command_timeout_s,
                 )
             sent_bytes = self._command_sender.send(encoded)
-            logger.info(
+            logger.debug(
                 "JZRobotUDP command seq=%s mode=%s transport=udp robot=%s action_key_count=%s "
                 "target=%s:%s bytes=%s",
                 packet["seq"],
