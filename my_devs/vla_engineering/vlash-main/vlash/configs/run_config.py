@@ -26,13 +26,15 @@ from lerobot.robots import RobotConfig
 
 # Import robot configs to register them with draccus parser
 # This enables YAML configs like `robot: {type: so100_follower, ...}`
-from lerobot.robots.bi_so100_follower import BiSO100FollowerConfig  # noqa: F401
+try:
+    from lerobot.robots.bi_so100_follower import BiSO100FollowerConfig  # noqa: F401
+except ModuleNotFoundError:
+    from lerobot.robots.bi_so_follower import BiSOFollowerConfig as BiSO100FollowerConfig  # noqa: F401
 from lerobot.robots.hope_jr import HopeJrArmConfig, HopeJrHandConfig  # noqa: F401
 from lerobot.robots.koch_follower import KochFollowerConfig  # noqa: F401
 from lerobot.robots.lekiwi import LeKiwiClientConfig, LeKiwiConfig  # noqa: F401
 from lerobot.robots.reachy2 import Reachy2RobotConfig  # noqa: F401
-from lerobot.robots.so100_follower import SO100FollowerConfig  # noqa: F401
-from lerobot.robots.so101_follower import SO101FollowerConfig  # noqa: F401
+from lerobot.robots.so_follower import SO100FollowerConfig, SO101FollowerConfig  # noqa: F401
 
 
 @dataclass

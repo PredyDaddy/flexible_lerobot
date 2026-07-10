@@ -1,0 +1,78 @@
+# Generated after smoke sweep on 2026-07-03. Do not edit original smoke config.
+policy:
+  type: pi05
+  pretrained_path: /data/cqy_workspace/flexible_lerobot/assets/modelscope/lerobot/pi05_base
+  push_to_hub: false
+  dtype: bfloat16
+  device: cuda
+  state_cond: true
+  gradient_checkpointing: true
+  compile_model: false
+  fuse_qkv: false
+  fuse_gate_up: false
+  normalization_mapping:
+    VISUAL: IDENTITY
+    STATE: MEAN_STD
+    ACTION: MEAN_STD
+dataset:
+  repo_id: desk_cleanup_v1/eraser_cup_multi_task
+  root: /data/cqy_workspace/flexible_lerobot/datasets/desk_cleanup_v1/eraser_cup_multi_task
+  video_backend: pyav
+  use_imagenet_stats: false
+output_dir: /data/cqy_workspace/flexible_lerobot/my_devs/vla_engineering/train/outputs/pi05_so101_vlash_lora_10epochs_r16_bs1_accum8
+job_name: pi05_so101_vlash_lora_10epochs_r16_bs1_accum8
+batch_size: 1
+grad_accum_steps: 8
+steps: 66550
+num_workers: 2
+seed: 1000
+use_policy_training_preset: false
+optimizer:
+  type: adamw
+  lr: 5.0e-05
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 1.0e-10
+  grad_clip_norm: 1.0
+scheduler:
+  type: cosine_decay_with_warmup
+  num_warmup_steps: 1000
+  peak_lr: 5.0e-05
+  decay_lr: 2.5e-06
+  num_decay_steps: 66550
+save_checkpoint: true
+save_freq: 6655
+log_freq: 50
+wandb:
+  enable: false
+max_delay_steps: 1
+shared_observation: false
+lora:
+  enable: true
+  backend: peft
+  r: 16
+  alpha: 16
+  dropout: 0.05
+  extra_trainable_modules:
+  - action_in_proj
+  - action_out_proj
+  - time_mlp_in
+  - time_mlp_out
+  - state_proj
+  - state_mlp_in
+  - state_mlp_out
+  - input_layernorm
+  - post_attention_layernorm
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  - out_proj
+  - fc1
+  - fc2

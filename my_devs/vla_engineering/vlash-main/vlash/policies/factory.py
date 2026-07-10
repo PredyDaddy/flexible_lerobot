@@ -88,16 +88,15 @@ def make_policy(
     # Convert dataset features to policy feature format
     features = dataset_to_policy_features(ds_meta.features)
     
-    # Set output features (actions) if not already configured
-    if not cfg.output_features:
-        cfg.output_features = {
-            key: ft for key, ft in features.items() if ft.type is FeatureType.ACTION
-        }
-    # Set input features (observations) if not already configured
-    if not cfg.input_features:
-        cfg.input_features = {
-            key: ft for key, ft in features.items() if key not in cfg.output_features
-        }
+    # Always adapt pretrained configs to the active dataset. The public pi0/pi05
+    # checkpoints ship with generic three-camera feature names, while local SO101
+    # datasets often use task-specific camera names such as top/wrist.
+    cfg.output_features = {
+        key: ft for key, ft in features.items() if ft.type is FeatureType.ACTION
+    }
+    cfg.input_features = {
+        key: ft for key, ft in features.items() if key not in cfg.output_features
+    }
     kwargs["config"] = cfg
 
     # Create policy: either from pretrained or fresh

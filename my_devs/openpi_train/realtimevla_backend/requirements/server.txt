@@ -1,0 +1,13 @@
+# Service-layer dependencies installed into realtimevla_backend/.venv.
+#
+# The .venv is created from the existing openpi_train Python 3.11 environment
+# with --system-site-packages so it can reuse the already validated OpenPI/JAX/
+# CUDA stack. Do not install the full OpenPI stack here unless you intentionally
+# want to rebuild the model environment from scratch.
+fastapi
+uvicorn
+pyyaml
+requests
+opencv-python
+pillow
+

@@ -1,0 +1,24 @@
+server:
+  host: "127.0.0.1"
+  port: 18080
+  endpoint: "/infer"
+  access_log: false
+
+model:
+  adapter: "mock_so101"
+  checkpoint_dir: ""
+  default_prompt: "Put the eraser into the small box"
+  dataset_format: "v21"
+  asset_id: null
+  pytorch_device: null
+  action_horizon: 50
+  valid_action_num: 30
+  state_dim: 6
+  action_dim: 6
+
+inference:
+  optimizer: "pass_through"
+  include_raw_actions: true
+  warmup_on_start: false
+  warmup_image_width: 640
+  warmup_image_height: 480

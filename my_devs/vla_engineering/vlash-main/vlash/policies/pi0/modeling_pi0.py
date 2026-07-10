@@ -37,7 +37,20 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from transformers.models.gemma.modeling_gemma import GemmaForCausalLM, _gated_residual
+try:
+    from transformers.models.gemma.modeling_gemma import GemmaForCausalLM, _gated_residual
+except ImportError:
+    from transformers.models.gemma.modeling_gemma import GemmaForCausalLM
+
+    def _gated_residual(x, y, gate):
+        if x is None and y is None:
+            return None
+        if x is None or y is None:
+            return x if x is not None else y
+        if gate is None:
+            return x + y
+        return x + y * gate
+
 from transformers.models.paligemma.modeling_paligemma import PaliGemmaForConditionalGeneration
 from transformers import AutoTokenizer
 
@@ -46,6 +59,7 @@ from lerobot.configs.types import FeatureType, NormalizationMode
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.utils.constants import ACTION, OBS_STATE
 
+from vlash.policies.gemma_compat import ensure_gemma_rms_norm_compat
 from vlash.policies.normalize import Normalize, Unnormalize
 from vlash.policies.pi0.configuration_pi0 import PI0Config
 from vlash.policies.pi0.utils import (
@@ -58,6 +72,19 @@ from vlash.policies.pi0.utils import (
 from vlash.layers.attention import Attention
 from vlash.layers.linear import QKVLinear, MergedColumnLinear
 from vlash.layers.rope import RotaryEmbedding
+
+
+def _module_param_dtype(module: nn.Module) -> torch.dtype | None:
+    for param in module.parameters(recurse=True):
+        return param.dtype
+    return None
+
+
+def _cast_to_module_dtype(tensor: Tensor, module: nn.Module) -> Tensor:
+    dtype = _module_param_dtype(module)
+    if dtype is None or tensor.dtype == dtype:
+        return tensor
+    return tensor.to(dtype=dtype)
 
 
 class PI0PrefixEmbedder(nn.Module):
@@ -242,12 +269,27 @@ class PI0Attention(nn.Module):
 
             # Support fused and unfused attention
             if hasattr(attn, "qkv_proj"):
-                q, k, v = attn.qkv_proj(hs)
+                q, k, v = attn.qkv_proj(_cast_to_module_dtype(hs, attn.qkv_proj))
             else:
                 bsz, seqlen, _ = hs.shape
-                q = attn.q_proj(hs).view(bsz, seqlen, -1, self.head_dim).permute(0, 2, 1, 3).contiguous()
-                k = attn.k_proj(hs).view(bsz, seqlen, -1, self.head_dim).permute(0, 2, 1, 3).contiguous()
-                v = attn.v_proj(hs).view(bsz, seqlen, -1, self.head_dim).permute(0, 2, 1, 3).contiguous()
+                q = (
+                    attn.q_proj(_cast_to_module_dtype(hs, attn.q_proj))
+                    .view(bsz, seqlen, -1, self.head_dim)
+                    .permute(0, 2, 1, 3)
+                    .contiguous()
+                )
+                k = (
+                    attn.k_proj(_cast_to_module_dtype(hs, attn.k_proj))
+                    .view(bsz, seqlen, -1, self.head_dim)
+                    .permute(0, 2, 1, 3)
+                    .contiguous()
+                )
+                v = (
+                    attn.v_proj(_cast_to_module_dtype(hs, attn.v_proj))
+                    .view(bsz, seqlen, -1, self.head_dim)
+                    .permute(0, 2, 1, 3)
+                    .contiguous()
+                )
 
             q_states.append(q)
             k_states.append(k)
@@ -275,7 +317,8 @@ class PI0Attention(nn.Module):
                 outputs.append(None)
                 continue
             end_pos = start_pos + hs.shape[1]
-            out_emb = attn.o_proj(attn_outputs[:, start_pos:end_pos])
+            out_slice = _cast_to_module_dtype(attn_outputs[:, start_pos:end_pos], attn.o_proj)
+            out_emb = attn.o_proj(out_slice)
             outputs.append(out_emb)
             start_pos = end_pos
         return outputs
@@ -300,12 +343,12 @@ class PI0MLP(nn.Module):
                 continue
             # Support fused and unfused MLP
             if hasattr(mlp, "gate_up_proj"):
-                gate, up = mlp.gate_up_proj(hs)
+                gate, up = mlp.gate_up_proj(_cast_to_module_dtype(hs, mlp.gate_up_proj))
             else:
-                gate = mlp.gate_proj(hs)
-                up = mlp.up_proj(hs)
+                gate = mlp.gate_proj(_cast_to_module_dtype(hs, mlp.gate_proj))
+                up = mlp.up_proj(_cast_to_module_dtype(hs, mlp.up_proj))
             x = mlp.act_fn(gate) * up
-            x = mlp.down_proj(x)
+            x = mlp.down_proj(_cast_to_module_dtype(x, mlp.down_proj))
             outputs.append(x)
         return outputs
 
@@ -387,6 +430,8 @@ class PI0Model(nn.Module):
         # Backbone models
         self.vlm = PaliGemmaForConditionalGeneration(config.vlm_config)
         self.action_expert = GemmaForCausalLM(config.action_expert_config)
+        ensure_gemma_rms_norm_compat(self.vlm.model.language_model, cond_dim=None)
+        ensure_gemma_rms_norm_compat(self.action_expert.model, cond_dim=None)
 
         # Embedders
         self.prefix_embedder = PI0PrefixEmbedder(config, self.vlm)
@@ -510,9 +555,6 @@ class PI0Model(nn.Module):
         """Convert model to bfloat16, keeping critical params in float32."""
         modules = [self.vlm, self.action_expert]
         params_to_keep_float32 = [
-            "vision_tower.vision_model.embeddings.patch_embedding.weight",
-            "vision_tower.vision_model.embeddings.patch_embedding.bias",
-            "vision_tower.vision_model.embeddings.position_embedding.weight",
             "input_layernorm",
             "post_attention_layernorm",
             "model.norm",

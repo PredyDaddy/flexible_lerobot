@@ -32,5 +32,5 @@ Repository = "https://github.com/mit-han-lab/vlash"
 [project.scripts]
 vlash = "vlash.cli:main"
 
-[tool.setuptools]
-packages = ["vlash", "vlash.configs", "vlash.datasets", "benchmarks"]
+[tool.setuptools.packages.find]
+include = ["vlash*", "benchmarks*"]

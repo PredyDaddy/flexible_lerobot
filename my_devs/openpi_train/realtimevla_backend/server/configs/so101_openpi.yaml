@@ -1,0 +1,24 @@
+server:
+  host: "0.0.0.0"
+  port: 18080
+  endpoint: "/infer"
+  access_log: false
+
+model:
+  adapter: "openpi_so101"
+  checkpoint_dir: "/data/cqy_workspace/flexible_lerobot/my_devs/openpi_train/outputs/checkpoints/pi05_so101_eraser_cup_lora/so101_lora_full_v21_10epoch_bs48_20260702_171345/11090"
+  default_prompt: "Put the eraser into the small box"
+  dataset_format: "v21"
+  asset_id: "desk_cleanup_v1/eraser_cup_multi_task_v21_full"
+  pytorch_device: "cuda"
+  action_horizon: 50
+  valid_action_num: 30
+  state_dim: 6
+  action_dim: 6
+
+inference:
+  optimizer: "pass_through"
+  include_raw_actions: true
+  warmup_on_start: true
+  warmup_image_width: 640
+  warmup_image_height: 480

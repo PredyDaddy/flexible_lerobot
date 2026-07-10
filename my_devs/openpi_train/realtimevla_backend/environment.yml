@@ -1,0 +1,9 @@
+name: realtimevla_backend_server
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - -r requirements/server.txt
+

@@ -1,0 +1,39 @@
+# Real-robot async inference template for the smoke-trained VLASH PI0.5 checkpoint.
+# Override policy.path after training if you use a different output directory.
+
+robot:
+  type: so101_follower
+  port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C123192-if00
+  id: hfy_follower
+  cameras:
+    top:
+      type: opencv
+      index_or_path: /dev/video4
+      width: 640
+      height: 480
+      fps: 30
+      fourcc: YUYV
+    wrist:
+      type: opencv
+      index_or_path: /dev/video6
+      width: 640
+      height: 480
+      fps: 30
+      fourcc: MJPG
+
+policy:
+  path: /data/cqy_workspace/flexible_lerobot/my_devs/vla_engineering/train/outputs/pi05_so101_vlash_lora_10epochs_r192_bs1_accum8/checkpoints/033275/pretrained_model
+  n_action_steps: 32
+  num_inference_steps: 10
+  compile_model: true
+  device: cuda
+  fuse_qkv: true
+  fuse_gate_up: true
+
+single_task: Put the eraser into the small box
+fps: 30
+control_time_s: 120
+display_data: true
+play_sounds: true
+action_quant_ratio: 1
+inference_overlap_steps: 4

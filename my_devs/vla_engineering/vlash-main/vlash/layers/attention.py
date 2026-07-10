@@ -94,8 +94,9 @@ class Attention(nn.Module):
             k_full = k
             v_full = v
 
-        # Compute attention scores: [B, H, L_q, L_k]
-        attn_scores = torch.matmul(q, k_full.transpose(-2, -1)) * self.scale
+        # Compute scores in fp32 for numerical stability. Some upstream
+        # components keep norms or masks in fp32 while projections run in bf16.
+        attn_scores = torch.matmul(q.float(), k_full.transpose(-2, -1).float()) * self.scale
 
         # Apply attention mask (additive)
         if attention_mask is not None:
@@ -105,10 +106,10 @@ class Attention(nn.Module):
                 mask = attention_mask[:, None, :, :]
             else:
                 raise ValueError(f"Unsupported attention_mask ndim: {attention_mask.ndim}")
-            attn_scores = attn_scores + mask
+            attn_scores = attn_scores + mask.to(dtype=attn_scores.dtype)
 
         # Softmax and weighted sum
-        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attn_weights = torch.softmax(attn_scores, dim=-1).to(dtype=v_full.dtype)
         out = torch.matmul(attn_weights, v_full)
         
         return out

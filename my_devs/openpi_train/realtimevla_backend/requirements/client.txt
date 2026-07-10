@@ -1,0 +1,11 @@
+# Robot-side client dependencies.
+#
+# The client must run in the repository-standard lerobot_flex conda environment.
+# These packages are already present in the current lerobot_flex environment,
+# but the list documents the expected runtime surface for this backend.
+pyyaml
+requests
+opencv-python
+numpy
+torch
+
