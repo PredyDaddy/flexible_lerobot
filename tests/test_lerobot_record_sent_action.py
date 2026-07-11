@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import Mock
 
 from lerobot.scripts import lerobot_record
@@ -26,6 +27,7 @@ class FakeDataset:
     def __init__(self, event_log: list[str] | None = None) -> None:
         self.frames = []
         self.event_log = event_log
+        self.root = Path("/tmp/fake_record_dataset")
 
     def create_episode_buffer(self) -> dict:
         return {"size": 0}
@@ -55,6 +57,15 @@ class FakeRobot:
         assert action == {"joint.pos": 9.0}
         self.sent_actions.append(action)
         return {"joint.pos": 1.0}
+
+
+class TimedFakeRobot(FakeRobot):
+    def __init__(self) -> None:
+        super().__init__()
+        self.saved_timing = []
+
+    def save_frame_timing(self, **kwargs) -> None:
+        self.saved_timing.append(kwargs)
 
 
 def test_record_loop_saves_and_displays_action_returned_by_robot(monkeypatch) -> None:
@@ -91,6 +102,38 @@ def test_record_loop_saves_and_displays_action_returned_by_robot(monkeypatch) ->
     assert len(rerun_calls) == 1
     assert rerun_calls[0]["action"] == {"joint.pos": 1.0}
     assert spoken_events == [("Start recording episode 1", True)]
+
+
+def test_record_loop_persists_optional_robot_and_action_timing(monkeypatch) -> None:
+    dataset = FakeDataset()
+    robot = TimedFakeRobot()
+    teleop = Mock(spec=Teleoperator)
+    teleop.get_action.return_value = {"joint.pos": 9.0}
+    teleop.last_action_timing = {"packet_seq": 3}
+    monkeypatch.setattr(lerobot_record, "log_say", lambda *_args: None)
+
+    lerobot_record.record_loop(
+        robot=robot,
+        events={"exit_early": False},
+        fps=dataset.fps,
+        teleop_action_processor=lambda value: value[0],
+        robot_action_processor=lambda value: value[0],
+        robot_observation_processor=lambda value: value,
+        dataset=dataset,
+        teleop=teleop,
+        control_time_s=0.0001,
+        single_task="test",
+        episode_index=2,
+    )
+
+    assert robot.saved_timing == [
+        {
+            "dataset_root": dataset.root,
+            "episode_index": 2,
+            "frame_index": 0,
+            "action_timing": {"packet_seq": 3},
+        }
+    ]
 
 
 def test_record_loop_announces_only_after_first_frame_is_buffered(monkeypatch) -> None:

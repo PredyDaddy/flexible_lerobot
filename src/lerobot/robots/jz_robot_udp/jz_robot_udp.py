@@ -13,13 +13,13 @@ from lerobot.processor import RobotAction, RobotObservation
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 
 from ..robot import Robot
-from .config_jz_robot_udp import JZRobotUDPConfig
+from .config_jz_robot_udp import JZRobotUDPConfig, RTSPCameraConfig
 from .protocol import (
     encode_jz_robot_udp_command_packet,
     make_jz_robot_udp_command_packet,
 )
 from .rtsp_camera import RTSPCamera
-from .state_cache import StateCache
+from .state_cache import CachedState, StateCache
 from .udp_client import UDPCommandSender, UDPStateReceiver
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class JZRobotUDP(Robot):
     def __init__(self, config: JZRobotUDPConfig):
         super().__init__(config)
         self.config = config
-        self.cameras = {key: RTSPCamera(cfg) for key, cfg in config.rtsp_cameras.items()}
+        self.cameras = {key: self._make_camera(key, cfg) for key, cfg in config.rtsp_cameras.items()}
         self._state_cache = StateCache()
         self._receiver = UDPStateReceiver(
             bind_ip=config.bind_ip,
@@ -51,6 +51,27 @@ class JZRobotUDP(Robot):
         self._command_sender: UDPCommandSender | None = None
         self._command_seq = 0
         self._is_connected = False
+
+    def _make_camera(self, key: str, config: RTSPCameraConfig) -> RTSPCamera:
+        """Construct a camera while allowing specialized JZ robots to replace the receiver."""
+        return RTSPCamera(config)
+
+    def _read_camera(self, key: str, camera: Any, state: CachedState) -> Any:
+        """Read a camera frame, with the state available to specialized JZ robots."""
+        return camera.async_read()
+
+    def _after_observation(self, state: CachedState, observation: RobotObservation) -> None:
+        """Hook for diagnostics that must not change the public observation schema."""
+
+    def _after_action_sent(
+        self,
+        *,
+        packet: dict[str, Any],
+        action: RobotAction,
+        send_completed_wall_ns: int,
+        send_completed_monotonic_ns: int,
+    ) -> None:
+        """Hook for diagnostics after a local or UDP command send completes."""
 
     @property
     def _left_motors_ft(self) -> dict[str, type]:
@@ -140,7 +161,7 @@ class JZRobotUDP(Robot):
             if calibrate and not self.is_calibrated:
                 self.calibrate()
             self.configure()
-        except Exception:
+        except BaseException:
             for camera in self.cameras.values():
                 if camera.is_connected:
                     camera.disconnect()
@@ -171,8 +192,9 @@ class JZRobotUDP(Robot):
             obs.update(self._gripper_observation(packet, RIGHT))
 
         for key, camera in self.cameras.items():
-            obs[key] = camera.async_read()
+            obs[key] = self._read_camera(key, camera, state)
 
+        self._after_observation(state, obs)
         return obs
 
     def _assert_allowed_sender(self, sender: tuple[str, int]) -> None:
@@ -216,6 +238,8 @@ class JZRobotUDP(Robot):
         encoded = encode_jz_robot_udp_command_packet(packet)
 
         if self.config.send_action_transport == "local":
+            send_completed_wall_ns = time.time_ns()
+            send_completed_monotonic_ns = time.monotonic_ns()
             logger.debug(
                 "JZRobotUDP command seq=%s mode=%s transport=local robot=%s target=local "
                 "action_key_count=%s action_keys=%s",
@@ -233,6 +257,8 @@ class JZRobotUDP(Robot):
                     timeout_s=self.config.command_timeout_s,
                 )
             sent_bytes = self._command_sender.send(encoded)
+            send_completed_wall_ns = time.time_ns()
+            send_completed_monotonic_ns = time.monotonic_ns()
             logger.debug(
                 "JZRobotUDP command seq=%s mode=%s transport=udp robot=%s action_key_count=%s "
                 "target=%s:%s bytes=%s",
@@ -247,6 +273,12 @@ class JZRobotUDP(Robot):
         else:
             raise RuntimeError(f"unsupported send_action_transport: {self.config.send_action_transport}")
 
+        self._after_action_sent(
+            packet=packet,
+            action=float_action,
+            send_completed_wall_ns=send_completed_wall_ns,
+            send_completed_monotonic_ns=send_completed_monotonic_ns,
+        )
         return float_action
 
     def _validate_and_float_action(self, action: RobotAction) -> RobotAction:

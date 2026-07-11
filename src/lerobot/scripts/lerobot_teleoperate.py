@@ -75,6 +75,7 @@ from lerobot.robots import (  # noqa: F401
     hope_jr,
     jz_robot,
     jz_robot_pin,
+    jz_robot_pin_timed,
     jz_robot_udp,
     koch_follower,
     make_robot_from_config,

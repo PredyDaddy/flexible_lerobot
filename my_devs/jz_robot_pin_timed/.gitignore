@@ -1,0 +1,6 @@
+logs/
+run/
+video_check/outputs/
+__pycache__/
+*.pyc
+

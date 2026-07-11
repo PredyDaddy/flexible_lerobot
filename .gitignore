@@ -51,6 +51,8 @@ lib64/
 # Keep the jz_robot_pin runtime shell helpers tracked.
 !my_devs/jz_robot_pin/lib/
 !my_devs/jz_robot_pin/lib/common.sh
+!my_devs/jz_robot_pin_timed/lib/
+!my_devs/jz_robot_pin_timed/lib/common.sh
 
 # PyInstaller
 *.manifest

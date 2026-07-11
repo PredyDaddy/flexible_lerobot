@@ -68,6 +68,10 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .jz_robot_pin import JZRobotPin
 
         return JZRobotPin(config)
+    elif config.type == "jz_robot_pin_timed":
+        from .jz_robot_pin_timed import JZRobotPinTimed
+
+        return JZRobotPinTimed(config)
     elif config.type == "reachy2":
         from .reachy2 import Reachy2Robot
 

@@ -79,7 +79,7 @@ from lerobot.cameras.zmq.configuration_zmq import ZMQCameraConfig  # noqa: F401
 from lerobot.configs import parser
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.datasets.image_writer import safe_stop_image_writer
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.datasets.lerobot_dataset import DEFAULT_VIDEO_CRF, LeRobotDataset
 from lerobot.datasets.pipeline_features import aggregate_pipeline_dataset_features, create_initial_features
 from lerobot.datasets.utils import build_dataset_frame, combine_feature_dicts
 from lerobot.datasets.video_utils import VideoEncodingManager
@@ -103,6 +103,7 @@ from lerobot.robots import (  # noqa: F401
     hope_jr,
     jz_robot,
     jz_robot_pin,
+    jz_robot_pin_timed,
     jz_robot_udp,
     koch_follower,
     make_robot_from_config,
@@ -185,6 +186,8 @@ class DatasetRecordConfig:
     # Video codec for encoding videos. Options: 'h264', 'hevc', 'libsvtav1'.
     # Use 'h264' for faster encoding on systems where AV1 encoding is CPU-heavy.
     vcodec: str = "libsvtav1"
+    # Constant Rate Factor for video encoding. Lower values retain more detail and use more storage.
+    video_crf: int = DEFAULT_VIDEO_CRF
     # Rename map for the observation to override the image and state keys
     rename_map: dict[str, str] = field(default_factory=dict)
 
@@ -416,6 +419,15 @@ def record_loop(
                 dataset.episode_buffer = dataset.create_episode_buffer()
             first_frame_index = dataset.episode_buffer["size"]
             dataset.add_frame(frame)
+            timing_hook = getattr(robot, "save_frame_timing", None)
+            if callable(timing_hook):
+                action_timing = getattr(teleop, "last_action_timing", None)
+                timing_hook(
+                    dataset_root=dataset.root,
+                    episode_index=dataset.num_episodes if episode_index is None else episode_index,
+                    frame_index=first_frame_index,
+                    action_timing=action_timing,
+                )
             if not first_dataset_frame_logged:
                 current_episode_index = dataset.num_episodes if episode_index is None else episode_index
                 current_episode_number = current_episode_index + 1
@@ -484,6 +496,8 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 root=cfg.dataset.root,
                 batch_encoding_size=cfg.dataset.video_encoding_batch_size,
                 vcodec=cfg.dataset.vcodec,
+                video_crf=cfg.dataset.video_crf,
+                validate_video_encoding=True,
             )
 
             if hasattr(robot, "cameras") and len(robot.cameras) > 0:
@@ -506,6 +520,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 image_writer_threads=cfg.dataset.num_image_writer_threads_per_camera * len(robot.cameras),
                 batch_encoding_size=cfg.dataset.video_encoding_batch_size,
                 vcodec=cfg.dataset.vcodec,
+                video_crf=cfg.dataset.video_crf,
             )
 
         # Load pretrained policy

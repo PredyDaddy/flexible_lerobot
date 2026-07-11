@@ -13,6 +13,7 @@ class CachedState:
     packet: dict[str, Any]
     sender: tuple[str, int]
     received_monotonic_s: float
+    received_wall_ns: int | None = None
 
 
 class StateCache:
@@ -26,6 +27,7 @@ class StateCache:
                 packet=packet,
                 sender=sender,
                 received_monotonic_s=time.monotonic(),
+                received_wall_ns=time.time_ns(),
             )
             self._condition.notify_all()
 

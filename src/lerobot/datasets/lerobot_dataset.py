@@ -79,6 +79,30 @@ from lerobot.utils.constants import HF_LEROBOT_HOME
 
 CODEBASE_VERSION = "v3.0"
 VALID_VIDEO_CODECS = {"h264", "hevc", "libsvtav1"}
+DEFAULT_VIDEO_CRF = 30
+
+
+def _validate_video_crf(video_crf: int, vcodec: str) -> None:
+    if isinstance(video_crf, bool) or not isinstance(video_crf, int):
+        raise TypeError(f"video_crf must be an integer, got {type(video_crf).__name__}")
+
+    max_crf = 63 if vcodec == "libsvtav1" else 51
+    if not 0 <= video_crf <= max_crf:
+        raise ValueError(f"video_crf must be between 0 and {max_crf} for {vcodec}, got {video_crf}")
+
+
+def _legacy_video_codecs(info: dict) -> set[str]:
+    codecs: set[str] = set()
+    for feature in info.get("features", {}).values():
+        if feature.get("dtype") != "video":
+            continue
+        feature_info = feature.get("info", {})
+        codec = feature.get("video.codec")
+        if codec is None and isinstance(feature_info, dict):
+            codec = feature_info.get("video.codec")
+        if isinstance(codec, str):
+            codecs.add("libsvtav1" if codec == "av1" else codec)
+    return codecs
 
 
 class LeRobotDatasetMetadata:
@@ -542,12 +566,17 @@ class LeRobotDatasetMetadata:
 
 
 def _encode_video_worker(
-    video_key: str, episode_index: int, root: Path, fps: int, vcodec: str = "libsvtav1"
+    video_key: str,
+    episode_index: int,
+    root: Path,
+    fps: int,
+    vcodec: str = "libsvtav1",
+    video_crf: int = DEFAULT_VIDEO_CRF,
 ) -> Path:
     temp_path = Path(tempfile.mkdtemp(dir=root)) / f"{video_key}_{episode_index:03d}.mp4"
     fpath = DEFAULT_IMAGE_PATH.format(image_key=video_key, episode_index=episode_index, frame_index=0)
     img_dir = (root / fpath).parent
-    encode_video_frames(img_dir, temp_path, fps, vcodec=vcodec, overwrite=True)
+    encode_video_frames(img_dir, temp_path, fps, vcodec=vcodec, crf=video_crf, overwrite=True)
     shutil.rmtree(img_dir)
     return temp_path
 
@@ -567,6 +596,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
         video_backend: str | None = None,
         batch_encoding_size: int = 1,
         vcodec: str = "libsvtav1",
+        video_crf: int | None = None,
+        validate_video_encoding: bool = False,
     ):
         """
         2 modes are available for instantiating this class, depending on 2 different use cases:
@@ -682,10 +713,19 @@ class LeRobotDataset(torch.utils.data.Dataset):
             vcodec (str, optional): Video codec for encoding videos during recording. Options: 'h264', 'hevc',
                 'libsvtav1'. Defaults to 'libsvtav1'. Use 'h264' for faster encoding on systems where AV1
                 encoding is CPU-heavy.
+            video_crf (int | None, optional): Constant Rate Factor used when encoding newly recorded videos.
+                If omitted, use the value stored in dataset metadata, falling back to 30 for datasets created
+                before this setting was recorded.
+            validate_video_encoding (bool, optional): Enforce codec and CRF consistency for a writable resume.
+                Legacy datasets without encoding metadata may only resume with the historical CRF 30 default.
         """
         super().__init__()
         if vcodec not in VALID_VIDEO_CODECS:
             raise ValueError(f"Invalid vcodec '{vcodec}'. Must be one of: {sorted(VALID_VIDEO_CODECS)}")
+        if not isinstance(validate_video_encoding, bool):
+            raise TypeError("validate_video_encoding must be a boolean")
+        if video_crf is not None:
+            _validate_video_crf(video_crf, vcodec)
         self.repo_id = repo_id
         self.root = Path(root) if root else HF_LEROBOT_HOME / repo_id
         self.image_transforms = image_transforms
@@ -712,6 +752,65 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.meta = LeRobotDatasetMetadata(
             self.repo_id, self.root, self.revision, force_cache_sync=force_cache_sync
         )
+
+        has_video_encoding_info = "video_encoding" in self.meta.info
+        video_encoding_info = self.meta.info.get("video_encoding", {})
+        persisted_video_codec = (
+            video_encoding_info.get("codec") if isinstance(video_encoding_info, dict) else None
+        )
+        persisted_video_crf = (
+            video_encoding_info.get("crf") if isinstance(video_encoding_info, dict) else None
+        )
+        if validate_video_encoding and self.meta.video_keys:
+            if has_video_encoding_info:
+                if not isinstance(video_encoding_info, dict):
+                    raise ValueError("Dataset video_encoding metadata must be an object")
+                if persisted_video_codec != vcodec:
+                    raise ValueError(
+                        f"Requested vcodec={vcodec!r} does not match the dataset metadata value "
+                        f"video_encoding.codec={persisted_video_codec!r}. Resume with the original codec."
+                    )
+                if persisted_video_crf is None:
+                    raise ValueError("Dataset video_encoding metadata is missing crf")
+            elif self.meta.total_episodes > 0:
+                legacy_codecs = _legacy_video_codecs(self.meta.info)
+                if legacy_codecs != {vcodec}:
+                    raise ValueError(
+                        "Legacy dataset video codec does not match the requested resume codec: "
+                        f"stored={sorted(legacy_codecs)} requested={vcodec!r}"
+                    )
+                requested_legacy_crf = DEFAULT_VIDEO_CRF if video_crf is None else video_crf
+                if requested_legacy_crf != DEFAULT_VIDEO_CRF:
+                    raise ValueError(
+                        "Legacy dataset has no CRF metadata and must be resumed with the historical "
+                        f"default video_crf={DEFAULT_VIDEO_CRF}, got {requested_legacy_crf}"
+                    )
+                persisted_video_codec = vcodec
+                persisted_video_crf = DEFAULT_VIDEO_CRF
+                self.meta.info["video_encoding"] = {
+                    "codec": vcodec,
+                    "crf": DEFAULT_VIDEO_CRF,
+                    "legacy_assumed": True,
+                }
+                write_info(self.meta.info, self.meta.root)
+            else:
+                persisted_video_codec = vcodec
+                persisted_video_crf = DEFAULT_VIDEO_CRF if video_crf is None else video_crf
+                self.meta.info["video_encoding"] = {
+                    "codec": persisted_video_codec,
+                    "crf": persisted_video_crf,
+                }
+                write_info(self.meta.info, self.meta.root)
+        if video_crf is None:
+            video_crf = persisted_video_crf if persisted_video_crf is not None else DEFAULT_VIDEO_CRF
+        elif persisted_video_crf is not None and video_crf != persisted_video_crf:
+            raise ValueError(
+                f"Requested video_crf={video_crf} does not match the dataset metadata value "
+                f"video_encoding.crf={persisted_video_crf}. Resume with the original CRF to avoid "
+                "mixing encoding quality within one dataset."
+            )
+        _validate_video_crf(video_crf, vcodec)
+        self.video_crf = video_crf
 
         # Track dataset state for efficient incremental writing
         self._lazy_loading = False
@@ -1236,7 +1335,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
                             episode_index,
                             self.root,
                             self.fps,
-                            self.vcodec,
+                            vcodec=self.vcodec,
+                            video_crf=self.video_crf,
                         ): video_key
                         for video_key in self.meta.video_keys
                     }
@@ -1580,7 +1680,14 @@ class LeRobotDataset(torch.utils.data.Dataset):
         Note: `encode_video_frames` is a blocking call. Making it asynchronous shouldn't speedup encoding,
         since video encoding with ffmpeg is already using multithreading.
         """
-        return _encode_video_worker(video_key, episode_index, self.root, self.fps, self.vcodec)
+        return _encode_video_worker(
+            video_key,
+            episode_index,
+            self.root,
+            self.fps,
+            vcodec=self.vcodec,
+            video_crf=self.video_crf,
+        )
 
     @classmethod
     def create(
@@ -1597,10 +1704,12 @@ class LeRobotDataset(torch.utils.data.Dataset):
         video_backend: str | None = None,
         batch_encoding_size: int = 1,
         vcodec: str = "libsvtav1",
+        video_crf: int = DEFAULT_VIDEO_CRF,
     ) -> "LeRobotDataset":
         """Create a LeRobot Dataset from scratch in order to record data."""
         if vcodec not in VALID_VIDEO_CODECS:
             raise ValueError(f"Invalid vcodec '{vcodec}'. Must be one of: {sorted(VALID_VIDEO_CODECS)}")
+        _validate_video_crf(video_crf, vcodec)
         obj = cls.__new__(cls)
         obj.meta = LeRobotDatasetMetadata.create(
             repo_id=repo_id,
@@ -1610,6 +1719,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
             root=root,
             use_videos=use_videos,
         )
+        if use_videos:
+            obj.meta.info["video_encoding"] = {"codec": vcodec, "crf": video_crf}
+            write_info(obj.meta.info, obj.meta.root)
         obj.repo_id = obj.meta.repo_id
         obj.root = obj.meta.root
         obj.revision = None
@@ -1618,6 +1730,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         obj.batch_encoding_size = batch_encoding_size
         obj.episodes_since_last_encoding = 0
         obj.vcodec = vcodec
+        obj.video_crf = video_crf
 
         if image_writer_processes or image_writer_threads:
             obj.start_image_writer(image_writer_processes, image_writer_threads)

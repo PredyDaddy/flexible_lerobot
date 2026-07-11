@@ -31,10 +31,12 @@ from lerobot.configs.train import TrainPipelineConfig
 from lerobot.datasets.factory import make_dataset
 from lerobot.datasets.image_writer import image_array_to_pil_image
 from lerobot.datasets.lerobot_dataset import (
+    DEFAULT_VIDEO_CRF,
     VALID_VIDEO_CODECS,
     LeRobotDataset,
     MultiLeRobotDataset,
     _encode_video_worker,
+    _legacy_video_codecs,
 )
 from lerobot.datasets.utils import (
     DEFAULT_CHUNK_SIZE,
@@ -1355,8 +1357,8 @@ def test_frames_in_current_file_calculation(tmp_path, empty_lerobot_dataset_fact
         assert frame["episode_index"].item() == expected_ep
 
 
-def test_encode_video_worker_forwards_vcodec(tmp_path):
-    """Test that _encode_video_worker correctly forwards the vcodec parameter to encode_video_frames."""
+def test_encode_video_worker_forwards_vcodec_and_crf(tmp_path):
+    """Test that _encode_video_worker forwards explicit encoding parameters."""
     from unittest.mock import patch
 
     from lerobot.datasets.utils import DEFAULT_IMAGE_PATH
@@ -1387,10 +1389,13 @@ def test_encode_video_worker_forwards_vcodec(tmp_path):
 
     with patch("lerobot.datasets.lerobot_dataset.encode_video_frames", side_effect=mock_encode_video_frames):
         # Test with h264 codec
-        _encode_video_worker(video_key, episode_index, tmp_path, fps=30, vcodec="h264")
+        _encode_video_worker(
+            video_key, episode_index, tmp_path, fps=30, vcodec="h264", video_crf=18
+        )
 
     assert "vcodec" in captured_kwargs
     assert captured_kwargs["vcodec"] == "h264"
+    assert captured_kwargs["crf"] == 18
 
 
 def test_encode_video_worker_default_vcodec(tmp_path):
@@ -1429,6 +1434,141 @@ def test_encode_video_worker_default_vcodec(tmp_path):
 
     assert "vcodec" in captured_kwargs
     assert captured_kwargs["vcodec"] == "libsvtav1"
+    assert captured_kwargs["crf"] == DEFAULT_VIDEO_CRF
+
+
+def test_create_persists_video_encoding_settings(tmp_path):
+    features = {
+        "video": {"dtype": "video", "shape": DUMMY_HWC, "names": ["height", "width", "channels"]}
+    }
+
+    dataset = LeRobotDataset.create(
+        repo_id=DUMMY_REPO_ID,
+        fps=30,
+        features=features,
+        root=tmp_path / "video_crf",
+        vcodec="h264",
+        video_crf=18,
+    )
+
+    assert dataset.video_crf == 18
+    assert dataset.meta.info["video_encoding"] == {"codec": "h264", "crf": 18}
+    assert '"crf": 18' in dataset.meta.root.joinpath("meta/info.json").read_text()
+
+
+def test_temporary_episode_encoder_forwards_video_crf(tmp_path):
+    from unittest.mock import patch
+
+    dataset = LeRobotDataset.__new__(LeRobotDataset)
+    dataset.root = tmp_path
+    dataset.meta = type("Meta", (), {"fps": 30})()
+    dataset.vcodec = "h264"
+    dataset.video_crf = 18
+    expected_path = tmp_path / "encoded.mp4"
+
+    with patch(
+        "lerobot.datasets.lerobot_dataset._encode_video_worker", return_value=expected_path
+    ) as worker:
+        actual_path = dataset._encode_temporary_episode_video("video", 2)
+
+    assert actual_path == expected_path
+    worker.assert_called_once_with(
+        "video", 2, tmp_path, 30, vcodec="h264", video_crf=18
+    )
+
+
+def test_loaded_dataset_uses_persisted_video_crf(tmp_path, lerobot_dataset_factory, info_factory):
+    info = info_factory(total_episodes=1, total_frames=1, total_tasks=1)
+    info["video_encoding"] = {"codec": "h264", "crf": 18}
+
+    dataset = lerobot_dataset_factory(root=tmp_path / "persisted", info=info, vcodec="h264")
+
+    assert dataset.video_crf == 18
+
+
+def test_resume_rejects_video_crf_mismatch(tmp_path, lerobot_dataset_factory, info_factory):
+    info = info_factory(total_episodes=1, total_frames=1, total_tasks=1)
+    info["video_encoding"] = {"codec": "h264", "crf": 18}
+
+    with pytest.raises(ValueError, match="does not match the dataset metadata"):
+        lerobot_dataset_factory(
+            root=tmp_path / "mismatch", info=info, vcodec="h264", video_crf=20
+        )
+
+
+def test_resume_rejects_video_codec_mismatch(tmp_path, lerobot_dataset_factory, info_factory):
+    info = info_factory(total_episodes=1, total_frames=1, total_tasks=1)
+    info["video_encoding"] = {"codec": "h264", "crf": 18}
+
+    with pytest.raises(ValueError, match="does not match the dataset metadata value"):
+        lerobot_dataset_factory(
+            root=tmp_path / "codec_mismatch",
+            info=info,
+            vcodec="hevc",
+            video_crf=18,
+            validate_video_encoding=True,
+        )
+
+
+def test_legacy_resume_rejects_nondefault_crf(tmp_path, lerobot_dataset_factory, info_factory):
+    info = info_factory(total_episodes=1, total_frames=1, total_tasks=1)
+
+    with pytest.raises(ValueError, match="historical default video_crf=30"):
+        lerobot_dataset_factory(
+            root=tmp_path / "legacy_crf_mismatch",
+            info=info,
+            vcodec="libsvtav1",
+            video_crf=18,
+            validate_video_encoding=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "feature",
+    [
+        {"dtype": "video", "video.codec": "av1"},
+        {"dtype": "video", "info": {"video.codec": "av1"}},
+    ],
+)
+def test_legacy_video_codec_detection_supports_both_metadata_layouts(feature):
+    assert _legacy_video_codecs({"features": {"camera": feature}}) == {"libsvtav1"}
+
+
+def test_legacy_resume_persists_default_encoding_assumption(
+    tmp_path, lerobot_dataset_factory, info_factory
+):
+    info = info_factory(total_episodes=1, total_frames=1, total_tasks=1)
+
+    dataset = lerobot_dataset_factory(
+        root=tmp_path / "legacy_default",
+        info=info,
+        vcodec="libsvtav1",
+        video_crf=30,
+        validate_video_encoding=True,
+    )
+
+    assert dataset.meta.info["video_encoding"] == {
+        "codec": "libsvtav1",
+        "crf": 30,
+        "legacy_assumed": True,
+    }
+
+
+@pytest.mark.parametrize(
+    ("vcodec", "video_crf", "maximum"),
+    [("h264", -1, 51), ("h264", 52, 51), ("hevc", 52, 51), ("libsvtav1", 64, 63)],
+)
+def test_create_validates_video_crf(tmp_path, vcodec, video_crf, maximum):
+    with pytest.raises(ValueError, match=rf"between 0 and {maximum}"):
+        LeRobotDataset.create(
+            repo_id=DUMMY_REPO_ID,
+            fps=30,
+            features={"state": {"dtype": "float32", "shape": (1,), "names": None}},
+            root=tmp_path / f"{vcodec}_{video_crf}",
+            use_videos=False,
+            vcodec=vcodec,
+            video_crf=video_crf,
+        )
 
 
 def test_lerobot_dataset_vcodec_validation():

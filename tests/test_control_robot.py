@@ -53,6 +53,7 @@ def test_record_and_resume(tmp_path):
         episode_time_s=0.1,
         reset_time_s=0,
         push_to_hub=False,
+        video_crf=18,
     )
     cfg = RecordConfig(
         robot=robot_cfg,
@@ -67,6 +68,8 @@ def test_record_and_resume(tmp_path):
     assert dataset.meta.total_episodes == dataset.num_episodes == 1
     assert dataset.meta.total_frames == dataset.num_frames == 3
     assert dataset.meta.total_tasks == 1
+    assert dataset.video_crf == 18
+    assert dataset.meta.info["video_encoding"]["crf"] == 18
 
     cfg.resume = True
     # Mock the revision to prevent Hub calls during resume
@@ -81,6 +84,7 @@ def test_record_and_resume(tmp_path):
     assert dataset.meta.total_episodes == dataset.num_episodes == 2
     assert dataset.meta.total_frames == dataset.num_frames == 6
     assert dataset.meta.total_tasks == 1
+    assert dataset.video_crf == 18
 
 
 def test_record_and_replay(tmp_path):

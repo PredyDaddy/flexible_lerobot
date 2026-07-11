@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import time
 from typing import Any
@@ -36,6 +37,11 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         self._last_accepted_seq: int | None = None
         self._last_accepted_stamp_ns: int | None = None
         self._last_accepted_received_monotonic_s: float | None = None
+        self._last_action_timing: dict[str, Any] | None = None
+
+    @property
+    def last_action_timing(self) -> dict[str, Any] | None:
+        return copy.deepcopy(self._last_action_timing)
 
     @check_if_not_connected
     def get_action(self) -> RobotAction:
@@ -53,6 +59,14 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         self._assert_allowed_sender(state.sender)
         self._validate_packet_freshness_and_order(state)
         packet = state.packet
+        self._last_action_timing = {
+            "source": "target_action_packet",
+            "packet_seq": packet["seq"],
+            "packet_stamp_ns": packet["stamp_ns"],
+            "receive_wall_ns": state.received_wall_ns,
+            "receive_monotonic_ns": int(state.received_monotonic_s * 1_000_000_000),
+            "age_ms": max(0.0, float(age_s) * 1000),
+        }
         return {
             **self._joint_action(packet, LEFT, self.config.left_joint_names),
             **self._joint_action(packet, RIGHT, self.config.right_joint_names),
@@ -111,6 +125,14 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         except TimeoutError:
             if self.config.stale_policy != "hold_current":
                 raise
+            self._last_action_timing = {
+                "source": "hold_current",
+                "packet_seq": None,
+                "packet_stamp_ns": None,
+                "receive_wall_ns": time.time_ns(),
+                "receive_monotonic_ns": time.monotonic_ns(),
+                "age_ms": None,
+            }
             return self._hold_current_action(observation)
 
     def _hold_current_action(self, observation: RobotObservation) -> RobotAction:
@@ -135,3 +157,4 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         self._last_accepted_seq = None
         self._last_accepted_stamp_ns = None
         self._last_accepted_received_monotonic_s = None
+        self._last_action_timing = None

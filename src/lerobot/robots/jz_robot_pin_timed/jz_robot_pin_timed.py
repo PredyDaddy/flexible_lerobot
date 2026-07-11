@@ -1,0 +1,224 @@
+#!/usr/bin/env python
+
+from __future__ import annotations
+
+import copy
+import json
+import logging
+import uuid
+from pathlib import Path
+from typing import Any, TextIO
+
+from lerobot.processor import RobotAction, RobotObservation
+from lerobot.robots.jz_robot_pin.jz_robot_pin import JZRobotPin
+from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
+from lerobot.robots.jz_robot_udp.state_cache import CachedState
+
+from .config_jz_robot_pin_timed import JZRobotPinTimedConfig
+from .timestamped_rtsp_camera import TimestampedRTSPCamera
+
+logger = logging.getLogger(__name__)
+
+
+class JZRobotPinTimed(JZRobotPin):
+    """Pin robot with timestamped RTSP reception and per-frame timing sidecars."""
+
+    config_class = JZRobotPinTimedConfig
+    name = "jz_robot_pin_timed"
+
+    def __init__(self, config: JZRobotPinTimedConfig):
+        super().__init__(config)
+        self.config = config
+        self._observation_sequence = 0
+        self._timing_session_id = uuid.uuid4().hex
+        self._last_camera_sequences: dict[str, int] = {}
+        self._last_observation_timing: dict[str, Any] | None = None
+        self._last_command_timing: dict[str, Any] | None = None
+        self._timing_files: dict[tuple[Path, int], TextIO] = {}
+
+    def _make_camera(self, key: str, config: RTSPCameraConfig) -> TimestampedRTSPCamera:
+        return TimestampedRTSPCamera(
+            config,
+            buffer_size=self.config.camera_buffer_size,
+            reconnect_delay_ms=self.config.camera_reconnect_delay_ms,
+        )
+
+    def _read_camera(
+        self,
+        key: str,
+        camera: TimestampedRTSPCamera,
+        state: CachedState,
+    ) -> Any:
+        state_receive_monotonic_ns = int(state.received_monotonic_s * 1_000_000_000)
+        return camera.read_timed_nearest(state_receive_monotonic_ns).image
+
+    @property
+    def last_observation_timing(self) -> dict[str, Any] | None:
+        return copy.deepcopy(self._last_observation_timing)
+
+    @property
+    def last_command_timing(self) -> dict[str, Any] | None:
+        return copy.deepcopy(self._last_command_timing)
+
+    def _after_action_sent(
+        self,
+        *,
+        packet: dict[str, Any],
+        action: RobotAction,
+        send_completed_wall_ns: int,
+        send_completed_monotonic_ns: int,
+    ) -> None:
+        self._last_command_timing = {
+            "observation_sequence": self._observation_sequence,
+            "packet_seq": packet["seq"],
+            "packet_stamp_ns": packet["stamp_ns"],
+            "mode": packet["mode"],
+            "transport": self.config.send_action_transport,
+            "send_completed_wall_ns": send_completed_wall_ns,
+            "send_completed_monotonic_ns": send_completed_monotonic_ns,
+            "action_key_count": len(action),
+        }
+
+    def _after_observation(self, state: CachedState, observation: RobotObservation) -> None:
+        del observation
+        observation_sequence = self._observation_sequence + 1
+        state_receive_monotonic_ns = int(state.received_monotonic_s * 1_000_000_000)
+        cameras: dict[str, dict[str, Any]] = {}
+        camera_sequences: dict[str, int] = {}
+        violations: dict[str, float] = {}
+
+        for key, camera in self.cameras.items():
+            timing = camera.last_read_timing
+            if timing is None:
+                raise RuntimeError(f"Timed camera {key!r} did not expose timing for the returned frame")
+            decoder_sequence = int(timing["decoder_sequence"])
+            reused = self._last_camera_sequences.get(key) == decoder_sequence
+            camera_sequences[key] = decoder_sequence
+            receive_delta_ms = (
+                int(timing["receive_monotonic_ns"]) - state_receive_monotonic_ns
+            ) / 1_000_000
+            receive_skew_ms = abs(receive_delta_ms)
+            timing.update(
+                {
+                    "reused_by_observation_loop": reused,
+                    "state_receive_delta_ms": receive_delta_ms,
+                    "state_receive_skew_ms": receive_skew_ms,
+                }
+            )
+            cameras[key] = timing
+            if receive_skew_ms > self.config.max_camera_state_receive_skew_ms:
+                violations[key] = receive_skew_ms
+            if reused and self.config.reject_reused_camera_frames:
+                raise TimeoutError(f"Timed camera {key!r} reused decoder sequence {decoder_sequence}")
+
+        if violations and self.config.enforce_camera_state_receive_skew:
+            raise TimeoutError(
+                "Timed camera/state receive skew exceeds limit "
+                f"{self.config.max_camera_state_receive_skew_ms}ms: {violations}"
+            )
+
+        self._observation_sequence = observation_sequence
+        self._last_camera_sequences.update(camera_sequences)
+        self._last_observation_timing = {
+            "session_id": self._timing_session_id,
+            "observation_sequence": observation_sequence,
+            "state": {
+                "packet_seq": state.packet["seq"],
+                "packet_stamp_ns": state.packet["stamp_ns"],
+                "receive_wall_ns": state.received_wall_ns,
+                "receive_monotonic_ns": state_receive_monotonic_ns,
+            },
+            "cameras": cameras,
+        }
+
+        if self.config.timing_log_every_n > 0 and (
+            self._observation_sequence == 1
+            or self._observation_sequence % self.config.timing_log_every_n == 0
+        ):
+            logger.info(
+                "%s timing observation=%s state_seq=%s cameras=%s",
+                self,
+                self._observation_sequence,
+                state.packet["seq"],
+                {
+                    key: {
+                        "seq": value["decoder_sequence"],
+                        "age_ms": round(float(value["age_ms"]), 3),
+                        "state_skew_ms": round(float(value["state_receive_skew_ms"]), 3),
+                        "reused": value["reused_by_observation_loop"],
+                    }
+                    for key, value in cameras.items()
+                },
+            )
+
+    def save_frame_timing(
+        self,
+        *,
+        dataset_root: Path,
+        episode_index: int,
+        frame_index: int,
+        action_timing: dict[str, Any] | None,
+    ) -> None:
+        if not self.config.timing_sidecar:
+            return
+        timing = self.last_observation_timing
+        if timing is None:
+            raise RuntimeError("Cannot save timed frame metadata before collecting an observation")
+        if not isinstance(action_timing, dict):
+            raise RuntimeError("Cannot save timed frame metadata without target-action timing")
+        command_timing = self.last_command_timing
+        if command_timing is None:
+            raise RuntimeError("Cannot save timed frame metadata before sending the matching command")
+        if command_timing.get("observation_sequence") != timing["observation_sequence"]:
+            raise RuntimeError(
+                "Cannot save timed frame metadata with a command from another observation: "
+                f"observation_sequence={timing['observation_sequence']} "
+                f"command_observation_sequence={command_timing.get('observation_sequence')}"
+            )
+        timing.update(
+            {
+                "episode_index": episode_index,
+                "frame_index": frame_index,
+                "action": copy.deepcopy(action_timing),
+                "command": command_timing,
+            }
+        )
+
+        dataset_root = Path(dataset_root)
+        key = (dataset_root, episode_index)
+        output = self._timing_files.get(key)
+        path = dataset_root / "meta" / "timing" / f"episode-{episode_index:06d}.jsonl"
+        if frame_index == 0:
+            if output is not None:
+                output.close()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            output = path.open("w", encoding="utf-8", buffering=1)
+            self._timing_files[key] = output
+        elif output is None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            output = path.open("a", encoding="utf-8", buffering=1)
+            self._timing_files[key] = output
+        output.write(json.dumps(timing, sort_keys=True) + "\n")
+        if frame_index == 0 or (
+            self.config.timing_log_every_n > 0 and (frame_index + 1) % self.config.timing_log_every_n == 0
+        ):
+            output.flush()
+
+    def _close_timing_files(self) -> None:
+        for output in self._timing_files.values():
+            output.close()
+        self._timing_files.clear()
+
+    def disconnect(self) -> None:
+        try:
+            super().disconnect()
+        finally:
+            self._close_timing_files()
+            self._last_camera_sequences.clear()
+            self._last_observation_timing = None
+            self._last_command_timing = None
+            self._observation_sequence = 0
+            self._timing_session_id = uuid.uuid4().hex
+
+
+__all__ = ["JZRobotPinTimed"]
