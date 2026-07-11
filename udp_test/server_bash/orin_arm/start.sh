@@ -179,7 +179,7 @@ rm -f "$STARTUP_FILE"
 
 echo "[orin_arm/start] READONLY ONLY"
 echo "[orin_arm/start] profile=$JZ_STATE_HZ_PROFILE requested_hz=$STATE_HZ expected_hz=$JZ_EXPECTED_STATE_HZ"
-echo "[orin_arm/start] executor=multi_threaded threads=$STATE_EXECUTOR_THREADS"
+echo "[orin_arm/start] executor=per_source_process_single_threaded workers=$STATE_EXECUTOR_THREADS"
 echo "[orin_arm/start] max_source_age_ms=$MAX_SOURCE_AGE_MS max_source_skew_ms=$MAX_SOURCE_SKEW_MS require_all_sources_advanced=${REQUIRE_ALL_SOURCES_ADVANCED,,}"
 if [[ "$RUN_READINESS" == "1" ]]; then
   echo "[orin_arm/start] local readiness check..."

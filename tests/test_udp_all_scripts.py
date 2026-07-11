@@ -105,6 +105,7 @@ def test_replay_scripts_manage_state_bridge_and_armed_phase3_executor() -> None:
     assert 'STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-30}"' in bridge_start
     assert 'STATE_EXECUTOR_THREADS="${STATE_EXECUTOR_THREADS:-4}"' in bridge_start
     assert '--executor-threads "$STATE_EXECUTOR_THREADS"' in bridge_start
+    assert 'executor=per_source_process_single_threaded workers=$STATE_EXECUTOR_THREADS' in bridge_start
 
     assert "server_bash/orin_arm/stop_all.sh" in stop_replay
 

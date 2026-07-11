@@ -19,10 +19,41 @@ BRIDGE_PATH = REPO_ROOT / "udp_test" / "test_scripts" / "arm_side" / "orin_ros_s
 def _load_bridge_module(monkeypatch):
     rclpy = types.ModuleType("rclpy")
     callback_groups = types.ModuleType("rclpy.callback_groups")
-    callback_groups.ReentrantCallbackGroup = object
+
+    class MutuallyExclusiveCallbackGroup:
+        pass
+
+    callback_groups.MutuallyExclusiveCallbackGroup = MutuallyExclusiveCallbackGroup
+    context_module = types.ModuleType("rclpy.context")
+
+    class Context:
+        def __init__(self):
+            self.initialized = False
+            self.shutdown_called = False
+
+        def init(self, *, args=None) -> None:
+            self.initialized = True
+            self.args = args
+
+        def ok(self) -> bool:
+            return self.initialized and not self.shutdown_called
+
+        def shutdown(self) -> None:
+            self.shutdown_called = True
+
+    context_module.Context = Context
     executors = types.ModuleType("rclpy.executors")
     executors.ExternalShutdownException = type("ExternalShutdownException", (Exception,), {})
-    executors.MultiThreadedExecutor = object
+
+    class SingleThreadedExecutor:
+        def __init__(self, *, context=None):
+            self.nodes = []
+            self.context = context
+
+        def add_node(self, node) -> None:
+            self.nodes.append(node)
+
+    executors.SingleThreadedExecutor = SingleThreadedExecutor
     qos = types.ModuleType("rclpy.qos")
 
     class QoSProfile:
@@ -52,6 +83,7 @@ def _load_bridge_module(monkeypatch):
     for name, module in {
         "rclpy": rclpy,
         "rclpy.callback_groups": callback_groups,
+        "rclpy.context": context_module,
         "rclpy.executors": executors,
         "rclpy.qos": qos,
         "sensor_msgs": sensor_msgs,
@@ -105,6 +137,10 @@ def _robot_config() -> SimpleNamespace:
         left_joint_names=["left_joint1", "left_joint2"],
         right_joint_names=["right_joint1", "right_joint2"],
         use_gripper=True,
+        left_joint_state_topic="/left/joints",
+        right_joint_state_topic="/right/joints",
+        left_gripper_state_topic="/left/gripper",
+        right_gripper_state_topic="/right/gripper",
     )
 
 
@@ -247,6 +283,37 @@ def test_source_generations_advance_independently(monkeypatch) -> None:
     collector.update_joints("left", _joint_message("left", 2))
     assert collector.counts["left_joints"] == 2
     assert collector.counts["right_joints"] == 0
+
+
+def test_worker_updates_preserve_callback_timing_and_atomic_metadata(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    clock = FakeClock(monotonic_ns=100_000_000)
+    collector = bridge.ReadonlyStateCollector(
+        _robot_config(), monotonic_ns=clock.monotonic_ns, wall_time_ns=clock.wall_time_ns
+    )
+    updates = (
+        ("left_joints", (("left_joint1", "left_joint2"), (1.0, 2.0)), 91_000_000, 191, 101),
+        ("right_joints", (("right_joint1", "right_joint2"), (3.0, 4.0)), 92_000_000, 192, 102),
+        ("left_gripper", (5.0, 6.0), 93_000_000, 193, None),
+        ("right_gripper", (7.0, 8.0), 94_000_000, 194, None),
+    )
+
+    for update in updates:
+        collector.apply_worker_update(update)
+
+    snapshot = _snapshot(collector)
+
+    assert snapshot.packet is not None
+    assert snapshot.generations == dict.fromkeys(bridge.SOURCE_NAMES, 1)
+    assert snapshot.packet["joints"]["left"] == {"left_joint1": 1.0, "left_joint2": 2.0}
+    assert snapshot.packet["grippers"]["right"] == {"width": 7.0, "force": 8.0}
+    assert snapshot.source_timing["sources"]["left_joints"] == {
+        "generation": 1,
+        "recv_wall_ns": 191,
+        "recv_monotonic_ns": 91_000_000,
+        "header_stamp_ns": 101,
+        "age_ms": 9.0,
+    }
 
 
 def test_concurrent_four_source_snapshot_keeps_data_and_metadata_atomic(monkeypatch) -> None:
@@ -513,36 +580,105 @@ def test_oversize_udp_payload_warns_but_is_still_sent(monkeypatch) -> None:
     )
 
 
-def test_ros_executor_thread_shutdown_joins_non_daemon_thread(monkeypatch) -> None:
+def test_source_process_manager_shutdown_joins_workers_and_collector_thread(monkeypatch) -> None:
     bridge = _load_bridge_module(monkeypatch)
+    collector = bridge.ReadonlyStateCollector(_robot_config())
 
-    class BlockingExecutor:
+    class FakeEvent:
         def __init__(self):
-            self.started = threading.Event()
-            self.stopped = threading.Event()
-            self.shutdown_timeout_s = None
+            self._event = threading.Event()
 
-        def spin(self) -> None:
-            self.started.set()
-            self.stopped.wait()
+        def set(self):
+            self._event.set()
 
-        def shutdown(self, *, timeout_sec: float) -> bool:
-            self.shutdown_timeout_s = timeout_sec
-            self.stopped.set()
-            return True
+        def is_set(self):
+            return self._event.is_set()
 
-    executor = BlockingExecutor()
-    runner = bridge.RosExecutorThread(executor)
-    runner.start()
-    assert executor.started.wait(timeout=1.0)
-    assert runner.thread.is_alive()
-    assert not runner.thread.daemon
-    thread_ident = runner.thread.ident
+    class FakeConnection:
+        def __init__(self):
+            self.closed = False
 
-    runner.stop(timeout_s=0.5)
+        def close(self):
+            self.closed = True
 
-    assert executor.shutdown_timeout_s == 0.5
-    assert not runner.thread.is_alive()
+    class FakeProcess:
+        next_pid = 1000
+
+        def __init__(self, *, target, args, name, daemon):
+            self.target = target
+            self.args = args
+            self.name = name
+            self.daemon = daemon
+            self.pid = None
+            self.exitcode = None
+            self._alive = False
+            self.terminated = False
+            self.killed = False
+
+        def start(self):
+            self.pid = FakeProcess.next_pid
+            FakeProcess.next_pid += 1
+            self._alive = True
+
+        def join(self, timeout=None):
+            if self.args[2].is_set():
+                self._alive = False
+                self.exitcode = 0
+
+        def is_alive(self):
+            return self._alive
+
+        def terminate(self):
+            self.terminated = True
+            self._alive = False
+
+        def kill(self):
+            self.killed = True
+            self._alive = False
+
+    class FakeProcessContext:
+        def __init__(self):
+            self.processes = []
+
+        def Event(self):
+            return FakeEvent()
+
+        def Pipe(self, *, duplex):
+            assert not duplex
+            return FakeConnection(), FakeConnection()
+
+        def Process(self, **kwargs):
+            process = FakeProcess(**kwargs)
+            self.processes.append(process)
+            return process
+
+    process_context = FakeProcessContext()
+    monkeypatch.setattr(
+        bridge,
+        "wait_for_connections",
+        lambda _connections, timeout: time.sleep(timeout) or [],
+    )
+    specs = bridge.create_source_worker_specs(_robot_config())
+    manager = bridge.SourceProcessManager(
+        collector,
+        specs,
+        process_context=process_context,
+    )
+
+    manager.start()
+    thread_ident = manager.collector_thread.ident
+
+    assert len(manager.processes) == 4
+    assert all(process.pid is not None for process in manager.processes)
+    assert all(not process.daemon for process in manager.processes)
+    assert manager.collector_thread.is_alive()
+    assert not manager.collector_thread.daemon
+
+    manager.stop(timeout_s=0.5)
+
+    assert all(not process.is_alive() for process in manager.processes)
+    assert all(not process.terminated and not process.killed for process in manager.processes)
+    assert not manager.collector_thread.is_alive()
     assert all(thread.ident != thread_ident for thread in threading.enumerate())
 
 
@@ -557,31 +693,73 @@ def test_state_subscription_qos_is_explicit_latest_reliable_volatile(monkeypatch
     assert qos.durability == "volatile"
 
 
-def test_four_state_subscriptions_share_reentrant_callback_group(monkeypatch) -> None:
+def test_four_state_subscriptions_use_distinct_mutually_exclusive_callback_groups(monkeypatch) -> None:
     bridge = _load_bridge_module(monkeypatch)
-    collector = bridge.ReadonlyStateCollector(_robot_config())
-    robot_cfg = SimpleNamespace(
-        left_joint_state_topic="/left/joints",
-        right_joint_state_topic="/right/joints",
-        left_gripper_state_topic="/left/gripper",
-        right_gripper_state_topic="/right/gripper",
-    )
     calls = []
-    node = SimpleNamespace(
-        create_subscription=lambda message_type, topic, callback, qos, **kwargs: calls.append(
-            (message_type, topic, callback, qos, kwargs)
+
+    def make_node(name: str):
+        return SimpleNamespace(
+            name=name,
+            create_subscription=lambda message_type, topic, callback, qos, **kwargs: calls.append(
+                (message_type, topic, callback, qos, kwargs)
+            )
+            or topic,
         )
-        or topic
+
+    nodes = tuple(make_node(f"jz_readonly_ros_state_udp_bridge_{name}") for name in bridge.SOURCE_NAMES)
+    specs = bridge.create_source_worker_specs(_robot_config())
+    send_connections = tuple(SimpleNamespace(send=lambda _update: None) for _ in bridge.SOURCE_NAMES)
+
+    handles = tuple(
+        bridge.create_source_subscription(node, spec, connection)
+        for node, spec, connection in zip(nodes, specs, send_connections, strict=True)
     )
-    qos = bridge.state_subscription_qos()
-    callback_group = object()
 
-    subscriptions = bridge.create_state_subscriptions(node, collector, robot_cfg, qos, callback_group)
-
-    assert subscriptions == ["/left/joints", "/right/joints", "/left/gripper", "/right/gripper"]
+    assert [node.name for node in nodes] == [
+        "jz_readonly_ros_state_udp_bridge_left_joints",
+        "jz_readonly_ros_state_udp_bridge_right_joints",
+        "jz_readonly_ros_state_udp_bridge_left_gripper",
+        "jz_readonly_ros_state_udp_bridge_right_gripper",
+    ]
+    assert tuple(handle.subscription for handle in handles) == (
+        "/left/joints",
+        "/right/joints",
+        "/left/gripper",
+        "/right/gripper",
+    )
+    callback_groups = tuple(handle.callback_group for handle in handles)
+    assert len({id(group) for group in callback_groups}) == 4
+    assert all(
+        isinstance(group, bridge.MutuallyExclusiveCallbackGroup)
+        for group in callback_groups
+    )
     assert len(calls) == 4
-    assert all(call[3] is qos for call in calls)
-    assert all(call[4] == {"callback_group": callback_group} for call in calls)
+    assert all(call[3].depth == 1 for call in calls)
+    assert all(
+        call[4] == {"callback_group": callback_groups[index]}
+        for index, call in enumerate(calls)
+    )
+
+
+def test_four_source_workers_use_independent_processes(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    robot_cfg = _robot_config()
+
+    specs = bridge.create_source_worker_specs(robot_cfg)
+
+    assert [spec.name for spec in specs] == list(bridge.SOURCE_NAMES)
+    assert [spec.topic for spec in specs] == [
+        robot_cfg.left_joint_state_topic,
+        robot_cfg.right_joint_state_topic,
+        robot_cfg.left_gripper_state_topic,
+        robot_cfg.right_gripper_state_topic,
+    ]
+    assert [spec.message_type for spec in specs] == [
+        bridge.JointState,
+        bridge.JointState,
+        bridge.Float64MultiArray,
+        bridge.Float64MultiArray,
+    ]
 
 
 def test_generic_bridge_cli_keeps_legacy_20_hz_default(monkeypatch) -> None:

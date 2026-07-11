@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import multiprocessing
 import os
 import signal
 import socket
@@ -15,6 +16,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
+from multiprocessing.connection import wait as wait_for_connections
 from pathlib import Path
 from typing import Any
 
@@ -26,8 +28,9 @@ for path in (str(SRC_ROOT), str(MY_DEVS_ROOT), str(REPO_ROOT)):
         sys.path.insert(0, path)
 
 import rclpy
-from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.context import Context
+from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
@@ -119,11 +122,20 @@ class ReadonlyStateCollector:
         with self._lock:
             return {name: source.generation for name, source in self._sources.items()}
 
-    def _record_source_update(self, source_name: str, *, header_stamp_ns: int | None) -> None:
+    def _record_source_update(
+        self,
+        source_name: str,
+        *,
+        header_stamp_ns: int | None,
+        receive_monotonic_ns: int | None = None,
+        receive_wall_ns: int | None = None,
+    ) -> None:
         source = self._sources[source_name]
         source.generation += 1
-        source.receive_monotonic_ns = self._monotonic_ns()
-        source.receive_wall_ns = self._wall_time_ns()
+        source.receive_monotonic_ns = (
+            self._monotonic_ns() if receive_monotonic_ns is None else receive_monotonic_ns
+        )
+        source.receive_wall_ns = self._wall_time_ns() if receive_wall_ns is None else receive_wall_ns
         source.header_stamp_ns = header_stamp_ns
 
     def update_joints(self, side: str, msg: JointState) -> None:
@@ -143,6 +155,33 @@ class ReadonlyStateCollector:
         with self._lock:
             self.grippers[side] = state
             self._record_source_update(f"{side}_gripper", header_stamp_ns=None)
+
+    def apply_worker_update(self, update: tuple[Any, ...]) -> None:
+        source_name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns = update
+        side, source_kind = source_name.split("_", maxsplit=1)
+        with self._lock:
+            if source_kind == "joints":
+                names, positions = values
+                self.joints[side] = {
+                    name: float(positions[index])
+                    for index, name in enumerate(names)
+                    if index < len(positions)
+                }
+            elif source_kind == "gripper":
+                state = {}
+                if len(values) > 0:
+                    state["width"] = float(values[0])
+                if len(values) > 1:
+                    state["force"] = float(values[1])
+                self.grippers[side] = state
+            else:
+                raise ValueError(f"unknown source kind: {source_kind}")
+            self._record_source_update(
+                source_name,
+                header_stamp_ns=header_stamp_ns,
+                receive_monotonic_ns=receive_monotonic_ns,
+                receive_wall_ns=receive_wall_ns,
+            )
 
     def _missing_inputs_unlocked(self) -> dict[str, list[str]]:
         missing = {
@@ -474,54 +513,6 @@ class StateUdpSender:
                 tick_index = math.floor((now_ns - start_ns) * self.hz / NSEC_PER_SEC) + 1
 
 
-class RosExecutorThread:
-    def __init__(self, executor: Any):
-        self.executor = executor
-        self._exception: BaseException | None = None
-        self._thread = threading.Thread(
-            target=self._spin,
-            name="jz-ros-state-executor",
-            daemon=False,
-        )
-
-    @property
-    def thread(self) -> threading.Thread:
-        return self._thread
-
-    def _spin(self) -> None:
-        try:
-            self.executor.spin()
-        except ExternalShutdownException:
-            pass
-        except BaseException as exc:
-            self._exception = exc
-
-    def start(self) -> None:
-        self._thread.start()
-
-    def raise_if_failed(self) -> None:
-        if self._exception is not None:
-            raise RuntimeError("ROS executor thread failed") from self._exception
-        if self._thread.ident is not None and not self._thread.is_alive():
-            raise RuntimeError("ROS executor thread stopped unexpectedly")
-
-    def stop(self, timeout_s: float = 5.0) -> None:
-        if self._thread.ident is None:
-            return
-        shutdown_error: BaseException | None = None
-        try:
-            self.executor.shutdown(timeout_sec=timeout_s)
-        except BaseException as exc:
-            shutdown_error = exc
-        self._thread.join(timeout=timeout_s)
-        if self._thread.is_alive():
-            raise RuntimeError("ROS executor thread did not stop within timeout")
-        if shutdown_error is not None:
-            raise RuntimeError("ROS executor shutdown failed") from shutdown_error
-        if self._exception is not None:
-            raise RuntimeError("ROS executor thread failed") from self._exception
-
-
 def state_subscription_qos() -> QoSProfile:
     return QoSProfile(
         history=HistoryPolicy.KEEP_LAST,
@@ -531,43 +522,192 @@ def state_subscription_qos() -> QoSProfile:
     )
 
 
-def create_state_subscriptions(
+@dataclass(frozen=True)
+class SourceWorkerSpec:
+    name: str
+    topic: str
+    message_type: Any
+
+
+@dataclass(frozen=True)
+class SourceSubscriptionHandle:
+    callback_group: Any
+    subscription: Any
+
+
+def create_source_worker_specs(robot_cfg: Any) -> tuple[SourceWorkerSpec, ...]:
+    return (
+        SourceWorkerSpec("left_joints", robot_cfg.left_joint_state_topic, JointState),
+        SourceWorkerSpec("right_joints", robot_cfg.right_joint_state_topic, JointState),
+        SourceWorkerSpec("left_gripper", robot_cfg.left_gripper_state_topic, Float64MultiArray),
+        SourceWorkerSpec("right_gripper", robot_cfg.right_gripper_state_topic, Float64MultiArray),
+    )
+
+
+def create_source_subscription(
     node: Any,
-    collector: ReadonlyStateCollector,
-    robot_cfg: Any,
-    qos: QoSProfile,
-    callback_group: Any,
-) -> list[Any]:
-    return [
-        node.create_subscription(
-            JointState,
-            robot_cfg.left_joint_state_topic,
-            lambda msg: collector.update_joints(LEFT, msg),
-            qos,
-            callback_group=callback_group,
-        ),
-        node.create_subscription(
-            JointState,
-            robot_cfg.right_joint_state_topic,
-            lambda msg: collector.update_joints(RIGHT, msg),
-            qos,
-            callback_group=callback_group,
-        ),
-        node.create_subscription(
-            Float64MultiArray,
-            robot_cfg.left_gripper_state_topic,
-            lambda msg: collector.update_gripper(LEFT, msg),
-            qos,
-            callback_group=callback_group,
-        ),
-        node.create_subscription(
-            Float64MultiArray,
-            robot_cfg.right_gripper_state_topic,
-            lambda msg: collector.update_gripper(RIGHT, msg),
-            qos,
-            callback_group=callback_group,
-        ),
-    ]
+    spec: SourceWorkerSpec,
+    send_connection: Any,
+    *,
+    monotonic_ns: Callable[[], int] = time.monotonic_ns,
+    wall_time_ns: Callable[[], int] = time.time_ns,
+) -> SourceSubscriptionHandle:
+    callback_group = MutuallyExclusiveCallbackGroup()
+
+    def callback(msg: Any) -> None:
+        receive_monotonic_ns = monotonic_ns()
+        receive_wall_ns = wall_time_ns()
+        if spec.name.endswith("_joints"):
+            values: Any = (tuple(msg.name), tuple(msg.position))
+            header_stamp_ns: int | None = _header_stamp_ns(msg)
+        else:
+            values = tuple(msg.data)
+            header_stamp_ns = None
+        send_connection.send(
+            (spec.name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns)
+        )
+
+    subscription = node.create_subscription(
+        spec.message_type,
+        spec.topic,
+        callback,
+        state_subscription_qos(),
+        callback_group=callback_group,
+    )
+    return SourceSubscriptionHandle(callback_group=callback_group, subscription=subscription)
+
+
+def run_source_worker(
+    spec: SourceWorkerSpec,
+    send_connection: Any,
+    stop_event: Any,
+) -> None:
+    signal.signal(signal.SIGINT, lambda _signum, _frame: stop_event.set())
+    signal.signal(signal.SIGTERM, lambda _signum, _frame: stop_event.set())
+    context = Context()
+    context.init(args=None)
+    node = rclpy.create_node(
+        f"jz_readonly_ros_state_udp_bridge_{spec.name}",
+        context=context,
+    )
+    executor = SingleThreadedExecutor(context=context)
+    subscription_handle = create_source_subscription(node, spec, send_connection)
+    executor.add_node(node)
+    try:
+        while not stop_event.is_set():
+            executor.spin_once(timeout_sec=0.1)
+    except ExternalShutdownException:
+        pass
+    finally:
+        # Keep both handles alive until spinning has completely stopped.
+        _ = subscription_handle
+        executor.shutdown(timeout_sec=5.0)
+        node.destroy_node()
+        if context.ok():
+            context.shutdown()
+        send_connection.close()
+
+
+class SourceProcessManager:
+    def __init__(
+        self,
+        collector: ReadonlyStateCollector,
+        specs: tuple[SourceWorkerSpec, ...],
+        *,
+        process_context: Any | None = None,
+    ):
+        if len(specs) != len(SOURCE_NAMES):
+            raise ValueError(f"expected {len(SOURCE_NAMES)} source workers, got {len(specs)}")
+        self.collector = collector
+        self.specs = specs
+        self.process_context = process_context or multiprocessing.get_context("spawn")
+        self.stop_event = self.process_context.Event()
+        connection_pairs = tuple(self.process_context.Pipe(duplex=False) for _ in specs)
+        self.receive_connections = tuple(pair[0] for pair in connection_pairs)
+        self._worker_connections = tuple(pair[1] for pair in connection_pairs)
+        self.processes = tuple(
+            self.process_context.Process(
+                target=run_source_worker,
+                args=(spec, worker_connection, self.stop_event),
+                name=f"jz-ros-state-source-{spec.name}",
+                daemon=False,
+            )
+            for spec, worker_connection in zip(specs, self._worker_connections, strict=True)
+        )
+        self._collector_stop = threading.Event()
+        self._collector_exception: BaseException | None = None
+        self._collector_thread = threading.Thread(
+            target=self._collect_updates,
+            name="jz-ros-state-ipc-collector",
+            daemon=False,
+        )
+
+    @property
+    def collector_thread(self) -> threading.Thread:
+        return self._collector_thread
+
+    def _collect_updates(self) -> None:
+        active_connections = list(self.receive_connections)
+        try:
+            while active_connections and not self._collector_stop.is_set():
+                for connection in wait_for_connections(active_connections, timeout=0.1):
+                    try:
+                        update = connection.recv()
+                    except (EOFError, OSError):
+                        active_connections.remove(connection)
+                        continue
+                    self.collector.apply_worker_update(update)
+        except BaseException as exc:
+            self._collector_exception = exc
+
+    def start(self) -> None:
+        self._collector_thread.start()
+        try:
+            for process, worker_connection in zip(
+                self.processes, self._worker_connections, strict=True
+            ):
+                process.start()
+                worker_connection.close()
+        except BaseException:
+            self.stop()
+            raise
+
+    def raise_if_failed(self) -> None:
+        if self._collector_exception is not None:
+            raise RuntimeError("ROS source IPC collector failed") from self._collector_exception
+        if self._collector_thread.ident is not None and not self._collector_thread.is_alive():
+            raise RuntimeError("ROS source IPC collector stopped unexpectedly")
+        for process in self.processes:
+            if process.exitcode is not None:
+                raise RuntimeError(
+                    f"ROS source process {process.name} stopped unexpectedly exitcode={process.exitcode}"
+                )
+
+    def stop(self, timeout_s: float = 5.0) -> None:
+        self.stop_event.set()
+        forced_processes = []
+        for process in self.processes:
+            if process.pid is None:
+                continue
+            process.join(timeout=timeout_s)
+            if process.is_alive():
+                forced_processes.append(process.name)
+                process.terminate()
+                process.join(timeout=timeout_s)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=timeout_s)
+        self._collector_stop.set()
+        if self._collector_thread.ident is not None:
+            self._collector_thread.join(timeout=timeout_s)
+        for connection in (*self.receive_connections, *self._worker_connections):
+            connection.close()
+        if self._collector_thread.is_alive():
+            raise RuntimeError("ROS source IPC collector thread did not stop within timeout")
+        if self._collector_exception is not None:
+            raise RuntimeError("ROS source IPC collector failed") from self._collector_exception
+        if forced_processes:
+            raise RuntimeError(f"ROS source processes required forced shutdown: {forced_processes}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -599,21 +739,21 @@ def main() -> int:
     signal.signal(signal.SIGTERM, request_stop)
 
     args = parse_args()
+    if args.executor_threads != len(SOURCE_NAMES):
+        raise ValueError(
+            f"The state bridge requires exactly {len(SOURCE_NAMES)} independent source executors"
+        )
     robot_cfg = load_robot_config(args.robot_config)
     if not robot_cfg.use_gripper:
         raise ValueError("The 18D state bridge requires both arm and gripper state sources")
     collector = ReadonlyStateCollector(robot_cfg)
 
-    rclpy.init()
-    node = rclpy.create_node("jz_readonly_ros_state_udp_bridge")
-    executor = MultiThreadedExecutor(num_threads=args.executor_threads)
-    executor.add_node(node)
-    executor_thread = RosExecutorThread(executor)
     sock: socket.socket | None = None
 
-    qos = state_subscription_qos()
-    callback_group = ReentrantCallbackGroup()
-    _subscriptions = create_state_subscriptions(node, collector, robot_cfg, qos, callback_group)
+    source_processes = SourceProcessManager(
+        collector,
+        create_source_worker_specs(robot_cfg),
+    )
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -631,15 +771,17 @@ def main() -> int:
             f"wait_timeout_s={args.wait_timeout_s:g} max_source_age_ms={args.max_source_age_ms:g} "
             f"max_source_skew_ms={args.max_source_skew_ms:g} "
             f"require_all_sources_advanced={str(args.require_all_sources_advanced).lower()} "
-            f"executor=multi_threaded:{args.executor_threads} callback_group=reentrant "
+            f"executor=per_source_process_single_threaded:{len(source_processes.processes)} "
+            f"contexts={len(source_processes.processes)} "
+            f"callback_groups=mutually_exclusive:{len(source_processes.processes)} "
             "qos=keep_last:1,reliable,volatile",
             flush=True,
         )
 
-        executor_thread.start()
+        source_processes.start()
         deadline = time.monotonic() + args.wait_timeout_s
         while not STOP_REQUESTED and not collector.ready() and time.monotonic() < deadline:
-            executor_thread.raise_if_failed()
+            source_processes.raise_if_failed()
             time.sleep(0.01)
         if STOP_REQUESTED:
             print("[orin ros state udp bridge] stop requested before initial state ready", flush=True)
@@ -666,21 +808,15 @@ def main() -> int:
         sender.run(
             should_stop=lambda: STOP_REQUESTED,
             count=args.count,
-            health_check=executor_thread.raise_if_failed,
+            health_check=source_processes.raise_if_failed,
         )
-        executor_thread.raise_if_failed()
+        if not STOP_REQUESTED:
+            source_processes.raise_if_failed()
         return 0
     finally:
         if sock is not None:
             sock.close()
-        try:
-            executor_thread.stop()
-        finally:
-            try:
-                node.destroy_node()
-            finally:
-                if rclpy.ok():
-                    rclpy.shutdown()
+        source_processes.stop()
 
 
 if __name__ == "__main__":
