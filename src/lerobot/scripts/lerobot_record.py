@@ -302,6 +302,7 @@ def record_loop(
     display_data: bool = False,
     display_compressed_images: bool = False,
     episode_index: int | None = None,
+    play_sounds: bool = False,
 ):
     if dataset is not None and dataset.fps != fps:
         raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
@@ -416,10 +417,13 @@ def record_loop(
             first_frame_index = dataset.episode_buffer["size"]
             dataset.add_frame(frame)
             if not first_dataset_frame_logged:
+                current_episode_index = dataset.num_episodes if episode_index is None else episode_index
+                current_episode_number = current_episode_index + 1
+                log_say(f"Start recording episode {current_episode_number}", play_sounds)
                 logging.info(
-                    "Started recording episode %s at first saved dataset frame "
+                    "Started recording episode %s at first buffered dataset frame "
                     "(frame_index=%s, dataset_timestamp_s=%.6f, loop_start_delay_ms=%.3f, camera_age_ms=%s)",
-                    dataset.num_episodes if episode_index is None else episode_index,
+                    current_episode_number,
                     first_frame_index,
                     first_frame_index / dataset.fps,
                     (time.perf_counter() - start_episode_t) * 1000,
@@ -546,6 +550,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     display_data=cfg.display_data,
                     display_compressed_images=display_compressed_images,
                     episode_index=dataset.num_episodes,
+                    play_sounds=cfg.play_sounds,
                 )
 
                 # Execute a few seconds without recording to give time to manually reset the environment
@@ -554,6 +559,11 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
                 ):
                     log_say("Reset the environment", cfg.play_sounds)
+                    logging.info(
+                        "Reset control active for %.3fs: teleop commands continue; "
+                        "dataset frames are not saved",
+                        cfg.dataset.reset_time_s,
+                    )
 
                     # reset g1 robot
                     if robot.name == "unitree_g1":

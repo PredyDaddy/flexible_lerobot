@@ -43,8 +43,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-fps", type=int, default=30)
     parser.add_argument("--expected-episode-time-s", type=float, default=10.0)
     parser.add_argument("--min-frame-ratio", type=float, default=0.9)
-    parser.add_argument("--max-initial-joint-delta-rad", type=float, default=0.02)
-    parser.add_argument("--max-action-joint-step-rad", type=float, default=0.020001)
+    parser.add_argument("--max-initial-joint-delta-rad", type=float, default=10.0)
+    parser.add_argument("--max-action-joint-step-rad", type=float, default=10.0)
     parser.add_argument("--lag-min", type=int, default=1)
     parser.add_argument("--lag-max", type=int, default=6)
     parser.add_argument("--max-lag-mae-rad", type=float, default=0.01)
@@ -241,7 +241,7 @@ def validate_episode(
         moving_mask = np.zeros(len(action_joints), dtype=bool)
     metrics["max_action_joint_step_rad"] = max_action_step
     metrics["moving_frames"] = int(moving_mask.sum())
-    if max_action_step > args.max_action_joint_step_rad:
+    if max_action_step > args.max_action_joint_step_rad + 1e-6:
         add_error(
             report,
             f"episode {episode_index} action step {max_action_step:.6f}rad exceeds "

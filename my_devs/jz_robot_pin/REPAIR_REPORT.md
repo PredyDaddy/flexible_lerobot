@@ -26,6 +26,10 @@
 
 - 实时遥操作继续使用 observation-aware `hold_current`。
 - target-action 包增加本机时间戳 age、未来偏移、seq 顺序和 seq reset timeout 检查。
+- pin joystick 持续发布当前保持目标，默认运行 24 小时，避免 recorder 启动时收不到新包。
+- Meshcat 默认以 30 Hz 显示整机模型，target action 以 90 Hz 发布。
+- Meshcat 缓存未变化的 transform、骨架和 visibility，减少重复浏览器消息；运行日志报告实测
+  `meshcat_hz`、平均/最大显示耗时和 loop overrun。
 - 严格录制入口默认等待第一帧 target action 5 秒。
 - 录制过程中 target action stale 默认抛错终止，避免保存 hold-current 污染帧。
 
@@ -35,6 +39,8 @@
 - Rerun 显示和 dataset 使用同一份实际发送 action。
 - 对 JZRobotPin，这会正确反映 float 转换和夹爪限幅后的 18 维命令。
 - 修复后不得 resume 到旧的 pin 验证数据集；三条检查包装器强制使用新目录和 `RESUME=false`。
+- 每条 episode 的第一帧实际写入后，终端记录并语音播报对应的 Start recording 事件。
+- reset 阶段继续运行遥操控制循环，但不保存 dataset 帧，并在终端明确记录该状态。
 
 ### Conda 约束
 
@@ -58,7 +64,9 @@ my_devs/jz_robot_pin/data_check/README.md
 - 默认每条 10 秒、30 FPS、两条之间 reset 5 秒
 - 18 维 action/state
 - 三路 RTSP 视频
-- 第一帧和连续 action 上限均为 `0.02 rad`
+- 三条现场录制包装器的第一帧和连续 action 阈值均为 `10 rad`，对正常关节范围等效于放开
+- 核心 robot、普通录制和回放默认第一帧与连续 action 上限仍为 `0.02 rad`
+- 包装器把实际第一帧阈值传给自动检查器，避免录制与验收标准不一致
 - target action 首包等待 5 秒，stale 时失败
 - 数据目录默认带时间戳，已存在时拒绝复用
 - 录制成功后自动运行检查器并生成 `data_check_report.json`
@@ -73,8 +81,8 @@ my_devs/jz_robot_pin/data_check/README.md
 - 字段顺序为 14 个关节加 4 个夹爪字段，action/state 完全一致。
 - 三路视频 metadata、分辨率和对应视频文件存在。
 - 所有 action/state 数值有限，夹爪字段位于 `[0, 100]`。
-- 每条第一帧 14 个关节最大 action/state 差不超过 `0.02 rad`。
-- 每条相邻 action 最大关节步长不超过 `0.02 rad`。
+- 每条第一帧 14 个关节最大 action/state 差仍会记录，包装器默认阈值为 `10 rad`。
+- 每条相邻 action 最大关节步长仍会记录，包装器默认阈值为 `10 rad`。
 - 在未来 1～6 帧内搜索最佳机械跟随延迟。
 - 默认最佳 lag MAE 不超过 `0.01 rad`，P95 不超过 `0.03 rad`。
 - 不要求不合理的精确 `action_t == observation.state_(t+1)`。

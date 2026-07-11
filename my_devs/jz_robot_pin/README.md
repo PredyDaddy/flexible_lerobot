@@ -38,6 +38,11 @@ bash x86/start_pin_control.sh
 bash x86/start_pin_joystick.sh
 ```
 
+该入口默认持续发布当前保持目标（`publish_mode=always`），运行时长 24 小时。Meshcat 默认以
+30 Hz 更新整机模型并关闭 VR debug 标记；IK 和 target action 发布使用 90 Hz。
+启动后应看到 `target_frequency=30Hz ... model=whole-robot` 和 `visual meshes loaded: 24`；
+运行状态中的 `meshcat_hz` 是墙钟实测刷新率，应稳定在约 30 Hz。
+
 录制数据：
 
 先在另一个终端启动 VR/摇杆发布端，并保持它在录制和 episode reset 期间持续发布：

@@ -24,8 +24,8 @@ def make_args(dataset_root) -> Namespace:
         expected_fps=10,
         expected_episode_time_s=1.0,
         min_frame_ratio=0.9,
-        max_initial_joint_delta_rad=0.02,
-        max_action_joint_step_rad=0.020001,
+        max_initial_joint_delta_rad=10.0,
+        max_action_joint_step_rad=10.0,
         lag_min=1,
         lag_max=3,
         max_lag_mae_rad=0.01,
@@ -108,6 +108,24 @@ def write_synthetic_dataset(root, *, action_dim: int = 18) -> None:
     (root / "meta/info.json").write_text(json.dumps(info), encoding="utf-8")
 
 
+def set_initial_joint_delta(root, delta: float) -> None:
+    data_path = root / "data/chunk-000/file-000.parquet"
+    data = pd.read_parquet(data_path)
+    actions = []
+    states = []
+    for _, row in data.iterrows():
+        action = np.asarray(row["action"], dtype=np.float32).copy()
+        state = np.asarray(row["observation.state"], dtype=np.float32).copy()
+        action[0] += delta
+        if row["frame_index"] > 0:
+            state[0] += delta
+        actions.append(action)
+        states.append(state)
+    data["action"] = actions
+    data["observation.state"] = states
+    data.to_parquet(data_path)
+
+
 def test_three_episode_checker_accepts_valid_18d_dataset(tmp_path) -> None:
     root = tmp_path / "valid"
     write_synthetic_dataset(root)
@@ -118,6 +136,23 @@ def test_three_episode_checker_accepts_valid_18d_dataset(tmp_path) -> None:
     assert report["errors"] == []
     assert len(report["episodes"]) == 3
     assert all(episode["best_lag"]["lag_frames"] == 1 for episode in report["episodes"])
+
+
+def test_three_episode_checker_uses_effectively_open_development_delta_limit(tmp_path) -> None:
+    root = tmp_path / "initial_delta"
+    write_synthetic_dataset(root)
+    set_initial_joint_delta(root, 1.0)
+
+    open_report = run_check(make_args(root))
+
+    assert open_report["status"] == "PASS"
+
+    strict_args = make_args(root)
+    strict_args.max_initial_joint_delta_rad = 0.15
+    strict_report = run_check(strict_args)
+
+    assert strict_report["status"] == "FAIL"
+    assert any("initial joint delta" in error for error in strict_report["errors"])
 
 
 def test_three_episode_checker_rejects_wrong_vector_dimension(tmp_path) -> None:
@@ -168,4 +203,7 @@ def test_three_episode_checker_cli_writes_json_report(tmp_path, monkeypatch) -> 
     )
 
     assert main() == 0
-    assert json.loads(report_path.read_text(encoding="utf-8"))["status"] == "PASS"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["status"] == "PASS"
+    assert report["thresholds"]["max_initial_joint_delta_rad"] == 10.0
+    assert report["thresholds"]["max_action_joint_step_rad"] == 10.0

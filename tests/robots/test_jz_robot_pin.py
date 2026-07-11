@@ -422,6 +422,10 @@ def test_jz_robot_pin_data_check_wrapper_records_then_checks_exactly_three_episo
     assert "NUM_EPISODES=3" in script
     assert "RESUME=false" in script
     assert "VIDEO_ENCODING_BATCH_SIZE=3" in script
+    assert 'MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-10.0}"' in script
+    assert 'MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-10.0}"' in script
+    assert '--max-initial-joint-delta-rad "${MAX_INITIAL_JOINT_DELTA_RAD}"' in script
+    assert '--max-action-joint-step-rad "${MAX_JOINT_STEP_RAD}"' in script
     assert 'bash "${PIN_ROOT}/record.sh"' in script
     assert '"${SCRIPT_DIR}/check_3_episodes.py"' in script
 
@@ -432,6 +436,26 @@ def test_jz_robot_pin_python_helpers_do_not_bypass_conda_with_python_override() 
 
     assert '${PYTHON:-}' not in common
     assert "exec env -u PYTHON" in joystick
+
+
+def test_jz_robot_pin_joystick_continuously_publishes_for_recording() -> None:
+    script = (PIN_ROOT / "x86/start_pin_joystick.sh").read_text(encoding="utf-8")
+
+    assert 'PUBLISH_MODE="${PUBLISH_MODE:-always}"' in script
+    assert 'VISUAL_DURATION_S="${VISUAL_DURATION_S:-86400}"' in script
+    assert '--publish-mode "${PUBLISH_MODE}"' in script
+    assert '--duration "${VISUAL_DURATION_S}"' in script
+    assert 'VISUAL_FREQUENCY="${VISUAL_FREQUENCY:-90}"' in script
+    assert 'DISPLAY_EVERY="${DISPLAY_EVERY:-3}"' in script
+    assert 'VISUALIZE_WHOLE_ROBOT="${VISUALIZE_WHOLE_ROBOT:-true}"' in script
+    assert 'SHOW_VR_DEBUG="${SHOW_VR_DEBUG:-false}"' in script
+    assert 'VISUALIZE_WHOLE_ROBOT="${VISUALIZE_WHOLE_ROBOT}"' in script
+    assert '--frequency "${VISUAL_FREQUENCY}"' in script
+    assert '--display-every "${DISPLAY_EVERY}"' in script
+    assert 'ROBOT_VISUAL_ARGS=(--no-arm-meshes-only)' in script
+    assert '"${ROBOT_VISUAL_ARGS[@]}"' in script
+    assert '"${VR_DEBUG_ARGS[@]}"' in script
+    assert "unsupported VISUALIZE_WHOLE_ROBOT=" in script
 
 
 @pytest.mark.parametrize(

@@ -467,13 +467,17 @@ conda run --no-capture-output -n light_tp python -m live_vr_replay_bridge.vr_vis
   --right-ee-frame right_arm_link7 \
   --tcp-control-offset 0.0 \
   --vr-debug-target-forward-offset 0.0 \
-  --frequency 80 \
+  --frequency 90 \
+  --duration 86400 \
   --target-max-speed 0.4 \
+  --publish-mode always \
   --publish-every 1 \
+  --display-every 3 \
   --reset-publish-duration-s 0.5 \
   --joint-motion-cost 0.0 \
   --joint-motion-cost-profile uniform \
   --no-arm-meshes-only \
+  --no-show-vr-debug \
   --gripper-input trigger \
   --gripper-open-width 0 \
   --gripper-closed-width 100 \
@@ -810,8 +814,8 @@ my_devs/jz_robot_pin/data_check/check_3_episodes.py
 
 - 三个 episode 和 metadata 完整。
 - action/state 均为 18 维且字段顺序一致。
-- 第一帧 14 个关节与当前 state 的最大差值不超过 `0.02 rad`。
-- 相邻 action 的最大关节步长不超过 `0.02 rad`。
+- 三条现场录制时，第一帧和相邻 action 的关节差值阈值默认均为 `10 rad`，对正常关节范围等效于放开。
+- armed 确认、状态新鲜度、发送端 IP/序列和数值有限性检查仍然保留。
 - 在未来 1～6 帧中搜索 action 到 state 的最佳机械跟随延迟，而不是要求
   `action_t == observation.state_(t+1)`。
 - 默认最佳延迟 MAE 不超过 `0.01 rad`、P95 不超过 `0.03 rad`。

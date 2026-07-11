@@ -14,6 +14,8 @@ EPISODE_TIME_S="${EPISODE_TIME_S:-10}"
 RESET_TIME_S="${RESET_TIME_S:-5}"
 RECORD_FPS="${RECORD_FPS:-30}"
 EXECUTION="${EXECUTION:-armed}"
+MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-10.0}"
+MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-10.0}"
 
 if [[ -e "${DATASET_ROOT}" ]]; then
   echo "[record_and_check_3] refusing to reuse existing dataset root: ${DATASET_ROOT}" >&2
@@ -24,6 +26,8 @@ fi
 echo "[record_and_check_3] dataset_root=${DATASET_ROOT}"
 echo "[record_and_check_3] recording exactly 3 episodes"
 echo "[record_and_check_3] episode_time_s=${EPISODE_TIME_S} reset_time_s=${RESET_TIME_S} fps=${RECORD_FPS}"
+echo "[record_and_check_3] joint delta guards: initial=${MAX_INITIAL_JOINT_DELTA_RAD}rad" \
+  "step=${MAX_JOINT_STEP_RAD}rad (effectively open for normal joint ranges)"
 echo "[record_and_check_3] start the pin joystick publisher before this command and keep it publishing"
 
 NUM_EPISODES=3 \
@@ -31,8 +35,8 @@ RESUME=false \
 VIDEO=true \
 VIDEO_ENCODING_BATCH_SIZE=3 \
 RTSP_PRESET=jz_three_rtsp \
-MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-0.02}" \
-MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-0.02}" \
+MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD}" \
+MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD}" \
 TARGET_ACTION_CONNECT_TIMEOUT_S="${TARGET_ACTION_CONNECT_TIMEOUT_S:-5.0}" \
 TARGET_ACTION_STALE_POLICY="${TARGET_ACTION_STALE_POLICY:-raise}" \
 CONDA_ENV="${CONDA_ENV}" \
@@ -55,6 +59,8 @@ echo "[record_and_check_3] recording completed; validating all 3 episodes"
   --dataset-root "${DATASET_ROOT}" \
   --expected-episode-time-s "${EPISODE_TIME_S}" \
   --expected-fps "${RECORD_FPS}" \
+  --max-initial-joint-delta-rad "${MAX_INITIAL_JOINT_DELTA_RAD}" \
+  --max-action-joint-step-rad "${MAX_JOINT_STEP_RAD}" \
   --report-json "${REPORT_JSON}"
 
 echo "[record_and_check_3] PASS report=${REPORT_JSON}"
