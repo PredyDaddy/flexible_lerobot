@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jz-robot:state-source-timing:v1",
+  "title": "JZ Robot state packet source_timing v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_skew_ms",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source_skew_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "left_joints",
+        "right_joints",
+        "left_gripper",
+        "right_gripper"
+      ],
+      "properties": {
+        "left_joints": {
+          "$ref": "#/$defs/joint_source"
+        },
+        "right_joints": {
+          "$ref": "#/$defs/joint_source"
+        },
+        "left_gripper": {
+          "$ref": "#/$defs/gripper_source"
+        },
+        "right_gripper": {
+          "$ref": "#/$defs/gripper_source"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "source_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generation",
+        "recv_wall_ns",
+        "recv_monotonic_ns",
+        "header_stamp_ns",
+        "age_ms"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recv_wall_ns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recv_monotonic_ns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "header_stamp_ns": {},
+        "age_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "joint_source": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/source_base"
+        },
+        {
+          "properties": {
+            "header_stamp_ns": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "gripper_source": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/source_base"
+        },
+        {
+          "properties": {
+            "header_stamp_ns": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

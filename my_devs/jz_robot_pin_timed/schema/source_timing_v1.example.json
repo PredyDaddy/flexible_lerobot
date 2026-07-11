@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "type": "state",
+  "robot": "robot1",
+  "seq": 1196,
+  "stamp_ns": 1783737600123456789,
+  "joints": {
+    "left": {
+      "left_joint1": 0.101,
+      "left_joint2": -0.202,
+      "left_joint3": 0.303,
+      "left_joint4": -0.404,
+      "left_joint5": 0.505,
+      "left_joint6": -0.606,
+      "left_joint7": 0.707
+    },
+    "right": {
+      "right_joint1": -0.111,
+      "right_joint2": 0.222,
+      "right_joint3": -0.333,
+      "right_joint4": 0.444,
+      "right_joint5": -0.555,
+      "right_joint6": 0.666,
+      "right_joint7": -0.777
+    }
+  },
+  "grippers": {
+    "left": {
+      "width": 50.1,
+      "force": 70.2
+    },
+    "right": {
+      "width": 49.9,
+      "force": 69.8
+    }
+  },
+  "source_timing": {
+    "schema_version": 1,
+    "source_skew_ms": 3.0,
+    "sources": {
+      "left_joints": {
+        "generation": 23901,
+        "recv_wall_ns": 1783737600119956789,
+        "recv_monotonic_ns": 842155551500000,
+        "header_stamp_ns": 1783737600118956789,
+        "age_ms": 3.5
+      },
+      "right_joints": {
+        "generation": 23904,
+        "recv_wall_ns": 1783737600120456789,
+        "recv_monotonic_ns": 842155552000000,
+        "header_stamp_ns": 1783737600119456789,
+        "age_ms": 3.0
+      },
+      "left_gripper": {
+        "generation": 11951,
+        "recv_wall_ns": 1783737600117456789,
+        "recv_monotonic_ns": 842155549000000,
+        "header_stamp_ns": null,
+        "age_ms": 6.0
+      },
+      "right_gripper": {
+        "generation": 11953,
+        "recv_wall_ns": 1783737600118456789,
+        "recv_monotonic_ns": 842155550000000,
+        "header_stamp_ns": null,
+        "age_ms": 5.0
+      }
+    }
+  }
+}

@@ -66,6 +66,29 @@ def sample_state_packet(seq: int = 7) -> dict:
     }
 
 
+def sample_source_timing(generation: int = 12) -> dict:
+    source_names = ("left_joints", "right_joints", "left_gripper", "right_gripper")
+    receive_offsets_ms = (0, 2, 5, 9)
+    sources = {}
+    for index, (source_name, offset_ms) in enumerate(zip(source_names, receive_offsets_ms, strict=True)):
+        sources[source_name] = {
+            "generation": generation + index,
+            "recv_wall_ns": 1_783_737_600_000_000_000 + offset_ms * 1_000_000,
+            "recv_monotonic_ns": 123_456_789_000_000 + offset_ms * 1_000_000,
+            "header_stamp_ns": (
+                1_783_737_599_999_000_000 + offset_ms * 1_000_000
+                if source_name.endswith("joints")
+                else None
+            ),
+            "age_ms": float(9 - offset_ms),
+        }
+    return {
+        "schema_version": 1,
+        "source_skew_ms": 9.0,
+        "sources": sources,
+    }
+
+
 def sample_action() -> dict[str, float]:
     action = {
         **{f"left_left_joint{i}.pos": float(i) for i in range(1, 8)},
@@ -233,6 +256,46 @@ def test_state_packet_round_trip_validates_schema() -> None:
     assert decoded["seq"] == 7
     assert decoded["joints"]["left"]["left_joint1"] == 1.0
     assert decoded["grippers"]["right"]["force"] == 2.0
+    assert "source_timing" not in decoded
+
+
+def test_state_packet_source_timing_round_trip_is_additive() -> None:
+    packet = sample_state_packet()
+    packet["source_timing"] = sample_source_timing()
+
+    decoded = decode_state_packet(encode_state_packet(packet))
+
+    assert decoded["version"] == PROTOCOL_VERSION
+    assert decoded["joints"] == packet["joints"]
+    assert decoded["grippers"] == packet["grippers"]
+    assert decoded["source_timing"] == packet["source_timing"]
+    assert decoded["source_timing"]["sources"]["left_joints"]["header_stamp_ns"] is not None
+    assert decoded["source_timing"]["sources"]["left_gripper"]["header_stamp_ns"] is None
+
+
+def test_typical_state_packet_with_source_timing_fits_single_ipv4_udp_payload() -> None:
+    packet = sample_state_packet(seq=1195)
+    packet["stamp_ns"] = 1_783_737_600_123_456_789
+    packet["joints"] = {
+        "left": {
+            f"left_joint{i}": -2.123456789012345 + i * 0.123456789012345
+            for i in range(1, 8)
+        },
+        "right": {
+            f"right_joint{i}": 2.123456789012345 - i * 0.123456789012345
+            for i in range(1, 8)
+        },
+    }
+    packet["grippers"] = {
+        "left": {"width": 50.1234567890123, "force": 70.1234567890123},
+        "right": {"width": 49.9876543210987, "force": 69.9876543210987},
+    }
+    packet["source_timing"] = sample_source_timing(generation=1195)
+
+    encoded = encode_state_packet(packet)
+
+    assert len(encoded) <= 1472, f"state packet would require IPv4 fragmentation: {len(encoded)} bytes"
+    assert decode_state_packet(encoded)["source_timing"] == packet["source_timing"]
 
 
 @pytest.mark.parametrize("mode", [COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED])

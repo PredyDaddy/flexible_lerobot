@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PID_DIR="$ROOT_DIR/udp_test/server_bash/orin_arm/pids"
 PATTERN="udp_test/test_scripts/arm_side/orin_ros_state_udp_bridge.py"
+STARTUP_FILE="$PID_DIR/ros_state_udp_bridge.startup"
 
 stop_pid() {
   local pid="$1"
@@ -38,4 +39,5 @@ while read -r pid _cmd; do
     kill -9 "$pid" 2>/dev/null || true
   fi
 done < <(pgrep -af "$PATTERN" || true)
+rm -f "$STARTUP_FILE"
 echo "[orin_arm/stop] stopped"

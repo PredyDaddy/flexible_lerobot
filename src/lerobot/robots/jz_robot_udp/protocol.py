@@ -16,6 +16,8 @@ COMMAND_MODES = (COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED)
 COMMAND_ACTION_SIDES = ("left", "right")
 COMMAND_GRIPPER_SIDES = ("left", "right")
 COMMAND_GRIPPER_FIELDS = ("width", "force")
+STATE_SOURCE_NAMES = ("left_joints", "right_joints", "left_gripper", "right_gripper")
+SOURCE_TIMING_SCHEMA_VERSION = 1
 
 
 class ProtocolError(ValueError):
@@ -139,6 +141,9 @@ def validate_state_packet(packet: Any) -> None:
             if field not in grippers[side]:
                 raise ProtocolError(f"state packet grippers.{side}.{field} is required")
 
+    if "source_timing" in packet:
+        _validate_source_timing(packet["source_timing"])
+
 
 def validate_jz_robot_udp_command_packet(packet: Any) -> None:
     if not isinstance(packet, dict):
@@ -224,3 +229,79 @@ def _validate_number_map(values: dict[str, Any], name: str) -> None:
             raise ProtocolError(f"{name}.{key} must be numeric")
         if not math.isfinite(float(value)):
             raise ProtocolError(f"{name}.{key} must be finite")
+
+
+def _validate_source_timing(source_timing: Any) -> None:
+    if not isinstance(source_timing, dict):
+        raise ProtocolError("state packet source_timing must be an object")
+    expected_keys = {"schema_version", "source_skew_ms", "sources"}
+    if set(source_timing) != expected_keys:
+        extra = sorted(set(source_timing) - expected_keys)
+        missing = sorted(expected_keys - set(source_timing))
+        raise ProtocolError(f"source_timing keys mismatch: missing={missing}, extra={extra}")
+    if source_timing.get("schema_version") != SOURCE_TIMING_SCHEMA_VERSION:
+        raise ProtocolError(
+            f"unsupported source_timing schema version: {source_timing.get('schema_version')}"
+        )
+    _validate_nonnegative_number(source_timing.get("source_skew_ms"), "source_timing.source_skew_ms")
+
+    sources = source_timing.get("sources")
+    if not isinstance(sources, dict):
+        raise ProtocolError("source_timing.sources must be an object")
+    if set(sources) != set(STATE_SOURCE_NAMES):
+        extra = sorted(set(sources) - set(STATE_SOURCE_NAMES))
+        missing = sorted(set(STATE_SOURCE_NAMES) - set(sources))
+        raise ProtocolError(f"source_timing.sources keys mismatch: missing={missing}, extra={extra}")
+
+    expected_source_keys = {
+        "generation",
+        "recv_wall_ns",
+        "recv_monotonic_ns",
+        "header_stamp_ns",
+        "age_ms",
+    }
+    for source_name in STATE_SOURCE_NAMES:
+        source = sources[source_name]
+        if not isinstance(source, dict):
+            raise ProtocolError(f"source_timing.sources.{source_name} must be an object")
+        if set(source) != expected_source_keys:
+            extra = sorted(set(source) - expected_source_keys)
+            missing = sorted(expected_source_keys - set(source))
+            raise ProtocolError(
+                f"source_timing.sources.{source_name} keys mismatch: missing={missing}, extra={extra}"
+            )
+        generation = source.get("generation")
+        if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
+            raise ProtocolError(f"source_timing.sources.{source_name}.generation must be a positive integer")
+        _validate_nonnegative_integer(
+            source.get("recv_wall_ns"),
+            f"source_timing.sources.{source_name}.recv_wall_ns",
+        )
+        _validate_nonnegative_integer(
+            source.get("recv_monotonic_ns"),
+            f"source_timing.sources.{source_name}.recv_monotonic_ns",
+        )
+        header_stamp_ns = source.get("header_stamp_ns")
+        if source_name.endswith("_joints"):
+            _validate_nonnegative_integer(
+                header_stamp_ns,
+                f"source_timing.sources.{source_name}.header_stamp_ns",
+            )
+        elif header_stamp_ns is not None:
+            raise ProtocolError(f"source_timing.sources.{source_name}.header_stamp_ns must be null")
+        _validate_nonnegative_number(
+            source.get("age_ms"),
+            f"source_timing.sources.{source_name}.age_ms",
+        )
+
+
+def _validate_nonnegative_integer(value: Any, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ProtocolError(f"{name} must be a non-negative integer")
+
+
+def _validate_nonnegative_number(value: Any, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ProtocolError(f"{name} must be numeric")
+    if not math.isfinite(float(value)) or value < 0:
+        raise ProtocolError(f"{name} must be finite and non-negative")
