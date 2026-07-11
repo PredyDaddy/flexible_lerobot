@@ -15,6 +15,7 @@ JZ_EXPECTED_STATE_HZ="${JZ_EXPECTED_STATE_HZ:-${STATE_HZ}}"
 JZ_TIMED_NON_30_STATE_HZ_CONFIRM="${JZ_TIMED_NON_30_STATE_HZ_CONFIRM:-}"
 STATE_WAIT_TIMEOUT_S="${STATE_WAIT_TIMEOUT_S:-15}"
 STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-30}"
+STATE_EXECUTOR_THREADS="${STATE_EXECUTOR_THREADS:-4}"
 STATE_PRINT_EVERY="${STATE_PRINT_EVERY:-30}"
 MAX_SOURCE_AGE_MS="${MAX_SOURCE_AGE_MS:-50}"
 MAX_SOURCE_SKEW_MS="${MAX_SOURCE_SKEW_MS:-20}"
@@ -157,6 +158,7 @@ cleanup_uncommitted_launch() {
 
 validate_hz_contract
 validate_positive_integer STATE_PROCESS_START_TIMEOUT_S "$STATE_PROCESS_START_TIMEOUT_S"
+validate_positive_integer STATE_EXECUTOR_THREADS "$STATE_EXECUTOR_THREADS"
 validate_nonnegative_integer STATE_PRINT_EVERY "$STATE_PRINT_EVERY"
 REQUESTED_HZ_NORMALIZED="$(normalize_hz "$STATE_HZ")"
 EXPECTED_HZ_NORMALIZED="$(normalize_hz "$JZ_EXPECTED_STATE_HZ")"
@@ -177,6 +179,7 @@ rm -f "$STARTUP_FILE"
 
 echo "[orin_arm/start] READONLY ONLY"
 echo "[orin_arm/start] profile=$JZ_STATE_HZ_PROFILE requested_hz=$STATE_HZ expected_hz=$JZ_EXPECTED_STATE_HZ"
+echo "[orin_arm/start] executor=multi_threaded threads=$STATE_EXECUTOR_THREADS"
 echo "[orin_arm/start] max_source_age_ms=$MAX_SOURCE_AGE_MS max_source_skew_ms=$MAX_SOURCE_SKEW_MS require_all_sources_advanced=${REQUIRE_ALL_SOURCES_ADVANCED,,}"
 if [[ "$RUN_READINESS" == "1" ]]; then
   echo "[orin_arm/start] local readiness check..."
@@ -194,6 +197,7 @@ nohup "${PYTHON_ARGS[@]}" "$BRIDGE_SCRIPT" \
   --target-ip "$X86_IP" \
   --target-port "$STATE_PORT" \
   --hz "$STATE_HZ" \
+  --executor-threads "$STATE_EXECUTOR_THREADS" \
   --wait-timeout-s "$STATE_WAIT_TIMEOUT_S" \
   --max-source-age-ms "$MAX_SOURCE_AGE_MS" \
   --max-source-skew-ms "$MAX_SOURCE_SKEW_MS" \

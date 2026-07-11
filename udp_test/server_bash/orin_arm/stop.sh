@@ -19,7 +19,7 @@ pid_matches_bridge() {
   local -a argv=()
   local index
   [[ "$pid" =~ ^[1-9][0-9]*$ && "$pid" != "$$" && "$pid" != "$PPID" ]] || return 1
-  mapfile -d '' -t argv < "/proc/$pid/cmdline" 2>/dev/null || return 1
+  mapfile -d '' -t argv 2>/dev/null < "/proc/$pid/cmdline" || return 1
   for ((index = 1; index < ${#argv[@]}; index++)); do
     if [[ "${argv[index]}" == "$PATTERN" || "${argv[index]}" == */"$PATTERN" ]]; then
       [[ "${argv[index - 1]##*/}" == python* ]]

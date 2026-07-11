@@ -18,9 +18,11 @@ BRIDGE_PATH = REPO_ROOT / "udp_test" / "test_scripts" / "arm_side" / "orin_ros_s
 
 def _load_bridge_module(monkeypatch):
     rclpy = types.ModuleType("rclpy")
+    callback_groups = types.ModuleType("rclpy.callback_groups")
+    callback_groups.ReentrantCallbackGroup = object
     executors = types.ModuleType("rclpy.executors")
     executors.ExternalShutdownException = type("ExternalShutdownException", (Exception,), {})
-    executors.SingleThreadedExecutor = object
+    executors.MultiThreadedExecutor = object
     qos = types.ModuleType("rclpy.qos")
 
     class QoSProfile:
@@ -49,6 +51,7 @@ def _load_bridge_module(monkeypatch):
 
     for name, module in {
         "rclpy": rclpy,
+        "rclpy.callback_groups": callback_groups,
         "rclpy.executors": executors,
         "rclpy.qos": qos,
         "sensor_msgs": sensor_msgs,
@@ -554,6 +557,33 @@ def test_state_subscription_qos_is_explicit_latest_reliable_volatile(monkeypatch
     assert qos.durability == "volatile"
 
 
+def test_four_state_subscriptions_share_reentrant_callback_group(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    collector = bridge.ReadonlyStateCollector(_robot_config())
+    robot_cfg = SimpleNamespace(
+        left_joint_state_topic="/left/joints",
+        right_joint_state_topic="/right/joints",
+        left_gripper_state_topic="/left/gripper",
+        right_gripper_state_topic="/right/gripper",
+    )
+    calls = []
+    node = SimpleNamespace(
+        create_subscription=lambda message_type, topic, callback, qos, **kwargs: calls.append(
+            (message_type, topic, callback, qos, kwargs)
+        )
+        or topic
+    )
+    qos = bridge.state_subscription_qos()
+    callback_group = object()
+
+    subscriptions = bridge.create_state_subscriptions(node, collector, robot_cfg, qos, callback_group)
+
+    assert subscriptions == ["/left/joints", "/right/joints", "/left/gripper", "/right/gripper"]
+    assert len(calls) == 4
+    assert all(call[3] is qos for call in calls)
+    assert all(call[4] == {"callback_group": callback_group} for call in calls)
+
+
 def test_generic_bridge_cli_keeps_legacy_20_hz_default(monkeypatch) -> None:
     bridge = _load_bridge_module(monkeypatch)
     monkeypatch.setattr(sys, "argv", [str(BRIDGE_PATH), "--target-ip", "127.0.0.1"])
@@ -561,3 +591,4 @@ def test_generic_bridge_cli_keeps_legacy_20_hz_default(monkeypatch) -> None:
     args = bridge.parse_args()
 
     assert args.hz == 20.0
+    assert args.executor_threads == 4

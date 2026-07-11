@@ -26,7 +26,8 @@ for path in (str(SRC_ROOT), str(MY_DEVS_ROOT), str(REPO_ROOT)):
         sys.path.insert(0, path)
 
 import rclpy
-from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
@@ -59,6 +60,13 @@ def _nonnegative_float(value: str) -> float:
     parsed = float(value)
     if not math.isfinite(parsed) or parsed < 0:
         raise argparse.ArgumentTypeError("must be a finite number greater than or equal to zero")
+    return parsed
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be an integer greater than zero")
     return parsed
 
 
@@ -523,6 +531,45 @@ def state_subscription_qos() -> QoSProfile:
     )
 
 
+def create_state_subscriptions(
+    node: Any,
+    collector: ReadonlyStateCollector,
+    robot_cfg: Any,
+    qos: QoSProfile,
+    callback_group: Any,
+) -> list[Any]:
+    return [
+        node.create_subscription(
+            JointState,
+            robot_cfg.left_joint_state_topic,
+            lambda msg: collector.update_joints(LEFT, msg),
+            qos,
+            callback_group=callback_group,
+        ),
+        node.create_subscription(
+            JointState,
+            robot_cfg.right_joint_state_topic,
+            lambda msg: collector.update_joints(RIGHT, msg),
+            qos,
+            callback_group=callback_group,
+        ),
+        node.create_subscription(
+            Float64MultiArray,
+            robot_cfg.left_gripper_state_topic,
+            lambda msg: collector.update_gripper(LEFT, msg),
+            qos,
+            callback_group=callback_group,
+        ),
+        node.create_subscription(
+            Float64MultiArray,
+            robot_cfg.right_gripper_state_topic,
+            lambda msg: collector.update_gripper(RIGHT, msg),
+            qos,
+            callback_group=callback_group,
+        ),
+    ]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Readonly ROS2 state to UDP bridge for JZRobot.")
     parser.add_argument("--robot-config", default=str(DEFAULT_ROBOT_CONFIG))
@@ -533,6 +580,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hz", type=_positive_float, default=20.0)
     parser.add_argument("--count", type=int, default=0, help="0 means run forever.")
     parser.add_argument("--print-every", type=int, default=30)
+    parser.add_argument("--executor-threads", type=_positive_int, default=4)
     parser.add_argument("--wait-timeout-s", type=_positive_float, default=10.0)
     parser.add_argument("--max-source-age-ms", type=_nonnegative_float, default=50.0)
     parser.add_argument("--max-source-skew-ms", type=_nonnegative_float, default=20.0)
@@ -558,36 +606,14 @@ def main() -> int:
 
     rclpy.init()
     node = rclpy.create_node("jz_readonly_ros_state_udp_bridge")
-    executor = SingleThreadedExecutor()
+    executor = MultiThreadedExecutor(num_threads=args.executor_threads)
     executor.add_node(node)
     executor_thread = RosExecutorThread(executor)
     sock: socket.socket | None = None
 
     qos = state_subscription_qos()
-    node.create_subscription(
-        JointState,
-        robot_cfg.left_joint_state_topic,
-        lambda msg: collector.update_joints(LEFT, msg),
-        qos,
-    )
-    node.create_subscription(
-        JointState,
-        robot_cfg.right_joint_state_topic,
-        lambda msg: collector.update_joints(RIGHT, msg),
-        qos,
-    )
-    node.create_subscription(
-        Float64MultiArray,
-        robot_cfg.left_gripper_state_topic,
-        lambda msg: collector.update_gripper(LEFT, msg),
-        qos,
-    )
-    node.create_subscription(
-        Float64MultiArray,
-        robot_cfg.right_gripper_state_topic,
-        lambda msg: collector.update_gripper(RIGHT, msg),
-        qos,
-    )
+    callback_group = ReentrantCallbackGroup()
+    _subscriptions = create_state_subscriptions(node, collector, robot_cfg, qos, callback_group)
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -605,6 +631,7 @@ def main() -> int:
             f"wait_timeout_s={args.wait_timeout_s:g} max_source_age_ms={args.max_source_age_ms:g} "
             f"max_source_skew_ms={args.max_source_skew_ms:g} "
             f"require_all_sources_advanced={str(args.require_all_sources_advanced).lower()} "
+            f"executor=multi_threaded:{args.executor_threads} callback_group=reentrant "
             "qos=keep_last:1,reliable,volatile",
             flush=True,
         )
