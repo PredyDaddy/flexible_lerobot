@@ -55,18 +55,34 @@ class FakeVideoFrame:
 
 
 class FakeContainer:
-    def __init__(self, frames: list[FakeVideoFrame], *, block_after_frames: bool = False) -> None:
+    def __init__(
+        self,
+        frames: list[FakeVideoFrame],
+        *,
+        block_after_frames: bool = False,
+        simulated_read_timeout_s: float = 0.05,
+    ) -> None:
         self.frames = frames
         self.block_after_frames = block_after_frames
+        self.simulated_read_timeout_s = simulated_read_timeout_s
         self.closed = threading.Event()
+        self.decode_blocked = threading.Event()
+        self.decode_thread_ident: int | None = None
+        self.decode_thread_daemon: bool | None = None
+        self.close_thread_idents: list[int] = []
 
     def decode(self, *, video: int):
         assert video == 0
+        self.decode_thread_ident = threading.get_ident()
+        self.decode_thread_daemon = threading.current_thread().daemon
         yield from self.frames
-        while self.block_after_frames and not self.closed.wait(timeout=0.001):
-            pass
+        if self.block_after_frames:
+            self.decode_blocked.set()
+            if not self.closed.wait(timeout=self.simulated_read_timeout_s):
+                raise TimeoutError("simulated RTSP read timeout")
 
     def close(self) -> None:
+        self.close_thread_idents.append(threading.get_ident())
         self.closed.set()
 
 
@@ -85,6 +101,27 @@ def sample_state_packet(seq: int = 7) -> dict:
             "left": {"width": 0.01, "force": 1.0},
             "right": {"width": 0.02, "force": 2.0},
         },
+    }
+
+
+def sample_source_timing(generation: int = 12) -> dict:
+    snapshot_monotonic_ns = 123_456_800_000_000
+    sources = {}
+    for index, source_name in enumerate(("left_joints", "right_joints", "left_gripper", "right_gripper")):
+        receive_monotonic_ns = snapshot_monotonic_ns - (index + 1) * 1_000_000
+        sources[source_name] = {
+            "generation": generation + index,
+            "recv_wall_ns": 1_783_737_600_000_000_000 - (index + 1) * 1_000_000,
+            "recv_monotonic_ns": receive_monotonic_ns,
+            "header_stamp_ns": (
+                1_783_737_599_000_000_000 + index if source_name.endswith("_joints") else None
+            ),
+            "age_ms": (snapshot_monotonic_ns - receive_monotonic_ns) / 1_000_000,
+        }
+    return {
+        "schema_version": 1,
+        "source_skew_ms": 3.0,
+        "sources": sources,
     }
 
 
@@ -136,6 +173,7 @@ def test_jz_robot_pin_timed_is_registered_and_reuses_pin_behavior() -> None:
         ("enforce_camera_state_receive_skew", "yes"),
         ("reject_reused_camera_frames", 1),
         ("timing_sidecar", None),
+        ("require_state_source_timing", None),
     ],
 )
 def test_jz_robot_pin_timed_rejects_invalid_timing_config(field: str, value) -> None:
@@ -234,6 +272,35 @@ def test_timestamped_rtsp_camera_connect_cleans_up_after_warmup_timeout(
     assert container.closed.is_set()
     assert camera._thread is None
     assert not camera.is_connected
+
+
+def test_timestamped_rtsp_camera_disconnect_leaves_container_owned_by_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    image = np.zeros((3, 4, 3), dtype=np.uint8)
+    container = FakeContainer(
+        [FakeVideoFrame(image)],
+        block_after_frames=True,
+        simulated_read_timeout_s=0.02,
+    )
+    camera = TimestampedRTSPCamera(make_camera_config(timeout_ms=20), reconnect_delay_ms=0)
+    monkeypatch.setattr(camera, "_open_container", lambda: container)
+
+    camera.connect()
+    assert container.decode_blocked.wait(timeout=1.0)
+    reader_ident = container.decode_thread_ident
+
+    camera.disconnect()
+    camera.disconnect()
+
+    assert reader_ident is not None
+    assert reader_ident != threading.get_ident()
+    assert container.decode_thread_daemon is False
+    assert container.close_thread_idents == [reader_ident]
+    assert camera._thread is None
+    assert not any(
+        thread.is_alive() and thread.name.startswith("timed_rtsp_reader_") for thread in threading.enumerate()
+    )
 
 
 def test_timestamped_rtsp_camera_reconnects_and_tracks_generation(
@@ -410,9 +477,46 @@ def test_jz_robot_pin_timed_observation_and_sidecar_keep_18d_schema(tmp_path) ->
     assert isinstance(saved["command"]["send_completed_monotonic_ns"], int)
     assert saved["command"]["action_key_count"] == 18
     assert saved["cameras"]["camera_test"]["decoder_sequence"] == 1
+    assert "source_timing" not in saved["state"]
 
     robot._is_connected = False
     camera.disconnect()
+
+
+def test_timing_sidecar_deep_copies_optional_state_source_timing(tmp_path) -> None:
+    robot = JZRobotPinTimed(make_robot_config(timing_log_every_n=0, require_state_source_timing=True))
+    packet = sample_state_packet()
+    packet["source_timing"] = sample_source_timing()
+    state = CachedState(packet, ("192.168.1.81", 39010), 1.0, received_wall_ns=2_000_000_000)
+
+    robot._after_observation(state, {})
+    packet["source_timing"]["sources"]["left_joints"]["generation"] = 999
+    exposed_timing = robot.last_observation_timing
+    exposed_timing["state"]["source_timing"]["sources"]["left_joints"]["generation"] = 888
+    robot._last_command_timing = {"observation_sequence": 1, "packet_seq": 1}
+    robot.save_frame_timing(
+        dataset_root=tmp_path,
+        episode_index=0,
+        frame_index=0,
+        action_timing={"packet_seq": 1},
+    )
+    robot._close_timing_files()
+
+    saved = json.loads((tmp_path / "meta/timing/episode-000000.jsonl").read_text(encoding="utf-8"))
+    assert saved["state"]["source_timing"] == sample_source_timing()
+    assert robot.last_observation_timing["state"]["source_timing"] == saved["state"]["source_timing"]
+
+
+@pytest.mark.parametrize("source_timing", [None, {}, []])
+def test_timed_observation_can_require_valid_state_source_timing_v1(source_timing) -> None:
+    robot = JZRobotPinTimed(make_robot_config(require_state_source_timing=True))
+    packet = sample_state_packet()
+    if source_timing is not None:
+        packet["source_timing"] = source_timing
+    state = CachedState(packet, ("192.168.1.81", 39010), 1.0, received_wall_ns=2_000_000_000)
+
+    with pytest.raises(RuntimeError, match="valid source_timing v1"):
+        robot._after_observation(state, {})
 
 
 def test_timing_sidecar_restarts_episode_without_duplicate_frames(tmp_path) -> None:

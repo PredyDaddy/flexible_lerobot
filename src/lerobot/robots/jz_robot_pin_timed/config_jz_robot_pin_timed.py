@@ -22,6 +22,7 @@ class JZRobotPinTimedConfig(JZRobotPinConfig):
     reject_reused_camera_frames: bool = False
     timing_log_every_n: int = 30
     timing_sidecar: bool = True
+    require_state_source_timing: bool = False
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -29,6 +30,7 @@ class JZRobotPinTimedConfig(JZRobotPinConfig):
             "enforce_camera_state_receive_skew",
             "reject_reused_camera_frames",
             "timing_sidecar",
+            "require_state_source_timing",
         ):
             if not isinstance(getattr(self, field_name), bool):
                 raise ValueError(f"{field_name} must be a boolean")

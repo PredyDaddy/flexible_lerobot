@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "source_skew_ms": 3.0,
+  "sources": {
+    "left_joints": {
+      "generation": 23901,
+      "recv_wall_ns": 1783737600119956789,
+      "recv_monotonic_ns": 842155551500000,
+      "header_stamp_ns": 1783737600118956789,
+      "age_ms": 3.5
+    },
+    "right_joints": {
+      "generation": 23904,
+      "recv_wall_ns": 1783737600120456789,
+      "recv_monotonic_ns": 842155552000000,
+      "header_stamp_ns": 1783737600119456789,
+      "age_ms": 3.0
+    },
+    "left_gripper": {
+      "generation": 11951,
+      "recv_wall_ns": 1783737600117456789,
+      "recv_monotonic_ns": 842155549000000,
+      "header_stamp_ns": null,
+      "age_ms": 6.0
+    },
+    "right_gripper": {
+      "generation": 11953,
+      "recv_wall_ns": 1783737600118456789,
+      "recv_monotonic_ns": 842155550000000,
+      "header_stamp_ns": null,
+      "age_ms": 5.0
+    }
+  }
+}

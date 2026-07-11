@@ -25,7 +25,7 @@ class TimestampedFrame:
     decoder_sequence: int
     reconnect_generation: int
 
-    def copy(self) -> "TimestampedFrame":
+    def copy(self) -> TimestampedFrame:
         return replace(self, image=self.image.copy())
 
     def timing(self, now_monotonic_ns: int) -> dict[str, int | float | str | None]:
@@ -76,8 +76,6 @@ class TimestampedRTSPCamera:
         self._frame_ready = threading.Event()
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
-        self._container: Any | None = None
-        self._container_lock = threading.Lock()
 
         self._decoder_sequence = 0
         self._reconnect_generation = 0
@@ -142,7 +140,7 @@ class TimestampedRTSPCamera:
         self._thread = threading.Thread(
             target=self._reader_loop,
             name=f"timed_rtsp_reader_{self.config.url.rsplit('/', maxsplit=1)[-1]}",
-            daemon=True,
+            daemon=False,
         )
         self._thread.start()
 
@@ -178,8 +176,8 @@ class TimestampedRTSPCamera:
             container = None
             try:
                 container = self._open_container()
-                with self._container_lock:
-                    self._container = container
+                if self._stop_event.is_set():
+                    continue
                 with self._condition:
                     self._reconnect_generation += 1
                     if opened_once:
@@ -209,9 +207,6 @@ class TimestampedRTSPCamera:
                         container.close()
                     except Exception:
                         logger.debug("Failed closing RTSP container for %s", self.config.url, exc_info=True)
-                with self._container_lock:
-                    if self._container is container:
-                        self._container = None
 
             if not self._stop_event.is_set():
                 self._stop_event.wait(self.reconnect_delay_ms / 1000)
@@ -234,9 +229,7 @@ class TimestampedRTSPCamera:
                 continue
             key, separator, value = item.partition(";")
             if not separator or not key or not value:
-                raise ValueError(
-                    "ffmpeg_capture_options must use OpenCV's key;value|key;value format"
-                )
+                raise ValueError("ffmpeg_capture_options must use OpenCV's key;value|key;value format")
             options[key] = value
         return options
 
@@ -320,21 +313,22 @@ class TimestampedRTSPCamera:
         self._stop_event.set()
         with self._condition:
             self._condition.notify_all()
-        with self._container_lock:
-            container = self._container
-        if container is not None:
-            try:
-                container.close()
-            except Exception:
-                logger.debug("Failed interrupting RTSP container for %s", self.config.url, exc_info=True)
 
         thread = self._thread
         if thread is not None:
-            thread.join(timeout=max(1.0, self.config.timeout_ms / 1000))
+            # The reader owns the PyAV container for its full lifetime, including close().
+            # PyAV's read timeout interrupts a stalled decode so shutdown never needs to
+            # free FFmpeg state concurrently from this thread.
+            shutdown_timeout_s = max(1.0, self.config.timeout_ms / 1000 + 1.0)
+            thread.join(timeout=shutdown_timeout_s)
             if thread.is_alive():
-                logger.warning("Timed RTSP receiver did not stop promptly for %s", self.config.url)
-            else:
-                self._thread = None
+                logger.warning(
+                    "Timed RTSP receiver exceeded its read-timeout shutdown window for %s; "
+                    "waiting for the reader to release its container",
+                    self.config.url,
+                )
+                thread.join()
+            self._thread = None
         self._frame_ready.clear()
 
 

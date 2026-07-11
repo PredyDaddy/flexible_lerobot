@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import math
 import os
 import socket
@@ -18,34 +19,37 @@ import pytest
 from lerobot.robots.jz_robot_udp import JZRobotUDP, JZRobotUDPConfig
 from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
 from lerobot.robots.jz_robot_udp.protocol import (
+    COMMAND_MESSAGE_TYPE,
     COMMAND_MODE_ARMED,
     COMMAND_MODE_DRY_RUN,
-    COMMAND_MESSAGE_TYPE,
     PROTOCOL_VERSION,
     STATE_MESSAGE_TYPE,
     TARGET_ACTION_MESSAGE_TYPE,
-    decode_target_action_packet,
     decode_jz_robot_udp_command_packet,
     decode_state_packet,
-    encode_target_action_packet,
+    decode_target_action_packet,
     encode_jz_robot_udp_command_packet,
     encode_state_packet,
+    encode_target_action_packet,
     make_jz_robot_udp_command_packet,
     make_jz_robot_udp_target_action_packet,
+    validate_source_timing,
 )
 from lerobot.robots.jz_robot_udp.rtsp_camera import RTSPCamera, configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
+from lerobot.scripts.lerobot_record import _get_teleop_action
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
-from lerobot.scripts.lerobot_record import _get_teleop_action
+from udp_test.test_scripts.x86_side.x86_jz_robot_udp_replay_action_check import action_vector_to_dict
 from udp_test.test_scripts.x86_side.x86_jz_robot_udp_send_action_check import (
     make_observation_delta_action,
     validate_args,
 )
-from udp_test.test_scripts.x86_side.x86_jz_robot_udp_replay_action_check import action_vector_to_dict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ORIN_COMMAND_RECEIVER = REPO_ROOT / "udp_test/test_scripts/arm_side/orin_udp_command_receiver.py"
+SOURCE_TIMING_SCHEMA = REPO_ROOT / "my_devs/jz_robot_pin_timed/schema/source_timing_v1.schema.json"
+SOURCE_TIMING_EXAMPLE = REPO_ROOT / "my_devs/jz_robot_pin_timed/schema/source_timing_v1.example.json"
 
 
 def sample_state_packet(seq: int = 7) -> dict:
@@ -63,6 +67,27 @@ def sample_state_packet(seq: int = 7) -> dict:
             "left": {"width": 0.01, "force": 1.0},
             "right": {"width": 0.02, "force": 2.0},
         },
+    }
+
+
+def sample_source_timing(generation: int = 12) -> dict:
+    source_names = ("left_joints", "right_joints", "left_gripper", "right_gripper")
+    receive_offsets_ms = (0, 2, 5, 9)
+    sources = {}
+    for index, (source_name, offset_ms) in enumerate(zip(source_names, receive_offsets_ms, strict=True)):
+        sources[source_name] = {
+            "generation": generation + index,
+            "recv_wall_ns": 1_783_737_600_000_000_000 + offset_ms * 1_000_000,
+            "recv_monotonic_ns": 123_456_789_000_000 + offset_ms * 1_000_000,
+            "header_stamp_ns": (
+                1_783_737_599_999_000_000 + offset_ms * 1_000_000 if source_name.endswith("joints") else None
+            ),
+            "age_ms": float(9 - offset_ms),
+        }
+    return {
+        "schema_version": 1,
+        "source_skew_ms": 9.0,
+        "sources": sources,
     }
 
 
@@ -154,7 +179,7 @@ def test_rtsp_camera_threaded_reader_drains_to_latest_frame(monkeypatch: pytest.
             self.released = False
             self.options = []
 
-        def isOpened(self) -> bool:
+        def isOpened(self) -> bool:  # noqa: N802 - mirrors the OpenCV API
             return not self.released
 
         def set(self, prop, value) -> None:
@@ -233,6 +258,138 @@ def test_state_packet_round_trip_validates_schema() -> None:
     assert decoded["seq"] == 7
     assert decoded["joints"]["left"]["left_joint1"] == 1.0
     assert decoded["grippers"]["right"]["force"] == 2.0
+    assert "source_timing" not in decoded
+
+
+def test_state_packet_source_timing_round_trip_is_additive() -> None:
+    packet = sample_state_packet()
+    packet["source_timing"] = sample_source_timing()
+
+    decoded = decode_state_packet(encode_state_packet(packet))
+
+    assert decoded["version"] == PROTOCOL_VERSION
+    assert decoded["joints"] == packet["joints"]
+    assert decoded["grippers"] == packet["grippers"]
+    assert decoded["source_timing"] == packet["source_timing"]
+    assert decoded["source_timing"]["sources"]["left_joints"]["header_stamp_ns"] is not None
+    assert decoded["source_timing"]["sources"]["left_gripper"]["header_stamp_ns"] is None
+
+
+def test_source_timing_example_matches_schema_root_and_public_validator() -> None:
+    schema = json.loads(SOURCE_TIMING_SCHEMA.read_text())
+    example = json.loads(SOURCE_TIMING_EXAMPLE.read_text())
+
+    assert set(example) == {"schema_version", "source_skew_ms", "sources"}
+    assert schema["properties"]["schema_version"] == {"type": "integer", "const": 1}
+    validate_source_timing(example)
+
+
+def test_state_packet_calls_source_timing_validator() -> None:
+    packet = sample_state_packet()
+    packet["source_timing"] = sample_source_timing()
+    packet["source_timing"]["schema_version"] = True
+
+    with pytest.raises(ValueError, match="schema_version must be integer 1"):
+        encode_state_packet(packet)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (lambda timing: timing.pop("sources"), "missing=.*sources"),
+        (lambda timing: timing.__setitem__("unexpected", 1), "extra=.*unexpected"),
+        (lambda timing: timing["sources"].pop("right_gripper"), "missing=.*right_gripper"),
+        (lambda timing: timing["sources"].__setitem__("other", {}), "extra=.*other"),
+        (lambda timing: timing["sources"]["left_joints"].pop("age_ms"), "missing=.*age_ms"),
+        (
+            lambda timing: timing["sources"]["left_joints"].__setitem__("unexpected", 1),
+            "extra=.*unexpected",
+        ),
+    ],
+)
+def test_source_timing_rejects_missing_and_extra_fields(mutation, match: str) -> None:
+    source_timing = sample_source_timing()
+    mutation(source_timing)
+
+    with pytest.raises(ValueError, match=match):
+        validate_source_timing(source_timing)
+
+
+@pytest.mark.parametrize("schema_version", [True, False, 1.0, 0, 2])
+def test_source_timing_requires_integer_schema_version_one(schema_version) -> None:
+    source_timing = sample_source_timing()
+    source_timing["schema_version"] = schema_version
+
+    with pytest.raises(ValueError, match="schema_version must be integer 1"):
+        validate_source_timing(source_timing)
+
+
+@pytest.mark.parametrize("value", [True, -0.1, math.nan, math.inf])
+def test_source_timing_rejects_invalid_source_skew(value) -> None:
+    source_timing = sample_source_timing()
+    source_timing["source_skew_ms"] = value
+
+    with pytest.raises(ValueError, match="source_skew_ms"):
+        validate_source_timing(source_timing)
+
+
+@pytest.mark.parametrize(
+    ("source_name", "field", "value"),
+    [
+        ("left_joints", "generation", True),
+        ("left_joints", "generation", 0),
+        ("right_joints", "recv_wall_ns", False),
+        ("right_joints", "recv_wall_ns", -1),
+        ("left_gripper", "recv_monotonic_ns", True),
+        ("left_gripper", "recv_monotonic_ns", -1),
+        ("right_gripper", "age_ms", False),
+        ("right_gripper", "age_ms", -0.1),
+        ("right_gripper", "age_ms", math.nan),
+    ],
+)
+def test_source_timing_rejects_invalid_source_values(source_name: str, field: str, value) -> None:
+    source_timing = sample_source_timing()
+    source_timing["sources"][source_name][field] = value
+
+    with pytest.raises(ValueError, match=field):
+        validate_source_timing(source_timing)
+
+
+@pytest.mark.parametrize(
+    ("source_name", "header_stamp_ns"),
+    [
+        ("left_joints", None),
+        ("left_joints", True),
+        ("right_joints", -1),
+        ("left_gripper", 0),
+        ("right_gripper", False),
+    ],
+)
+def test_source_timing_rejects_header_type_for_source_kind(source_name: str, header_stamp_ns) -> None:
+    source_timing = sample_source_timing()
+    source_timing["sources"][source_name]["header_stamp_ns"] = header_stamp_ns
+
+    with pytest.raises(ValueError, match="header_stamp_ns"):
+        validate_source_timing(source_timing)
+
+
+def test_typical_state_packet_with_source_timing_fits_single_ipv4_udp_payload() -> None:
+    packet = sample_state_packet(seq=1195)
+    packet["stamp_ns"] = 1_783_737_600_123_456_789
+    packet["joints"] = {
+        "left": {f"left_joint{i}": -2.123456789012345 + i * 0.123456789012345 for i in range(1, 8)},
+        "right": {f"right_joint{i}": 2.123456789012345 - i * 0.123456789012345 for i in range(1, 8)},
+    }
+    packet["grippers"] = {
+        "left": {"width": 50.1234567890123, "force": 70.1234567890123},
+        "right": {"width": 49.9876543210987, "force": 69.9876543210987},
+    }
+    packet["source_timing"] = sample_source_timing(generation=1195)
+
+    encoded = encode_state_packet(packet)
+
+    assert len(encoded) <= 1472, f"state packet would require IPv4 fragmentation: {len(encoded)} bytes"
+    assert decode_state_packet(encoded)["source_timing"] == packet["source_timing"]
 
 
 @pytest.mark.parametrize("mode", [COMMAND_MODE_DRY_RUN, COMMAND_MODE_ARMED])
@@ -556,7 +713,7 @@ def test_jz_robot_udp_constant_teleop_matches_robot_action_features() -> None:
     finally:
         teleop.disconnect()
 
-    assert action == {key: 0.0 for key in robot.action_features}
+    assert action == dict.fromkeys(robot.action_features, 0.0)
     assert not teleop.is_connected
 
 

@@ -47,6 +47,7 @@ ENFORCE_CAMERA_STATE_RECEIVE_SKEW="${ENFORCE_CAMERA_STATE_RECEIVE_SKEW:-true}"
 REJECT_REUSED_CAMERA_FRAMES="${REJECT_REUSED_CAMERA_FRAMES:-false}"
 TIMING_LOG_EVERY_N="${TIMING_LOG_EVERY_N:-30}"
 TIMING_SIDECAR="${TIMING_SIDECAR:-true}"
+REQUIRE_STATE_SOURCE_TIMING="${REQUIRE_STATE_SOURCE_TIMING:-false}"
 MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-0.02}"
 MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-0.02}"
 GRIPPER_WIDTH_MIN="${GRIPPER_WIDTH_MIN:-0.0}"
@@ -126,7 +127,9 @@ echo "[timed/record] target_action: udp://${TARGET_ACTION_BIND_IP}:${TARGET_ACTI
   "expected=${TARGET_ACTION_ALLOWED_SENDER_IP} stale_policy=${TARGET_ACTION_STALE_POLICY}"
 echo "[timed/record] receiver=pyav buffer=${CAMERA_BUFFER_SIZE}" \
   "reconnect_ms=${CAMERA_RECONNECT_DELAY_MS} max_receive_skew_ms=${MAX_CAMERA_STATE_RECEIVE_SKEW_MS}"
-echo "[timed/record] timing_sidecar=${TIMING_SIDECAR} dataset_path=meta/timing/episode-*.jsonl"
+echo "[timed/record] timing_sidecar=${TIMING_SIDECAR}" \
+  "require_state_source_timing=${REQUIRE_STATE_SOURCE_TIMING}" \
+  "dataset_path=meta/timing/episode-*.jsonl"
 echo "[timed/record] conda_env=${CONDA_ENV} rtsp_preset=${RTSP_PRESET}"
 
 cd "${REPO_ROOT}"
@@ -155,6 +158,7 @@ exec "${PYTHON_CMD[@]}" -m lerobot.scripts.lerobot_record \
   --robot.reject_reused_camera_frames="${REJECT_REUSED_CAMERA_FRAMES}" \
   --robot.timing_log_every_n="${TIMING_LOG_EVERY_N}" \
   --robot.timing_sidecar="${TIMING_SIDECAR}" \
+  --robot.require_state_source_timing="${REQUIRE_STATE_SOURCE_TIMING}" \
   --robot.rtsp_cameras="${RTSP_CAMERAS}" \
   --teleop.type=jz_robot_pin_target_action \
   --teleop.id=jz_robot_pin_timed_target_action_record \
@@ -180,4 +184,3 @@ exec "${PYTHON_CMD[@]}" -m lerobot.scripts.lerobot_record \
   --display_compressed_images="${DISPLAY_COMPRESSED_IMAGES}" \
   --play_sounds="${PLAY_SOUNDS}" \
   --resume="${RESUME}"
-

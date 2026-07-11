@@ -12,6 +12,7 @@ from typing import Any, TextIO
 from lerobot.processor import RobotAction, RobotObservation
 from lerobot.robots.jz_robot_pin.jz_robot_pin import JZRobotPin
 from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
+from lerobot.robots.jz_robot_udp.protocol import ProtocolError, validate_source_timing
 from lerobot.robots.jz_robot_udp.state_cache import CachedState
 
 from .config_jz_robot_pin_timed import JZRobotPinTimedConfig
@@ -81,6 +82,14 @@ class JZRobotPinTimed(JZRobotPin):
 
     def _after_observation(self, state: CachedState, observation: RobotObservation) -> None:
         del observation
+        source_timing = state.packet.get("source_timing")
+        if self.config.require_state_source_timing:
+            try:
+                validate_source_timing(source_timing)
+            except ProtocolError as exc:
+                raise RuntimeError(
+                    "Timed state packet must contain valid source_timing v1 before control"
+                ) from exc
         observation_sequence = self._observation_sequence + 1
         state_receive_monotonic_ns = int(state.received_monotonic_s * 1_000_000_000)
         cameras: dict[str, dict[str, Any]] = {}
@@ -94,9 +103,7 @@ class JZRobotPinTimed(JZRobotPin):
             decoder_sequence = int(timing["decoder_sequence"])
             reused = self._last_camera_sequences.get(key) == decoder_sequence
             camera_sequences[key] = decoder_sequence
-            receive_delta_ms = (
-                int(timing["receive_monotonic_ns"]) - state_receive_monotonic_ns
-            ) / 1_000_000
+            receive_delta_ms = (int(timing["receive_monotonic_ns"]) - state_receive_monotonic_ns) / 1_000_000
             receive_skew_ms = abs(receive_delta_ms)
             timing.update(
                 {
@@ -119,15 +126,18 @@ class JZRobotPinTimed(JZRobotPin):
 
         self._observation_sequence = observation_sequence
         self._last_camera_sequences.update(camera_sequences)
+        state_timing = {
+            "packet_seq": state.packet["seq"],
+            "packet_stamp_ns": state.packet["stamp_ns"],
+            "receive_wall_ns": state.received_wall_ns,
+            "receive_monotonic_ns": state_receive_monotonic_ns,
+        }
+        if "source_timing" in state.packet:
+            state_timing["source_timing"] = copy.deepcopy(source_timing)
         self._last_observation_timing = {
             "session_id": self._timing_session_id,
             "observation_sequence": observation_sequence,
-            "state": {
-                "packet_seq": state.packet["seq"],
-                "packet_stamp_ns": state.packet["stamp_ns"],
-                "receive_wall_ns": state.received_wall_ns,
-                "receive_monotonic_ns": state_receive_monotonic_ns,
-            },
+            "state": state_timing,
             "cameras": cameras,
         }
 

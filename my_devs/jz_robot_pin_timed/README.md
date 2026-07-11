@@ -74,6 +74,10 @@ bash my_devs/jz_robot_pin_timed/data_check/record_and_check_3.sh
 都设为 `10.0 rad`；通用 `record.sh` 仍保留保守的 `0.02 rad` 默认值。手动使用 `record.sh`
 新建数据时必须设置 `RESUME=false`；只有继续写同一个已存在的数据集时才使用 `RESUME=true`，
 且 codec/CRF 必须与 `meta/info.json` 一致；每个续录进程会生成新的 timing `session_id`。
+正式三条检查要求 Orin timed bridge 在每个 state packet 中提供完整且合法的 `source_timing v1`；
+recorder 会在第一条 command 之前校验它，并在录制后复核四源 50 ms age、20 ms skew、generation、
+接收时间和非零关节 header 的推进关系。因此 Orin 与 X86 修复必须成对部署，旧 bridge 不能通过
+这条面向训练数据的正式检查。
 
 时序记录位于：
 

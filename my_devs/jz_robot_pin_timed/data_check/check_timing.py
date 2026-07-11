@@ -14,11 +14,17 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from lerobot.robots.jz_robot_udp.protocol import (
+    STATE_SOURCE_NAMES,
+    ProtocolError,
+    validate_source_timing,
+)
 
 EXPECTED_CAMERAS = ("camera_head", "camera_left", "camera_right")
 TIMING_FILE_RE = re.compile(r"episode-(\d{6})\.jsonl")
 SESSION_ID_RE = re.compile(r"[0-9a-f]{32}")
 CAMERA_TIMESTAMP_STAGE = "decoder_output_before_pixel_conversion"
+SOURCE_SNAPSHOT_TOLERANCE_NS = 1.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,6 +56,32 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow action timing records produced by stale_policy=hold_current.",
     )
+    parser.add_argument(
+        "--require-source-timing",
+        action="store_true",
+        help="Require every dataset frame to contain a valid state.source_timing v1 object.",
+    )
+    parser.add_argument(
+        "--max-source-age-ms",
+        type=float,
+        default=50.0,
+        help="Maximum allowed age_ms for each of the four Orin state sources.",
+    )
+    parser.add_argument(
+        "--max-source-skew-ms",
+        type=float,
+        default=20.0,
+        help="Maximum allowed receive-time skew across the four Orin state sources.",
+    )
+    parser.add_argument(
+        "--max-state-reuse-fraction",
+        type=float,
+        default=None,
+        help=(
+            "Optional hard limit for repeated state packet transitions within X86 sessions. "
+            "By default state reuse is reported but does not fail."
+        ),
+    )
     parser.add_argument("--report-json", type=Path, default=None)
     return parser.parse_args()
 
@@ -75,9 +107,7 @@ def is_finite_number(value: Any) -> bool:
         return False
 
 
-def require_integer(
-    mapping: dict[str, Any], key: str, location: str, report: dict[str, Any]
-) -> int | None:
+def require_integer(mapping: dict[str, Any], key: str, location: str, report: dict[str, Any]) -> int | None:
     value = mapping.get(key)
     if not is_integer(value):
         add_error(report, f"{location}.{key} must be an integer, got {value!r}")
@@ -127,6 +157,63 @@ def number_stats(values: list[float]) -> dict[str, float | int | None]:
         "p95": float(np.quantile(array, 0.95)),
         "max": float(array.max()),
     }
+
+
+def source_timing_is_valid(source_timing: Any) -> bool:
+    try:
+        validate_source_timing(source_timing)
+    except ProtocolError:
+        return False
+    return True
+
+
+def validate_source_timing_details(
+    source_timing: Any,
+    location: str,
+    args: argparse.Namespace,
+    report: dict[str, Any],
+) -> bool:
+    try:
+        validate_source_timing(source_timing)
+    except ProtocolError as exc:
+        add_error(report, f"{location} is not valid source_timing v1: {exc}")
+        return False
+
+    sources = source_timing["sources"]
+    receive_monotonic_ns = [int(sources[name]["recv_monotonic_ns"]) for name in STATE_SOURCE_NAMES]
+    computed_skew_ms = (max(receive_monotonic_ns) - min(receive_monotonic_ns)) / 1_000_000
+    recorded_skew_ms = float(source_timing["source_skew_ms"])
+    if not math.isclose(recorded_skew_ms, computed_skew_ms, rel_tol=0.0, abs_tol=1e-6):
+        add_error(
+            report,
+            f"{location}.source_skew_ms={recorded_skew_ms} does not match source receive "
+            f"timestamps ({computed_skew_ms} ms; tolerance=1 ns)",
+        )
+    if recorded_skew_ms > args.max_source_skew_ms:
+        add_error(
+            report,
+            f"{location}.source_skew_ms={recorded_skew_ms} exceeds {args.max_source_skew_ms} ms",
+        )
+
+    inferred_snapshot_ns: list[int] = []
+    for source_name in STATE_SOURCE_NAMES:
+        source = sources[source_name]
+        age_ms = float(source["age_ms"])
+        if age_ms > args.max_source_age_ms:
+            add_error(
+                report,
+                f"{location}.sources.{source_name}.age_ms={age_ms} exceeds {args.max_source_age_ms} ms",
+            )
+        inferred_snapshot_ns.append(int(source["recv_monotonic_ns"]) + round(age_ms * 1_000_000))
+
+    snapshot_spread_ns = max(inferred_snapshot_ns) - min(inferred_snapshot_ns)
+    if snapshot_spread_ns > SOURCE_SNAPSHOT_TOLERANCE_NS:
+        add_error(
+            report,
+            f"{location} sources imply different snapshot times: spread={snapshot_spread_ns} ns "
+            f"exceeds {SOURCE_SNAPSHOT_TOLERANCE_NS} ns",
+        )
+    return True
 
 
 def sequence_stats(values: list[int]) -> dict[str, int | None]:
@@ -192,9 +279,7 @@ def read_dataset_frame_keys(root: Path, report: dict[str, Any]) -> list[tuple[in
     return sorted(keys)
 
 
-def read_timing_records(
-    root: Path, report: dict[str, Any]
-) -> dict[tuple[int, int], dict[str, Any]]:
+def read_timing_records(root: Path, report: dict[str, Any]) -> dict[tuple[int, int], dict[str, Any]]:
     timing_dir = root / "meta" / "timing"
     if not timing_dir.is_dir():
         add_error(report, f"missing timing sidecar directory: {timing_dir}")
@@ -278,18 +363,12 @@ def validate_camera_timing(
     if "decoder_pts_ns" in camera and decoder_pts_ns is not None and not is_integer(decoder_pts_ns):
         add_error(report, f"{location}.decoder_pts_ns must be an integer or null")
     require_nonnegative_integer(camera, "receive_wall_ns", location, report)
-    camera_receive_ns = require_nonnegative_integer(
-        camera, "receive_monotonic_ns", location, report
-    )
+    camera_receive_ns = require_nonnegative_integer(camera, "receive_monotonic_ns", location, report)
     require_nonnegative_integer(camera, "decoder_sequence", location, report)
     require_nonnegative_integer(camera, "reconnect_generation", location, report)
     require_nonnegative_number(camera, "age_ms", location, report)
-    recorded_delta_ms = require_finite_number(
-        camera, "state_receive_delta_ms", location, report
-    )
-    recorded_skew_ms = require_nonnegative_number(
-        camera, "state_receive_skew_ms", location, report
-    )
+    recorded_delta_ms = require_finite_number(camera, "state_receive_delta_ms", location, report)
+    recorded_skew_ms = require_nonnegative_number(camera, "state_receive_skew_ms", location, report)
     if not isinstance(camera.get("reused_by_observation_loop"), bool):
         add_error(report, f"{location}.reused_by_observation_loop must be boolean")
     if camera_receive_ns is not None and state_receive_ns is not None:
@@ -361,15 +440,11 @@ def validate_command_timing(
         )
     require_nonnegative_integer(command, "packet_seq", command_location, report)
     require_nonnegative_integer(command, "packet_stamp_ns", command_location, report)
-    send_wall_ns = require_nonnegative_integer(
-        command, "send_completed_wall_ns", command_location, report
-    )
+    send_wall_ns = require_nonnegative_integer(command, "send_completed_wall_ns", command_location, report)
     send_monotonic_ns = require_nonnegative_integer(
         command, "send_completed_monotonic_ns", command_location, report
     )
-    action_key_count = require_nonnegative_integer(
-        command, "action_key_count", command_location, report
-    )
+    action_key_count = require_nonnegative_integer(command, "action_key_count", command_location, report)
     if action_key_count is not None and action_key_count != args.expected_action_key_count:
         add_error(
             report,
@@ -379,8 +454,7 @@ def validate_command_timing(
     if command.get("mode") != args.expected_command_mode:
         add_error(
             report,
-            f"{command_location}.mode must be {args.expected_command_mode!r}, "
-            f"got {command.get('mode')!r}",
+            f"{command_location}.mode must be {args.expected_command_mode!r}, got {command.get('mode')!r}",
         )
     if command.get("transport") != args.expected_command_transport:
         add_error(
@@ -391,19 +465,28 @@ def validate_command_timing(
 
     tolerance_ns = 1_000
     packet_stamp_ns = command.get("packet_stamp_ns")
-    if send_wall_ns is not None and is_integer(packet_stamp_ns):
-        if send_wall_ns - int(packet_stamp_ns) < -tolerance_ns:
-            add_error(report, f"{command_location} completed before its packet wall timestamp")
+    if (
+        send_wall_ns is not None
+        and is_integer(packet_stamp_ns)
+        and send_wall_ns - int(packet_stamp_ns) < -tolerance_ns
+    ):
+        add_error(report, f"{command_location} completed before its packet wall timestamp")
     action = record.get("action")
     action_receive_ns = action.get("receive_monotonic_ns") if isinstance(action, dict) else None
-    if send_monotonic_ns is not None and is_integer(action_receive_ns):
-        if send_monotonic_ns - int(action_receive_ns) < -tolerance_ns:
-            add_error(report, f"{command_location} completed before target action receipt")
+    if (
+        send_monotonic_ns is not None
+        and is_integer(action_receive_ns)
+        and send_monotonic_ns - int(action_receive_ns) < -tolerance_ns
+    ):
+        add_error(report, f"{command_location} completed before target action receipt")
     state = record.get("state")
     state_receive_ns = state.get("receive_monotonic_ns") if isinstance(state, dict) else None
-    if send_monotonic_ns is not None and is_integer(state_receive_ns):
-        if send_monotonic_ns - int(state_receive_ns) < -tolerance_ns:
-            add_error(report, f"{command_location} completed before state receipt")
+    if (
+        send_monotonic_ns is not None
+        and is_integer(state_receive_ns)
+        and send_monotonic_ns - int(state_receive_ns) < -tolerance_ns
+    ):
+        add_error(report, f"{command_location} completed before state receipt")
 
 
 def validate_record(
@@ -429,6 +512,13 @@ def validate_record(
         state_receive_ns = require_nonnegative_integer(
             state, "receive_monotonic_ns", f"{location}.state", report
         )
+        if "source_timing" in state:
+            validate_source_timing_details(
+                state["source_timing"],
+                f"{location}.state.source_timing",
+                args,
+                report,
+            )
 
     cameras = record.get("cameras")
     if not isinstance(cameras, dict):
@@ -455,6 +545,204 @@ def validate_record(
             )
     validate_action_timing(record.get("action"), location, args.allow_hold_current, report)
     validate_command_timing(record.get("command"), record, location, args, report)
+
+
+def summarize_state_timing(
+    records: list[dict[str, Any]], args: argparse.Namespace, report: dict[str, Any]
+) -> None:
+    state_sequences: list[int] = []
+    source_timing_present_frames = 0
+    source_timing_object_frames = 0
+    source_timing_valid_frames = 0
+    source_skews_ms: list[float] = []
+    snapshot_spreads_ns: list[float] = []
+    source_ages_ms: dict[str, list[float]] = {name: [] for name in STATE_SOURCE_NAMES}
+    joint_zero_header_counts: Counter[str] = Counter()
+
+    session_state_sequences: dict[str, list[int]] = {}
+    session_transition_counts: Counter[str] = Counter()
+    session_reuse_counts: Counter[str] = Counter()
+    previous_session_id: str | None = None
+    previous_state: dict[str, Any] | None = None
+    last_nonzero_joint_headers: dict[str, int] = {}
+
+    for record in records:
+        session_id = record.get("session_id")
+        state = record.get("state")
+        if not isinstance(state, dict):
+            previous_session_id = session_id if isinstance(session_id, str) else None
+            previous_state = None
+            continue
+
+        packet_seq = state.get("packet_seq")
+        if is_integer(packet_seq):
+            state_sequences.append(int(packet_seq))
+            if isinstance(session_id, str):
+                session_state_sequences.setdefault(session_id, []).append(int(packet_seq))
+
+        source_timing = state.get("source_timing")
+        if "source_timing" in state:
+            source_timing_present_frames += 1
+            source_timing_object_frames += isinstance(source_timing, dict)
+            if source_timing_is_valid(source_timing):
+                source_timing_valid_frames += 1
+                sources = source_timing["sources"]
+                source_skews_ms.append(float(source_timing["source_skew_ms"]))
+                snapshot_values = []
+                for source_name in STATE_SOURCE_NAMES:
+                    source = sources[source_name]
+                    source_ages_ms[source_name].append(float(source["age_ms"]))
+                    snapshot_values.append(
+                        int(source["recv_monotonic_ns"]) + round(float(source["age_ms"]) * 1_000_000)
+                    )
+                    if source_name.endswith("_joints") and source["header_stamp_ns"] == 0:
+                        joint_zero_header_counts[source_name] += 1
+                snapshot_spreads_ns.append(max(snapshot_values) - min(snapshot_values))
+
+        same_session = isinstance(session_id, str) and session_id == previous_session_id
+        if not same_session:
+            last_nonzero_joint_headers.clear()
+            if source_timing_is_valid(source_timing):
+                for source_name in STATE_SOURCE_NAMES:
+                    if not source_name.endswith("_joints"):
+                        continue
+                    header_stamp_ns = source_timing["sources"][source_name]["header_stamp_ns"]
+                    if header_stamp_ns != 0:
+                        last_nonzero_joint_headers[source_name] = header_stamp_ns
+        if same_session and previous_state is not None:
+            previous_seq = previous_state.get("packet_seq")
+            if is_integer(previous_seq) and is_integer(packet_seq):
+                session_transition_counts[session_id] += 1
+                previous_seq_int = int(previous_seq)
+                packet_seq_int = int(packet_seq)
+                location = f"timing[{record.get('episode_index')},{record.get('frame_index')}].state"
+                if packet_seq_int < previous_seq_int:
+                    add_error(
+                        report,
+                        f"{location}.packet_seq regressed within session {session_id}: "
+                        f"{previous_seq_int} -> {packet_seq_int}",
+                    )
+                elif packet_seq_int == previous_seq_int:
+                    session_reuse_counts[session_id] += 1
+                    if state.get("packet_stamp_ns") != previous_state.get("packet_stamp_ns"):
+                        add_error(
+                            report,
+                            f"{location} reused packet_seq={packet_seq_int} but packet_stamp_ns changed",
+                        )
+                    if state.get("source_timing") != previous_state.get("source_timing"):
+                        add_error(
+                            report,
+                            f"{location} reused packet_seq={packet_seq_int} but source_timing changed",
+                        )
+                else:
+                    previous_source_timing = previous_state.get("source_timing")
+                    if source_timing_is_valid(previous_source_timing) and source_timing_is_valid(
+                        source_timing
+                    ):
+                        previous_sources = previous_source_timing["sources"]
+                        current_sources = source_timing["sources"]
+                        for source_name in STATE_SOURCE_NAMES:
+                            previous_source = previous_sources[source_name]
+                            current_source = current_sources[source_name]
+                            if current_source["generation"] <= previous_source["generation"]:
+                                add_error(
+                                    report,
+                                    f"{location}.source_timing.sources.{source_name}.generation "
+                                    f"did not strictly advance for packet_seq "
+                                    f"{previous_seq_int} -> {packet_seq_int}",
+                                )
+                            if current_source["recv_monotonic_ns"] <= previous_source["recv_monotonic_ns"]:
+                                add_error(
+                                    report,
+                                    f"{location}.source_timing.sources.{source_name}.recv_monotonic_ns "
+                                    f"did not strictly advance for packet_seq "
+                                    f"{previous_seq_int} -> {packet_seq_int}",
+                                )
+                            if source_name.endswith("_joints"):
+                                current_header = current_source["header_stamp_ns"]
+                                previous_nonzero_header = last_nonzero_joint_headers.get(source_name)
+                                if (
+                                    current_header != 0
+                                    and previous_nonzero_header is not None
+                                    and current_header <= previous_nonzero_header
+                                ):
+                                    add_error(
+                                        report,
+                                        f"{location}.source_timing.sources.{source_name}.header_stamp_ns "
+                                        f"did not strictly advance: "
+                                        f"{previous_nonzero_header} -> {current_header}",
+                                    )
+                                if current_header != 0:
+                                    last_nonzero_joint_headers[source_name] = current_header
+
+        previous_session_id = session_id if isinstance(session_id, str) else None
+        previous_state = state
+
+    transition_count = sum(session_transition_counts.values())
+    reuse_count = sum(session_reuse_counts.values())
+    reuse_fraction = reuse_count / transition_count if transition_count else None
+    state_packet_report = sequence_stats(state_sequences)
+    state_packet_report.update(
+        {
+            "transition_count": transition_count,
+            "reused_transitions": reuse_count,
+            "reuse_fraction": reuse_fraction,
+            "sessions": {
+                session_id: {
+                    **sequence_stats(sequences),
+                    "transition_count": session_transition_counts[session_id],
+                    "reused_transitions": session_reuse_counts[session_id],
+                    "reuse_fraction": (
+                        session_reuse_counts[session_id] / session_transition_counts[session_id]
+                        if session_transition_counts[session_id]
+                        else None
+                    ),
+                }
+                for session_id, sequences in session_state_sequences.items()
+            },
+        }
+    )
+    report["state_packets"] = state_packet_report
+    if (
+        args.max_state_reuse_fraction is not None
+        and reuse_fraction is not None
+        and reuse_fraction > args.max_state_reuse_fraction
+    ):
+        add_error(
+            report,
+            f"state packet reuse fraction {reuse_fraction:.6f} exceeds {args.max_state_reuse_fraction:.6f}",
+        )
+
+    report["state_source_timing"] = {
+        "present_frames": source_timing_present_frames,
+        "missing_frames": len(records) - source_timing_present_frames,
+        "presence_fraction": source_timing_present_frames / len(records) if records else None,
+        "object_frames": source_timing_object_frames,
+        "valid_frames": source_timing_valid_frames,
+        "invalid_frames": source_timing_present_frames - source_timing_valid_frames,
+        "source_skew_ms": number_stats(source_skews_ms),
+        "inferred_snapshot_spread_ns": number_stats(snapshot_spreads_ns),
+        "sources": {},
+    }
+    for source_name in STATE_SOURCE_NAMES:
+        source_report: dict[str, Any] = {"age_ms": number_stats(source_ages_ms[source_name])}
+        if source_name.endswith("_joints"):
+            zero_count = joint_zero_header_counts[source_name]
+            source_report.update(
+                {
+                    "zero_header_stamp_frames": zero_count,
+                    "zero_header_stamp_fraction": (
+                        zero_count / source_timing_valid_frames if source_timing_valid_frames else None
+                    ),
+                }
+            )
+            if zero_count:
+                add_warning(
+                    report,
+                    f"state source {source_name} has header_stamp_ns=0 in {zero_count}/"
+                    f"{source_timing_valid_frames} valid source_timing frames",
+                )
+        report["state_source_timing"]["sources"][source_name] = source_report
 
 
 def summarize_records(
@@ -502,12 +790,7 @@ def summarize_records(
         "sessions": session_reports,
     }
 
-    state_sequences: list[int] = []
-    for record in records:
-        state = record.get("state")
-        if isinstance(state, dict) and is_integer(state.get("packet_seq")):
-            state_sequences.append(int(state["packet_seq"]))
-    report["state_packets"] = sequence_stats(state_sequences)
+    summarize_state_timing(records, args, report)
 
     camera_report: dict[str, Any] = {}
     pts_forward_jump_threshold_ms = (
@@ -557,7 +840,7 @@ def summarize_records(
         sample_count = camera_record_count
         reuse_fraction = reused_count / sample_count if sample_count else None
         pts_by_generation: dict[str, Any] = {}
-        for generation in sorted(set(item[1] for item in pts_samples)):
+        for generation in sorted({item[1] for item in pts_samples}):
             intervals_ms = [
                 (current_pts - previous_pts) / 1_000_000
                 for (
@@ -615,21 +898,22 @@ def summarize_records(
                 f"{camera_key} reused {reused_count}/{sample_count} observation frames "
                 f"({reuse_fraction:.2%})",
             )
-        if args.max_reuse_fraction is not None and reuse_fraction is not None:
-            if reuse_fraction > args.max_reuse_fraction:
-                add_error(
-                    report,
-                    f"{camera_key} reuse fraction {reuse_fraction:.2%} exceeds "
-                    f"{args.max_reuse_fraction:.2%}",
-                )
+        if (
+            args.max_reuse_fraction is not None
+            and reuse_fraction is not None
+            and reuse_fraction > args.max_reuse_fraction
+        ):
+            add_error(
+                report,
+                f"{camera_key} reuse fraction {reuse_fraction:.2%} exceeds {args.max_reuse_fraction:.2%}",
+            )
         if missing_pts_count:
             add_warning(
                 report,
                 f"{camera_key} has {missing_pts_count}/{sample_count} frames without decoder PTS",
             )
         non_advancing_pts = sum(
-            generation_stats["non_advancing_transitions"]
-            for generation_stats in pts_by_generation.values()
+            generation_stats["non_advancing_transitions"] for generation_stats in pts_by_generation.values()
         )
         if non_advancing_pts:
             add_warning(
@@ -703,9 +987,7 @@ def summarize_records(
                 max(0.0, (int(send_monotonic_ns) - int(state["receive_monotonic_ns"])) / 1_000_000)
             )
         if is_integer(packet_stamp_ns) and is_integer(send_wall_ns):
-            packet_stamp_to_send_ms.append(
-                max(0.0, (int(send_wall_ns) - int(packet_stamp_ns)) / 1_000_000)
-            )
+            packet_stamp_to_send_ms.append(max(0.0, (int(send_wall_ns) - int(packet_stamp_ns)) / 1_000_000))
     report["commands"] = {
         "sequence": sequence_stats(command_sequences),
         "mode_counts": dict(sorted(command_modes.items())),
@@ -736,6 +1018,10 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
             "max_camera_state_skew_ms": args.max_camera_state_skew_ms,
             "max_reuse_fraction": args.max_reuse_fraction,
             "allow_hold_current": args.allow_hold_current,
+            "require_source_timing": getattr(args, "require_source_timing", False),
+            "max_source_age_ms": args.max_source_age_ms,
+            "max_source_skew_ms": args.max_source_skew_ms,
+            "max_state_reuse_fraction": args.max_state_reuse_fraction,
         },
     }
     if (
@@ -753,6 +1039,17 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         add_error(report, "expected_action_key_count must be positive")
     if args.max_reuse_fraction is not None and not 0 <= args.max_reuse_fraction <= 1:
         add_error(report, "max_reuse_fraction must be between 0 and 1")
+    if (
+        not math.isfinite(args.max_source_age_ms)
+        or not math.isfinite(args.max_source_skew_ms)
+        or args.max_source_age_ms < 0
+        or args.max_source_skew_ms < 0
+    ):
+        add_error(report, "source age/skew thresholds must be non-negative")
+    if args.max_state_reuse_fraction is not None and (
+        not math.isfinite(args.max_state_reuse_fraction) or not 0 <= args.max_state_reuse_fraction <= 1
+    ):
+        add_error(report, "max_state_reuse_fraction must be finite and between 0 and 1")
     if len(set(args.expected_cameras)) != len(args.expected_cameras):
         add_error(report, "expected camera names must be unique")
 
@@ -816,6 +1113,17 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
     for record in ordered_records:
         validate_record(record, args.expected_cameras, args, report)
     summarize_records(ordered_records, args.expected_cameras, args, report)
+    source_timing = report.get("state_source_timing", {})
+    if getattr(args, "require_source_timing", False) and source_timing.get("valid_frames") != len(
+        ordered_records
+    ):
+        add_error(
+            report,
+            "a valid state.source_timing v1 object is required for every frame: "
+            f"present={source_timing.get('present_frames', 0)} "
+            f"valid={source_timing.get('valid_frames', 0)} "
+            f"expected={len(ordered_records)}",
+        )
     report["status"] = "PASS" if not report["errors"] else "FAIL"
     return report
 
@@ -837,17 +1145,31 @@ def main() -> int:
         f"timing_frames={report.get('timing_frames', 0)} "
         f"video_encoding={report.get('video_encoding')}"
     )
+    state_source_timing = report.get("state_source_timing")
+    if state_source_timing:
+        print(
+            f"state_source_timing_present={state_source_timing['present_frames']}/"
+            f"{report.get('timing_frames', 0)} "
+            f"presence_fraction={state_source_timing['presence_fraction']} "
+            f"valid_frames={state_source_timing['valid_frames']} "
+            f"invalid_frames={state_source_timing['invalid_frames']} "
+            f"source_skew_max_ms={state_source_timing['source_skew_ms']['max']}"
+        )
+    state_packets = report.get("state_packets")
+    if state_packets:
+        print(
+            f"state_sequence_first={state_packets['first']} state_sequence_last={state_packets['last']} "
+            f"state_reused_transitions={state_packets['reused_transitions']}/"
+            f"{state_packets['transition_count']} "
+            f"state_reuse_fraction={state_packets['reuse_fraction']}"
+        )
     for camera_key, camera in report.get("cameras", {}).items():
         age = camera["age_ms"]
         delta = camera["state_receive_delta_ms"]
         skew = camera["state_receive_skew_ms"]
         pts_generations = camera["decoder_pts"]["by_reconnect_generation"]
-        pts_non_advancing = sum(
-            item["non_advancing_transitions"] for item in pts_generations.values()
-        )
-        pts_forward_jumps = sum(
-            item["forward_jump_transitions"] for item in pts_generations.values()
-        )
+        pts_non_advancing = sum(item["non_advancing_transitions"] for item in pts_generations.values())
+        pts_forward_jumps = sum(item["forward_jump_transitions"] for item in pts_generations.values())
         print(
             f"camera={camera_key} age_p95_ms={age['p95']} age_max_ms={age['max']} "
             f"delta_p50_ms={delta['p50']} delta_p95_ms={delta['p95']} "
