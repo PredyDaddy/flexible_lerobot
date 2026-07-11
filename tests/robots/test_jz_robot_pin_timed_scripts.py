@@ -67,6 +67,8 @@ def test_three_episode_wrapper_records_timed_data_then_runs_both_checks() -> Non
     assert 'VIDEO_CRF="${VIDEO_CRF}"' in script
     assert 'MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-10.0}"' in script
     assert 'MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-10.0}"' in script
+    assert 'MAX_LAG_P95_RAD="${MAX_LAG_P95_RAD:-0.05}"' in script
+    assert '--max-lag-p95-rad "${MAX_LAG_P95_RAD}"' in script
     assert '"${SCRIPT_DIR}/check_3_episodes.py"' in script
     assert '"${SCRIPT_DIR}/check_timing.py"' in script
 

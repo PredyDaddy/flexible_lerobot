@@ -19,6 +19,7 @@ VCODEC="${VCODEC:-h264}"
 VIDEO_CRF="${VIDEO_CRF:-18}"
 MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-10.0}"
 MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-10.0}"
+MAX_LAG_P95_RAD="${MAX_LAG_P95_RAD:-0.05}"
 MAX_TIMING_CAMERA_AGE_MS="${MAX_TIMING_CAMERA_AGE_MS:-${RTSP_STALE_FRAME_TIMEOUT_MS:-1000.0}}"
 DEFAULT_TIMING_CAMERA_STATE_SKEW_MS="${MAX_CAMERA_STATE_RECEIVE_SKEW_MS:-100.0}"
 MAX_TIMING_CAMERA_STATE_SKEW_MS="${MAX_TIMING_CAMERA_STATE_SKEW_MS:-${DEFAULT_TIMING_CAMERA_STATE_SKEW_MS}}"
@@ -37,6 +38,7 @@ echo "[timed/record_and_check_3] episode_time_s=${EPISODE_TIME_S}" \
   "reset_time_s=${RESET_TIME_S} fps=${RECORD_FPS} video=${VCODEC}/crf${VIDEO_CRF}"
 echo "[timed/record_and_check_3] joint delta guards: initial=${MAX_INITIAL_JOINT_DELTA_RAD}rad" \
   "step=${MAX_JOINT_STEP_RAD}rad"
+echo "[timed/record_and_check_3] action follow threshold: best_lag_p95=${MAX_LAG_P95_RAD}rad"
 echo "[timed/record_and_check_3] source timing: required on every recorded frame" \
   "max_age=${MAX_TIMING_SOURCE_AGE_MS}ms max_skew=${MAX_TIMING_SOURCE_SKEW_MS}ms"
 echo "[timed/record_and_check_3] start the pin joystick publisher before this command" \
@@ -80,6 +82,7 @@ echo "[timed/record_and_check_3] recording completed; validating data and timing
   --expected-fps "${RECORD_FPS}" \
   --max-initial-joint-delta-rad "${MAX_INITIAL_JOINT_DELTA_RAD}" \
   --max-action-joint-step-rad "${MAX_JOINT_STEP_RAD}" \
+  --max-lag-p95-rad "${MAX_LAG_P95_RAD}" \
   --report-json "${DATA_REPORT_JSON}"
 
 TIMING_CHECK_ARGS=(

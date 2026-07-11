@@ -48,6 +48,9 @@ bash my_devs/jz_robot_pin_timed/data_check/record_and_check_3.sh
 <dataset_root>/timing_check_report.json
 ```
 
+Timed 三条流程的最佳 lag P95 默认上限为 `0.05 rad`，可通过 `MAX_LAG_P95_RAD` 显式覆盖；
+MAE、18 维 schema、视频和 source timing 检查不受该参数影响。
+
 ## 只检查已有数据
 
 完整数据检查：
