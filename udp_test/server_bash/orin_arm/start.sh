@@ -14,7 +14,7 @@ JZ_STATE_HZ_PROFILE="${JZ_STATE_HZ_PROFILE:-legacy}"
 JZ_EXPECTED_STATE_HZ="${JZ_EXPECTED_STATE_HZ:-${STATE_HZ}}"
 JZ_TIMED_NON_30_STATE_HZ_CONFIRM="${JZ_TIMED_NON_30_STATE_HZ_CONFIRM:-}"
 STATE_WAIT_TIMEOUT_S="${STATE_WAIT_TIMEOUT_S:-15}"
-STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-10}"
+STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-30}"
 STATE_PRINT_EVERY="${STATE_PRINT_EVERY:-30}"
 MAX_SOURCE_AGE_MS="${MAX_SOURCE_AGE_MS:-50}"
 MAX_SOURCE_SKEW_MS="${MAX_SOURCE_SKEW_MS:-20}"
@@ -69,18 +69,10 @@ read_bridge_hz() {
   local pid="$1"
   local -a argv=()
   local index
-  local found_bridge=false
   mapfile -d '' -t argv < "/proc/$pid/cmdline" 2>/dev/null || return 1
-  [[ "${#argv[@]}" -gt 0 && "$(basename "${argv[0]}")" == python* ]] || return 1
-  for ((index = 1; index < ${#argv[@]}; index++)); do
-    if [[ "${argv[index - 1]##*/}" == python* ]] && \
-       [[ "${argv[index]}" == "$BRIDGE_SCRIPT" || "${argv[index]}" == */"$BRIDGE_SCRIPT" ]]; then
-      found_bridge=true
-      break
-    fi
-  done
-  [[ "$found_bridge" == "true" ]] || return 1
-  for ((index = 0; index < ${#argv[@]}; index++)); do
+  [[ "${#argv[@]}" -gt 1 && "$(basename "${argv[0]}")" == python* ]] || return 1
+  [[ "${argv[1]}" == "$BRIDGE_SCRIPT" || "${argv[1]}" == */"$BRIDGE_SCRIPT" ]] || return 1
+  for ((index = 2; index < ${#argv[@]}; index++)); do
     if [[ "${argv[index]}" == "--hz" && $((index + 1)) -lt ${#argv[@]} ]]; then
       printf '%s\n' "${argv[index + 1]}"
       return 0
@@ -113,7 +105,7 @@ find_bridge_process() {
       printf '%s %s\n' "$candidate" "$configured_hz"
       return 0
     fi
-  done < <(printf '%s\n' "$launcher_pid"; descendant_pids "$launcher_pid")
+  done < <(descendant_pids "$launcher_pid"; printf '%s\n' "$launcher_pid")
   return 1
 }
 

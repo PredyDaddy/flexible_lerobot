@@ -8,6 +8,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,10 @@ def test_replay_scripts_manage_state_bridge_and_armed_phase3_executor() -> None:
         assert f'{variable}="${{{variable}}}" \\' in edge_start
         assert variable in start_replay
     assert 'BRIDGE_START_TIMEOUT_S="${BRIDGE_START_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-30}}"' in start_replay
+    assert (
+        'STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-${BRIDGE_START_TIMEOUT_S}}"'
+        in start_replay
+    )
     assert 'STATE_WAIT_TIMEOUT_S="${STATE_WAIT_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-15}}"' in start_replay
     assert 'STATE_READY_TIMEOUT_S="${STATE_READY_TIMEOUT_S:-${LEGACY_READY_TIMEOUT_S:-20}}"' in start_replay
     assert (
@@ -97,6 +102,7 @@ def test_replay_scripts_manage_state_bridge_and_armed_phase3_executor() -> None:
     assert start_replay.index(local_readiness) < start_replay.index("wait_for_bridge_rate_after 0")
     assert 'JZ_UDP_EXECUTOR_ARMED="${JZ_UDP_EXECUTOR_ARMED:-}"' in start_replay
     assert '--wait-timeout-s "$STATE_WAIT_TIMEOUT_S"' in bridge_start
+    assert 'STATE_PROCESS_START_TIMEOUT_S="${STATE_PROCESS_START_TIMEOUT_S:-30}"' in bridge_start
 
     assert "server_bash/orin_arm/stop_all.sh" in stop_replay
 
@@ -218,6 +224,7 @@ def _make_fake_replay_repo(tmp_path: Path) -> Path:
         PID_DIR="$ROOT_DIR/udp_test/server_bash/orin_arm/pids"
         mkdir -p "$LOG_DIR" "$PID_DIR"
         echo "${STATE_WAIT_TIMEOUT_S:-missing}" > "$ROOT_DIR/captured_state_wait_timeout.txt"
+        echo "${STATE_PROCESS_START_TIMEOUT_S:-missing}" > "$ROOT_DIR/captured_state_process_start_timeout.txt"
         : > "$LOG_DIR/ros_state_udp_bridge.log"
         FAKE_BRIDGE_LOG_FILE="$LOG_DIR/ros_state_udp_bridge.log" \
           "$FAKE_PYTHON" "$ROOT_DIR/udp_test/test_scripts/arm_side/orin_ros_state_udp_bridge.py" \
@@ -359,6 +366,7 @@ def test_replay_readiness_verifies_metadata_argv_log_hz_and_complete_metrics(tmp
     output = result.stdout + result.stderr
     assert result.returncode == 0, output
     assert (root / "captured_state_wait_timeout.txt").read_text().strip() == "7"
+    assert (root / "captured_state_process_start_timeout.txt").read_text().strip() == "3"
     assert "bridge configured hz verified" in output
     assert "configured_hz=30 measured_send_hz=30" in output
     assert output.count("bridge measured rate verified") == 2
@@ -593,6 +601,69 @@ def test_orin_start_verifies_real_python_argv_and_matching_log_hz(tmp_path: Path
     finally:
         if pid_file.exists():
             os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGTERM)
+
+
+def test_orin_start_ignores_conda_python_wrapper_and_records_bridge_child_pid(tmp_path: Path) -> None:
+    root = _make_fake_orin_start_repo(tmp_path)
+    start_script = root / "udp_test/server_bash/orin_arm/start.sh"
+    pid_dir = root / "udp_test/server_bash/orin_arm/pids"
+    pid_file = pid_dir / "ros_state_udp_bridge.pid"
+    wrapper = root / "fake_conda.py"
+    _write_executable(
+        wrapper,
+        """
+        #!/usr/bin/env python3
+        import signal
+        import subprocess
+        import sys
+
+        bridge_index = next(
+            index
+            for index, argument in enumerate(sys.argv[1:], start=1)
+            if argument.endswith("udp_test/test_scripts/arm_side/orin_ros_state_udp_bridge.py")
+        )
+        child = subprocess.Popen([sys.executable, *sys.argv[bridge_index:]])
+
+        def forward(signum, _frame):
+            if child.poll() is None:
+                child.send_signal(signum)
+
+        signal.signal(signal.SIGTERM, forward)
+        signal.signal(signal.SIGINT, forward)
+        raise SystemExit(child.wait())
+        """,
+    )
+    python_cmd = f"{sys.executable} {wrapper} run --no-capture-output -n lerobot python"
+
+    result = subprocess.run(
+        ["bash", str(start_script)],
+        cwd=root,
+        env=_fake_orin_start_env(PYTHON_CMD=python_cmd),
+        text=True,
+        capture_output=True,
+        timeout=8,
+        check=False,
+    )
+    startup_file = pid_dir / "ros_state_udp_bridge.startup"
+    bridge_pid: int | None = None
+    launcher_pid: int | None = None
+    try:
+        output = result.stdout + result.stderr
+        assert result.returncode == 0, output
+        bridge_pid = int(pid_file.read_text(encoding="utf-8"))
+        startup = startup_file.read_text(encoding="utf-8")
+        launcher_match = re.search(r"^launcher_pid=(\d+)$", startup, re.MULTILINE)
+        assert launcher_match is not None
+        launcher_pid = int(launcher_match.group(1))
+        assert bridge_pid != launcher_pid
+        cmdline = (Path("/proc") / str(bridge_pid) / "cmdline").read_bytes().split(b"\0")
+        assert cmdline[1].endswith(b"udp_test/test_scripts/arm_side/orin_ros_state_udp_bridge.py")
+        assert f"verified bridge pid={bridge_pid} launcher_pid={launcher_pid}" in output
+    finally:
+        for pid in (bridge_pid, launcher_pid):
+            if pid is not None:
+                with suppress(ProcessLookupError):
+                    os.kill(pid, signal.SIGTERM)
 
 
 def test_orin_start_rejects_log_hz_mismatch_and_removes_startup_files(tmp_path: Path) -> None:
