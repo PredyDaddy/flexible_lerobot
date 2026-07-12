@@ -92,14 +92,15 @@ def test_direct_camera_shell_scripts_pass_bash_syntax(relative_path: str) -> Non
     subprocess.run(["bash", "-n", str(REPO_ROOT / relative_path)], check=True)
 
 
-def test_start_script_refuses_legacy_camera_owners_and_uses_lerobot_conda() -> None:
+def test_start_script_refuses_legacy_camera_owners_and_allows_camera_free_bringup() -> None:
     script = (
         REPO_ROOT / "my_devs/jz_robot_pin_timed/edge/start_direct_realsense_zmq.sh"
     ).read_text()
 
     assert "robot_camera_node still owns" in script
     assert "camera_bridge_node is still running" in script
-    assert "robot_bringup.service is still active" in script
+    assert "robot_bringup.service active without legacy camera owners; continuing" in script
+    assert "refusing to start: robot_bringup.service" not in script
     assert "conda run --no-capture-output -n lerobot python" in script
     assert "all cameras ready" in script
 

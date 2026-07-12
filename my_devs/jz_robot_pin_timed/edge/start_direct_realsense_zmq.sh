@@ -9,10 +9,6 @@ JPEG_QUALITY="${JZ_DIRECT_CAMERA_JPEG_QUALITY:-95}"
 
 mkdir -p "$RUNTIME_DIR"
 
-if systemctl is-active --quiet robot_bringup.service; then
-  echo "[direct cameras] refusing to start: robot_bringup.service is still active" >&2
-  exit 1
-fi
 if pgrep -f '/robot_camera_node([[:space:]]|$)' >/dev/null; then
   echo "[direct cameras] refusing to start: robot_camera_node still owns the RealSense devices" >&2
   exit 1
@@ -20,6 +16,9 @@ fi
 if pgrep -f '/camera_bridge_node([[:space:]]|$)' >/dev/null; then
   echo "[direct cameras] refusing to start: camera_bridge_node is still running" >&2
   exit 1
+fi
+if systemctl is-active --quiet robot_bringup.service; then
+  echo "[direct cameras] robot_bringup.service active without legacy camera owners; continuing"
 fi
 
 bash "$ROOT_DIR/my_devs/jz_robot_pin_timed/edge/stop_direct_realsense_zmq.sh"
