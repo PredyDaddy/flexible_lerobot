@@ -4,6 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 BASE_SCRIPT="${REPO_ROOT}/my_devs/jz_robot_pin/edge/start_pin_replay.sh"
+CAMERA_START_SCRIPT="${REPO_ROOT}/my_devs/jz_robot_pin_timed/edge/start_direct_realsense_zmq.sh"
+CAMERA_STOP_SCRIPT="${REPO_ROOT}/my_devs/jz_robot_pin_timed/edge/stop_direct_realsense_zmq.sh"
+JZ_DIRECT_CAMERA_JPEG_QUALITY="${JZ_DIRECT_CAMERA_JPEG_QUALITY:-75}"
 STATE_HZ="${STATE_HZ:-30}"
 JZ_TIMED_NON_30_STATE_HZ_CONFIRM="${JZ_TIMED_NON_30_STATE_HZ_CONFIRM:-}"
 MAX_SOURCE_AGE_MS="${MAX_SOURCE_AGE_MS:-50}"
@@ -92,11 +95,19 @@ if [[ ! -f "${BASE_SCRIPT}" ]]; then
   echo "[timed/edge/replay] missing shared Pin edge script: ${BASE_SCRIPT}" >&2
   exit 1
 fi
+if [[ ! -f "${CAMERA_START_SCRIPT}" || ! -f "${CAMERA_STOP_SCRIPT}" ]]; then
+  echo "[timed/edge/replay] missing direct RealSense ZMQ lifecycle scripts" >&2
+  exit 1
+fi
 
 echo "[timed/edge/replay] reusing the shared state bridge and Phase 3 command executor"
 echo "[timed/edge/replay] profile=timed requested_hz=${STATE_HZ} expected_hz=${STATE_HZ} non_30_override_confirmed=${NON_30_OVERRIDE_CONFIRMED}"
 echo "[timed/edge/replay] freshness age_ms=${MAX_SOURCE_AGE_MS} skew_ms=${MAX_SOURCE_SKEW_MS} advanced=${REQUIRE_ALL_SOURCES_ADVANCED} min_rate_ratio=${MIN_MEASURED_STATE_HZ_RATIO} overrides_confirmed=${AGE_OVERRIDE_CONFIRMED}/${SKEW_OVERRIDE_CONFIRMED}/${ADVANCED_OVERRIDE_CONFIRMED}/${RATE_RATIO_OVERRIDE_CONFIRMED}"
-exec env \
+echo "[timed/edge/replay] starting direct RealSense ZMQ cameras jpeg_quality=${JZ_DIRECT_CAMERA_JPEG_QUALITY}"
+JZ_DIRECT_CAMERA_JPEG_QUALITY="${JZ_DIRECT_CAMERA_JPEG_QUALITY}" \
+  bash "${CAMERA_START_SCRIPT}"
+
+if env \
   STATE_HZ="${STATE_HZ}" \
   JZ_STATE_HZ_PROFILE=timed \
   JZ_EXPECTED_STATE_HZ="${STATE_HZ}" \
@@ -106,4 +117,11 @@ exec env \
   REQUIRE_ALL_SOURCES_ADVANCED="${REQUIRE_ALL_SOURCES_ADVANCED}" \
   MIN_MEASURED_STATE_HZ_RATIO="${MIN_MEASURED_STATE_HZ_RATIO}" \
   JZ_TIMED_MIN_MEASURED_STATE_HZ_RATIO_CONFIRM="${JZ_TIMED_MIN_MEASURED_STATE_HZ_RATIO_CONFIRM}" \
-  bash "${BASE_SCRIPT}" "$@"
+  bash "${BASE_SCRIPT}" "$@"; then
+  :
+else
+  status=$?
+  echo "[timed/edge/replay] replay startup failed; stopping direct cameras" >&2
+  bash "${CAMERA_STOP_SCRIPT}" || true
+  exit "${status}"
+fi

@@ -113,6 +113,25 @@ def _make_fake_edge_repo(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     shutil.copy2(TIMED_ROOT / "edge/start_pin_replay.sh", timed_script)
     shutil.copy2(PIN_ROOT / "edge/start_pin_replay.sh", legacy_script)
     _write_executable(
+        root / "my_devs/jz_robot_pin_timed/edge/start_direct_realsense_zmq.sh",
+        """
+        #!/usr/bin/env bash
+        set -euo pipefail
+        printf 'camera_quality=%s\n' "${JZ_DIRECT_CAMERA_JPEG_QUALITY:-missing}" \
+          > "${PWD}/captured_camera_env.txt"
+        echo "[fake direct cameras] ready"
+        """,
+    )
+    _write_executable(
+        root / "my_devs/jz_robot_pin_timed/edge/stop_direct_realsense_zmq.sh",
+        """
+        #!/usr/bin/env bash
+        set -euo pipefail
+        touch "${PWD}/captured_camera_stop"
+        echo "[fake direct cameras] stopped"
+        """,
+    )
+    _write_executable(
         root / "my_devs/jz_robot_pin/lib/common.sh",
         """
         #!/usr/bin/env bash
@@ -197,7 +216,37 @@ def test_timed_edge_defaults_state_stream_to_30_hz(tmp_path: Path) -> None:
         "MIN_MEASURED_STATE_HZ_RATIO": "0.9",
     }
     assert "requested_hz=30 expected_hz=30 non_30_override_confirmed=false" in output
+    assert (root / "captured_camera_env.txt").read_text() == "camera_quality=75\n"
     assert "[fake downstream] called" in output
+
+
+def test_timed_replay_entrypoints_manage_direct_camera_lifecycle() -> None:
+    start_script = (TIMED_ROOT / "edge/start_pin_replay.sh").read_text(encoding="utf-8")
+    stop_script = (TIMED_ROOT / "edge/stop_pin_replay.sh").read_text(encoding="utf-8")
+
+    assert 'JZ_DIRECT_CAMERA_JPEG_QUALITY="${JZ_DIRECT_CAMERA_JPEG_QUALITY:-75}"' in start_script
+    assert 'bash "${CAMERA_START_SCRIPT}"' in start_script
+    assert "replay startup failed; stopping direct cameras" in start_script
+    assert 'bash "${CAMERA_STOP_SCRIPT}" || true' in start_script
+    assert 'bash "${BASE_SCRIPT}" "$@" || status=$?' in stop_script
+    assert 'bash "${CAMERA_STOP_SCRIPT}" || status=$?' in stop_script
+
+
+def test_timed_replay_stops_cameras_when_downstream_startup_fails(tmp_path: Path) -> None:
+    root, timed_script, _legacy_script, _capture_file = _make_fake_edge_repo(tmp_path)
+    _write_executable(
+        root / "udp_test/all/start_replay.sh",
+        """
+        #!/usr/bin/env bash
+        exit 7
+        """,
+    )
+
+    result = _run_edge(timed_script, root, _edge_env())
+
+    assert result.returncode == 7, result.stdout + result.stderr
+    assert (root / "captured_camera_stop").is_file()
+    assert "replay startup failed; stopping direct cameras" in result.stderr
 
 
 def test_timed_edge_rejects_inherited_20_hz_without_calling_downstream(tmp_path: Path) -> None:
