@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "model_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/models/GR00T-N1.7-3B",
+  "backbone_assets": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/models/Qwen3-VL-2B-Instruct-assets",
+  "backbone_init_from_config": true,
+  "strict_loading": {
+    "missing_keys": [],
+    "unexpected_keys": [],
+    "mismatched_keys": [],
+    "error_msgs": []
+  },
+  "tensor_checks": [
+    {
+      "key": "backbone.model.model.visual.patch_embed.proj.weight",
+      "shard": "model-00001-of-00002.safetensors",
+      "shape": [
+        1024,
+        3,
+        2,
+        16,
+        16
+      ],
+      "dtype": "torch.float32",
+      "exactly_equal": true
+    },
+    {
+      "key": "backbone.model.model.language_model.layers.0.self_attn.q_proj.weight",
+      "shard": "model-00001-of-00002.safetensors",
+      "shape": [
+        2048,
+        2048
+      ],
+      "dtype": "torch.bfloat16",
+      "exactly_equal": true
+    },
+    {
+      "key": "backbone.model.model.language_model.embed_tokens.weight",
+      "shard": "model-00001-of-00002.safetensors",
+      "shape": [
+        151936,
+        2048
+      ],
+      "dtype": "torch.bfloat16",
+      "exactly_equal": true
+    },
+    {
+      "key": "action_head.action_decoder.layer1.W",
+      "shard": "model-00002-of-00002.safetensors",
+      "shape": [
+        32,
+        1024,
+        1024
+      ],
+      "dtype": "torch.float32",
+      "exactly_equal": true
+    }
+  ],
+  "parameter_count": 3144016000,
+  "trainable_parameter_count": 1620515968,
+  "dtype_parameter_counts": {
+    "torch.float32": 2027473024,
+    "torch.bfloat16": 1116542976
+  },
+  "language_model_layers": 16,
+  "attention_implementation": "flash_attention_2",
+  "model_name": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/models/Qwen3-VL-2B-Instruct-assets",
+  "elapsed_seconds": 2.0353322736918926
+}

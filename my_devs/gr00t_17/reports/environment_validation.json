@@ -1,0 +1,43 @@
+{
+  "status": "passed",
+  "python_torch": "2.7.1+cu128",
+  "torch_cuda": "12.8",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_memory_bytes": 50875924480,
+  "flash_attn": "2.7.4.post1",
+  "flash_attention_checks": [
+    {
+      "head_dim": 64,
+      "causal": false,
+      "shape": [
+        1,
+        128,
+        4,
+        64
+      ],
+      "backward_finite": true
+    },
+    {
+      "head_dim": 128,
+      "causal": true,
+      "shape": [
+        1,
+        128,
+        4,
+        128
+      ],
+      "backward_finite": true
+    }
+  ],
+  "torchcodec": "0.4.0",
+  "video_frames": 300,
+  "decoded_shape": [
+    3,
+    480,
+    640,
+    3
+  ],
+  "decoded_dtype": "uint8",
+  "cuda_peak_memory_bytes": 20054016,
+  "ld_preload": "/lib/x86_64-linux-gnu/libffi.so.7"
+}

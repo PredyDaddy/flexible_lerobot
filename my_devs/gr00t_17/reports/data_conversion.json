@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "source_root": "/data/cqy_workspace/flexible_lerobot/datasets/desk_cleanup_v1/eraser_cup_multi_task",
+  "output_root": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/converted_v21/desk_cleanup_v1/eraser_cup_multi_task",
+  "modality_sha256": "f28d445c8038c4191ce5ba1559c3f04bfabd4078f210abf0b3b422cc154d15d3",
+  "action_horizon": 16,
+  "relative_stats_shape": {
+    "single_arm": [
+      16,
+      5
+    ]
+  },
+  "validation": {
+    "episodes": 157,
+    "tasks": 3,
+    "parquet_rows": 53235,
+    "videos": 314,
+    "task_frame_counts": {
+      "0": 18600,
+      "1": 16500,
+      "2": 18135
+    }
+  }
+}

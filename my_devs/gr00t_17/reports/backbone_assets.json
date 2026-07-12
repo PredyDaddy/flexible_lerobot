@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "source_repo_id": "Qwen/Qwen3-VL-2B-Instruct",
+  "source_revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+  "equivalent_repo_id": "nvidia/Cosmos-Reason2-2B",
+  "equivalent_revision": "9ce19a195e423419c349abfc86fd07178b230561",
+  "endpoint": "https://hf-mirror.com",
+  "output_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/models/Qwen3-VL-2B-Instruct-assets",
+  "method": "Every downloaded runtime asset has the same Hugging Face git blob ID and size in the pinned public Qwen3-VL and pinned Cosmos-Reason2 repositories. Model weights are intentionally excluded; the GR00T N1.7 checkpoint supplies them.",
+  "runtime_asset_comparisons": [
+    {
+      "path": "chat_template.json",
+      "source_blob_id": "e49e75bdda104c8de941eb20e0b3765184fb27bc",
+      "equivalent_blob_id": "e49e75bdda104c8de941eb20e0b3765184fb27bc",
+      "source_size": 5502,
+      "equivalent_size": 5502,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "config.json",
+      "source_blob_id": "0cd8c646eb55794594b14fefcd1d3acea5cc000f",
+      "equivalent_blob_id": "0cd8c646eb55794594b14fefcd1d3acea5cc000f",
+      "source_size": 1505,
+      "equivalent_size": 1505,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "generation_config.json",
+      "source_blob_id": "7bb37933d2d86e4ceaabcc6540be989658f238e9",
+      "equivalent_blob_id": "7bb37933d2d86e4ceaabcc6540be989658f238e9",
+      "source_size": 269,
+      "equivalent_size": 269,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "merges.txt",
+      "source_blob_id": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0",
+      "equivalent_blob_id": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0",
+      "source_size": 1671839,
+      "equivalent_size": 1671839,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "preprocessor_config.json",
+      "source_blob_id": "2ea84a437d448ff71b08df68fdd949d5cc4ebb64",
+      "equivalent_blob_id": "2ea84a437d448ff71b08df68fdd949d5cc4ebb64",
+      "source_size": 390,
+      "equivalent_size": 390,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "tokenizer.json",
+      "source_blob_id": "c6cc1014128b19d1fc46b1d30a23e3b1d35db421",
+      "equivalent_blob_id": "c6cc1014128b19d1fc46b1d30a23e3b1d35db421",
+      "source_size": 7032403,
+      "equivalent_size": 7032403,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "tokenizer_config.json",
+      "source_blob_id": "d3d3763207692c78780f4bf42d4dadf49a5c8012",
+      "equivalent_blob_id": "d3d3763207692c78780f4bf42d4dadf49a5c8012",
+      "source_size": 10868,
+      "equivalent_size": 10868,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "video_preprocessor_config.json",
+      "source_blob_id": "3ba673a5ad7d4d13f54155ecd38b2a94a6dac8fe",
+      "equivalent_blob_id": "3ba673a5ad7d4d13f54155ecd38b2a94a6dac8fe",
+      "source_size": 385,
+      "equivalent_size": 385,
+      "same_blob_and_size": true
+    },
+    {
+      "path": "vocab.json",
+      "source_blob_id": "4783fe10ac3adce15ac8f358ef5462739852c569",
+      "equivalent_blob_id": "4783fe10ac3adce15ac8f358ef5462739852c569",
+      "source_size": 2776833,
+      "equivalent_size": 2776833,
+      "same_blob_and_size": true
+    }
+  ],
+  "downloaded_files": [
+    {
+      "path": ".cache/huggingface/.gitignore",
+      "size": 1,
+      "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+    },
+    {
+      "path": ".cache/huggingface/download/chat_template.json.metadata",
+      "size": 101,
+      "sha256": "7d161d1fde34d8e23acbdc5b775eb322c2cec2802eda2aef6596f40e003978a6"
+    },
+    {
+      "path": ".cache/huggingface/download/config.json.metadata",
+      "size": 101,
+      "sha256": "99570ad412749d6e5f52bbbf677cd28ddb3dac07e7f636301fbc1bb4f856307b"
+    },
+    {
+      "path": ".cache/huggingface/download/generation_config.json.metadata",
+      "size": 101,
+      "sha256": "637682e0779fca2e35614593e6b8d1620b2dcd9c75f6c82006da2c86355d1f57"
+    },
+    {
+      "path": ".cache/huggingface/download/merges.txt.metadata",
+      "size": 100,
+      "sha256": "8df44732b7fba4a41dfcba9fded2943fd8b69218bb541fe571c05933ff4d1245"
+    },
+    {
+      "path": ".cache/huggingface/download/preprocessor_config.json.metadata",
+      "size": 101,
+      "sha256": "88c88329a74ce4663cdc38690e851c65759cf9b9015496c595d4a6c20e550bda"
+    },
+    {
+      "path": ".cache/huggingface/download/tokenizer.json.metadata",
+      "size": 101,
+      "sha256": "f34224977a797a999d3eba0fcb2e3b1405790562e5ec038bd2e4e85456a1ed9c"
+    },
+    {
+      "path": ".cache/huggingface/download/tokenizer_config.json.metadata",
+      "size": 100,
+      "sha256": "009b2f9de3b1237e513bbd1c41b40fdae3a10a6817ef1470853bd4b735a4f45f"
+    },
+    {
+      "path": ".cache/huggingface/download/video_preprocessor_config.json.metadata",
+      "size": 101,
+      "sha256": "e6083c45ac0d1e849fd435570f20ee1f97c204cf7d802a46da878b49d28afc5b"
+    },
+    {
+      "path": ".cache/huggingface/download/vocab.json.metadata",
+      "size": 101,
+      "sha256": "b7523d72731d97e34df2a07f2f7d285a814ccd7b7441dcdfef6c7241a227663d"
+    },
+    {
+      "path": "chat_template.json",
+      "size": 5502,
+      "sha256": "6f8a6a55027e3da5160105556cda5dd69f6423f1c32645f6730d32de7773d0c4"
+    },
+    {
+      "path": "config.json",
+      "size": 1505,
+      "sha256": "bec4b3d446efa05807365c9e1cec03ac590836879d02f3a6da879971154bdd3b"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 269,
+      "sha256": "1e241830b48b397cb0900101421df5450baddc7adf01e5fc86b5615865f3bae4"
+    },
+    {
+      "path": "merges.txt",
+      "size": 1671839,
+      "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+    },
+    {
+      "path": "preprocessor_config.json",
+      "size": 390,
+      "sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 7032403,
+      "sha256": "a5d85b6dcc535e6b93115a9ef287e6132fdbf30270da6218194ba742261173c7"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 10868,
+      "sha256": "c2da771801886ad9ae98181793ffd3dfb7f1af30f6f7c6a4e15d7dbba52e2399"
+    },
+    {
+      "path": "video_preprocessor_config.json",
+      "size": 385,
+      "sha256": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13"
+    },
+    {
+      "path": "vocab.json",
+      "size": 2776833,
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  ],
+  "status": "passed"
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "root": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17",
+  "output_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/formal/preflight_validation/train",
+  "resume_checkpoint": null,
+  "gpu": {
+    "index": 0,
+    "name": "NVIDIA GeForce RTX 4090",
+    "total_mib": 49140,
+    "used_mib": 1587,
+    "free_mib": 46933
+  },
+  "minimum_free_gpu_mib": 40000,
+  "torch": "2.7.1+cu128",
+  "torch_cuda": "12.8",
+  "flash_attn": "2.7.4.post1",
+  "torchcodec": "0.4.0",
+  "sharding": {
+    "shard_size": 1024,
+    "episode_sampling_rate": 0.1,
+    "requested_shards": 50,
+    "available_subsequences": 1570
+  },
+  "immutable_source_manifests": [
+    {
+      "manifest": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/source_manifests/original_dataset.json",
+      "entries": 14,
+      "aggregate_sha256": "5c18fe2ecf334f451f1d6c5cd01b9c393cc7bf742bd5c26726e154bf595227e8"
+    },
+    {
+      "manifest": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/source_manifests/pi05_checkpoint.json",
+      "entries": 7,
+      "aggregate_sha256": "f85fc56ece26154920725faa43ed54a432e06f0ae5cddd80ca684e6e6f4cf846"
+    },
+    {
+      "manifest": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/source_manifests/gr00t_reference.json",
+      "entries": 302,
+      "aggregate_sha256": "bbf3a837d8b0f8cd3fdd885ef01de65e170399287be6b907050025e8b0140c6f"
+    }
+  ],
+  "derived_dataset_manifest": {
+    "manifest": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/derived_manifests/converted_dataset.json",
+    "entries": 478,
+    "aggregate_sha256": "fde7fe09a84af986ddabe02e0d8d6e0ea5dec9ee17181acfdfb347e0f70b4815"
+  },
+  "smoke_evidence": {
+    "train_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/smoke/smoke_20260711_144453/train",
+    "checkpoint_steps": [
+      1,
+      2
+    ],
+    "trainable_step_one_to_step_two_max_abs_diff": 0.00010013580322265625,
+    "frozen_base_to_step_two_max_abs_diff": 0.0,
+    "finite_loss_metrics": 2
+  },
+  "model_files_checked": 55,
+  "backbone_files_checked": 19,
+  "internal_symlinks_checked": 1
+}

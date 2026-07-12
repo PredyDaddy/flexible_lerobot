@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "version": "2.7.4.post1",
+  "wheel": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/tools/wheels/flash_attn-2.7.4.post1-cp310-cp310-linux_x86_64.whl",
+  "size": 92884881,
+  "sha256": "79e2eeb9ff257d17a6f0c591655812d5289debfab301a4e7615f297f23735aa9",
+  "build": {
+    "source": "PyPI flash-attn 2.7.4.post1 sdist",
+    "cuda_home": "/usr/local/cuda-12.6",
+    "cuda_arches": [
+      "80"
+    ],
+    "max_jobs": 8,
+    "nvcc_threads": 2,
+    "ninja": true
+  },
+  "runtime": {
+    "torch": "2.7.1+cu128",
+    "torch_cuda": "12.8",
+    "torch_cxx11_abi": true,
+    "host_glibc": [
+      "glibc",
+      "2.31"
+    ],
+    "extension": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/env/gr00t_n17/lib/python3.10/site-packages/flash_attn_2_cuda.cpython-310-x86_64-linux-gnu.so",
+    "embedded_cubins": [
+      "80"
+    ],
+    "maximum_required_glibc": "2.14"
+  },
+  "gpu_kernel_checks": [
+    {
+      "head_dim": 64,
+      "causal": false,
+      "forward": true,
+      "backward": true
+    },
+    {
+      "head_dim": 128,
+      "causal": true,
+      "forward": true,
+      "backward": true
+    }
+  ],
+  "rejected_prebuilt_wheel": {
+    "path": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/tools/wheels/flash_attn-2.7.4.post1+cu12torch2.7cxx11abiFALSE-cp310-cp310-linux_x86_64.whl",
+    "size": 414482391,
+    "sha256": "f09928f2c7e4dfbe6efca5a997862898495263c87afe662c18fb1936eb192eab",
+    "reason": "Requires GLIBC_2.32 and advertises the wrong CXX11 ABI for local torch."
+  }
+}

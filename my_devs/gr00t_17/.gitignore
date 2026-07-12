@@ -1,0 +1,31 @@
+cache/
+env/
+logs/
+models/
+outputs/
+artifacts/
+tmp/
+tools/
+workspace/
+reference/
+data/converted_v21/
+data/splits/
+*.log
+*.safetensors
+*.onnx
+*.onnx.data
+*.engine
+*.trt
+*.pt
+*.pth
+
+# Keep only small, reproducibility-critical JSON evidence in Git. The repository-level
+# ignore file excludes JSON and all data directories globally, so re-include this whitelist.
+!configs/modality.json
+!reports/*.json
+!data/
+data/*
+!data/source_manifests/
+!data/source_manifests/*.json
+!data/derived_manifests/
+!data/derived_manifests/*.json

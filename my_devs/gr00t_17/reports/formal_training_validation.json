@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "run_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/formal/so101_n17_b2_e10_20260711",
+  "checkpoint": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/formal/so101_n17_b2_e10_20260711/train/checkpoint-63600",
+  "global_step": 63600,
+  "micro_batch_per_device": 2,
+  "gradient_accumulation_steps": 4,
+  "effective_batch": 8,
+  "valid_windows": 50880,
+  "nominal_sample_epochs": 10.0,
+  "tuning": {
+    "llm": false,
+    "visual": false,
+    "projector": true,
+    "diffusion_model": true,
+    "vlln": true
+  },
+  "final_log_entry": {
+    "grad_norm": 1.0079805850982666,
+    "learning_rate": 6.758935633399687e-14,
+    "loss": 0.0358,
+    "step": 63600
+  },
+  "train_metrics": {
+    "train_runtime": 32231.7025,
+    "train_samples_per_second": 15.786,
+    "train_steps_per_second": 1.973,
+    "train_loss": 0.06916177219213367
+  },
+  "model_shards": [
+    "model-00001-of-00003.safetensors",
+    "model-00002-of-00003.safetensors",
+    "model-00003-of-00003.safetensors"
+  ],
+  "model_bytes": 10343115064,
+  "checkpoint_artifact_sizes": {
+    "model-00001-of-00003.safetensors": 4995608640,
+    "model-00002-of-00003.safetensors": 4988717920,
+    "model-00003-of-00003.safetensors": 358788504,
+    "optimizer.pt": 12964594710,
+    "scheduler.pt": 1465,
+    "rng_state.pth": 14645,
+    "processor_config.json": 26603,
+    "statistics.json": 4313932,
+    "training_args.bin": 5969
+  },
+  "live_checkpoint_load": {
+    "status": "passed",
+    "evidence_report": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/inference/smoke/so101_live_predict_20260712_0935/reports/predict.json",
+    "server_log": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/inference/smoke/so101_live_predict_20260712_0935/logs/policy_server.log"
+  }
+}

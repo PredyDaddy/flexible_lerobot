@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "label": "original_lerobot_v3_dataset",
+  "root": "/data/cqy_workspace/flexible_lerobot/datasets/desk_cleanup_v1/eraser_cup_multi_task",
+  "entry_count": 14,
+  "aggregate_sha256": "5c18fe2ecf334f451f1d6c5cd01b9c393cc7bf742bd5c26726e154bf595227e8",
+  "entries": [
+    {
+      "path": "data/chunk-000/file-000.parquet",
+      "type": "file",
+      "size": 1257728,
+      "mode": 436,
+      "sha256": "892c75c7980cedd744e737d94fbd620e03b309eed25301d7a289f6489900333b"
+    },
+    {
+      "path": "meta/episodes/chunk-000/file-000.parquet",
+      "type": "file",
+      "size": 274434,
+      "mode": 436,
+      "sha256": "f553e5a8a8360951b2e3d735b285850d60399900b26a6b5491b81e04375bb2a9"
+    },
+    {
+      "path": "meta/episodes/chunk-000/file-000.parquet.bak_task_index_20260529",
+      "type": "file",
+      "size": 274761,
+      "mode": 436,
+      "sha256": "8e8d2db3b03d2c441eeeccb744f46c6c7740b7e534bdb0613654d8382669c21f"
+    },
+    {
+      "path": "meta/episodes/chunk-000/file-000.parquet.bak_zh_tasks_20260529",
+      "type": "file",
+      "size": 274361,
+      "mode": 436,
+      "sha256": "f55854495c4ccf02bc2d04069180e53beaf5ed2044a864108c8dab35d110e079"
+    },
+    {
+      "path": "meta/info.json",
+      "type": "file",
+      "size": 3227,
+      "mode": 436,
+      "sha256": "42c84e468bc4c9e361a5c29b84caf448538c80e36dffdef5d5e833bedacc9eb4"
+    },
+    {
+      "path": "meta/stats.json",
+      "type": "file",
+      "size": 12966,
+      "mode": 436,
+      "sha256": "61edfa721dd72f9bf8c975d54004c6326bf0b6a9e34ac37bc4a1221d11ab0914"
+    },
+    {
+      "path": "meta/stats.json.bak_task_index_20260529",
+      "type": "file",
+      "size": 13026,
+      "mode": 436,
+      "sha256": "52f6069b222aed6f8fb17b2268313e2a9e45fbf850e872c1d93df0f2fbbd835c"
+    },
+    {
+      "path": "meta/tasks.parquet",
+      "type": "file",
+      "size": 2349,
+      "mode": 436,
+      "sha256": "c42f27cd8bb10bd4969ef019107c528cdd4e750d65d2836be6eb32da36fd2bf9"
+    },
+    {
+      "path": "meta/tasks.parquet.bak_zh_tasks_20260529",
+      "type": "file",
+      "size": 2276,
+      "mode": 436,
+      "sha256": "3d40070ba83250281071bec907c6469f06e2866d50780c104a50481ea6014f6b"
+    },
+    {
+      "path": "videos/observation.images.top/chunk-000/file-000.mp4",
+      "type": "file",
+      "size": 132789109,
+      "mode": 384,
+      "sha256": "ab8ee672cea60eb6db297f16561af3aed7d5026f998f319f009a84abf9867aa1"
+    },
+    {
+      "path": "videos/observation.images.top/chunk-000/file-001.mp4",
+      "type": "file",
+      "size": 195006423,
+      "mode": 384,
+      "sha256": "29b1e608f93db33b59dc12c98f63fefbdcbd660ea8d1b2eed160d1e1dad2c19c"
+    },
+    {
+      "path": "videos/observation.images.top/chunk-000/file-002.mp4",
+      "type": "file",
+      "size": 65969414,
+      "mode": 384,
+      "sha256": "b16664f8d978d81676cda36440244aa97593b3d281e9198519446f4c81dab6c7"
+    },
+    {
+      "path": "videos/observation.images.wrist/chunk-000/file-000.mp4",
+      "type": "file",
+      "size": 174104024,
+      "mode": 384,
+      "sha256": "31fdfb4786ce32d4e0d983c3f60a750aa7d86f7ea724dd377dd27bcc1dc274e7"
+    },
+    {
+      "path": "videos/observation.images.wrist/chunk-000/file-001.mp4",
+      "type": "file",
+      "size": 86122737,
+      "mode": 384,
+      "sha256": "fd40ed9dc90ffd857a061e7de252c79156ce59a8eca44ddeb42310b89678ef5b"
+    }
+  ]
+}

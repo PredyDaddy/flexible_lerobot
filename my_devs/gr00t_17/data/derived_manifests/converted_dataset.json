@@ -1,0 +1,3355 @@
+{
+  "schema_version": 1,
+  "label": "gr00t_converted_v21",
+  "root": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/converted_v21/desk_cleanup_v1/eraser_cup_multi_task",
+  "entry_count": 478,
+  "aggregate_sha256": "fde7fe09a84af986ddabe02e0d8d6e0ea5dec9ee17181acfdfb347e0f70b4815",
+  "entries": [
+    {
+      "path": "data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 18732,
+      "mode": 384,
+      "sha256": "a28da482964c0e796364cbdc08e75e09226b78dab61f30ecaa75cee5623c9ad1"
+    },
+    {
+      "path": "data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 19432,
+      "mode": 384,
+      "sha256": "6fdc9522d431a02e701937b6c5672e3a7390026f6329b7773182af48734b8ad9"
+    },
+    {
+      "path": "data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 19160,
+      "mode": 384,
+      "sha256": "0a90e538d4e41524a9f786d5ccf73528f0cb6780d764186551e29dd70bd1c33f"
+    },
+    {
+      "path": "data/chunk-000/episode_000003.parquet",
+      "type": "file",
+      "size": 18636,
+      "mode": 384,
+      "sha256": "f1ef8097816872a33ca37394c976f8b996c8fd3bc30394afebce6c50c5ed99c8"
+    },
+    {
+      "path": "data/chunk-000/episode_000004.parquet",
+      "type": "file",
+      "size": 18773,
+      "mode": 384,
+      "sha256": "f174c45fa09d5738c11d80b0b112a5b76fb456be1d33ee8567d622e22bd74039"
+    },
+    {
+      "path": "data/chunk-000/episode_000005.parquet",
+      "type": "file",
+      "size": 19428,
+      "mode": 384,
+      "sha256": "ddb55108dc15359dbc41feb9f24210d3478b4b98de4db52c843a337ac3a8153b"
+    },
+    {
+      "path": "data/chunk-000/episode_000006.parquet",
+      "type": "file",
+      "size": 19007,
+      "mode": 384,
+      "sha256": "4176f00220a53d44a08609e5230a8a867f45fb016a3ae95eb4f6495a277cf76d"
+    },
+    {
+      "path": "data/chunk-000/episode_000007.parquet",
+      "type": "file",
+      "size": 18716,
+      "mode": 384,
+      "sha256": "6fa3fd42614aec735465a0f1a80dbb4c8fd1a83a2fba5b7ac66ab62749d6144d"
+    },
+    {
+      "path": "data/chunk-000/episode_000008.parquet",
+      "type": "file",
+      "size": 18684,
+      "mode": 384,
+      "sha256": "0493b56084927df21649007133f1ecd88988d17143c49a31ab6f6c25271559c8"
+    },
+    {
+      "path": "data/chunk-000/episode_000009.parquet",
+      "type": "file",
+      "size": 19022,
+      "mode": 384,
+      "sha256": "d1862efea396691d9161dc4ad8cf8ed8b158e79ee02adad9c6cc5f1300b3c56d"
+    },
+    {
+      "path": "data/chunk-000/episode_000010.parquet",
+      "type": "file",
+      "size": 18972,
+      "mode": 384,
+      "sha256": "bfc0ab65fbc6dec3b65a4b4b23458f56de7c31a587e8ca30d56edb9f35641ad2"
+    },
+    {
+      "path": "data/chunk-000/episode_000011.parquet",
+      "type": "file",
+      "size": 18630,
+      "mode": 384,
+      "sha256": "df6745099f174cc840aa45eb702b0e5ecc521671c37e5093b34174c8208711a2"
+    },
+    {
+      "path": "data/chunk-000/episode_000012.parquet",
+      "type": "file",
+      "size": 19064,
+      "mode": 384,
+      "sha256": "61da863e10e0e4d458c44fb8b10558833e662451c2f6ff039a98dd34707d1fc5"
+    },
+    {
+      "path": "data/chunk-000/episode_000013.parquet",
+      "type": "file",
+      "size": 19063,
+      "mode": 384,
+      "sha256": "1dd7347b5185ab609cb94d9cbed40e178b20c8ebe2d45a6a4e552e38e9134fc3"
+    },
+    {
+      "path": "data/chunk-000/episode_000014.parquet",
+      "type": "file",
+      "size": 18618,
+      "mode": 384,
+      "sha256": "d72107bf7559701bed890a00e83357e69dc4705b701deb1735f1b163c731e4ff"
+    },
+    {
+      "path": "data/chunk-000/episode_000015.parquet",
+      "type": "file",
+      "size": 19327,
+      "mode": 384,
+      "sha256": "d94516cdd9b259fb63ce9b307d0e7a3650102dc3857a44d166f625899a714f10"
+    },
+    {
+      "path": "data/chunk-000/episode_000016.parquet",
+      "type": "file",
+      "size": 19335,
+      "mode": 384,
+      "sha256": "f86a664234adfbab10f8121eb36b917944bdd7eff63a790a21e2d1013fa8908e"
+    },
+    {
+      "path": "data/chunk-000/episode_000017.parquet",
+      "type": "file",
+      "size": 19235,
+      "mode": 384,
+      "sha256": "075232182a83ac01ff17cf658a94876642ae346d2d6a2402191b07c1d9e97bf5"
+    },
+    {
+      "path": "data/chunk-000/episode_000018.parquet",
+      "type": "file",
+      "size": 19090,
+      "mode": 384,
+      "sha256": "1c41402fdba0935a6400b9ed2f37b9b5e3d60cb5e42c4cc8245b6b625196f2f8"
+    },
+    {
+      "path": "data/chunk-000/episode_000019.parquet",
+      "type": "file",
+      "size": 19015,
+      "mode": 384,
+      "sha256": "8c45520ba32ef907a7d0353887f9a68183bcb71dbbce1e46d7bb84ffcd97af78"
+    },
+    {
+      "path": "data/chunk-000/episode_000020.parquet",
+      "type": "file",
+      "size": 18636,
+      "mode": 384,
+      "sha256": "523884b64a7e4731b2f285fc30944111ea3fc3d8d0cbee705fd385d64c3691ae"
+    },
+    {
+      "path": "data/chunk-000/episode_000021.parquet",
+      "type": "file",
+      "size": 18861,
+      "mode": 384,
+      "sha256": "7493bc698408e05a58f1cb771735cba649472ce1774dfc8ca60d41cbe629cbc8"
+    },
+    {
+      "path": "data/chunk-000/episode_000022.parquet",
+      "type": "file",
+      "size": 18760,
+      "mode": 384,
+      "sha256": "604e1ad783b1458acef4a5966218a996b777545077402570004df71967df7a42"
+    },
+    {
+      "path": "data/chunk-000/episode_000023.parquet",
+      "type": "file",
+      "size": 18434,
+      "mode": 384,
+      "sha256": "4777fcc272a8a98933692215c803bc3663c36b89de9618e84af18a3a41a9135c"
+    },
+    {
+      "path": "data/chunk-000/episode_000024.parquet",
+      "type": "file",
+      "size": 19153,
+      "mode": 384,
+      "sha256": "875491afc135db72b0c5db3822ca6b4baca89715cba2fe3ec66a47feac10b1c5"
+    },
+    {
+      "path": "data/chunk-000/episode_000025.parquet",
+      "type": "file",
+      "size": 18879,
+      "mode": 384,
+      "sha256": "ceb97fb1080f49bc6e3d9345f1dfa08a0e5fda08e0b91258385355dcf5a33a26"
+    },
+    {
+      "path": "data/chunk-000/episode_000026.parquet",
+      "type": "file",
+      "size": 19202,
+      "mode": 384,
+      "sha256": "cd719e30571c4b4e471d3c8885e8f8cd914869ff4561223f27bd735165efab07"
+    },
+    {
+      "path": "data/chunk-000/episode_000027.parquet",
+      "type": "file",
+      "size": 18836,
+      "mode": 384,
+      "sha256": "c612b2f080546c3aa4125c0210127eb2011118c897780b6027ee353468a6ad74"
+    },
+    {
+      "path": "data/chunk-000/episode_000028.parquet",
+      "type": "file",
+      "size": 19056,
+      "mode": 384,
+      "sha256": "9a5fc26a6de0f0a9ba1805ba09f3fa70b9b339684b3d5411a54bf4ec6937348e"
+    },
+    {
+      "path": "data/chunk-000/episode_000029.parquet",
+      "type": "file",
+      "size": 18956,
+      "mode": 384,
+      "sha256": "5eaae4737b62e7f84fbdb17763431b9c255ebb00a73a0eae0ec1d8ac28306118"
+    },
+    {
+      "path": "data/chunk-000/episode_000030.parquet",
+      "type": "file",
+      "size": 19158,
+      "mode": 384,
+      "sha256": "39aec451c98ea97c9c5c49b9e1485c08cff3957bb47165d781a85cc87a700c82"
+    },
+    {
+      "path": "data/chunk-000/episode_000031.parquet",
+      "type": "file",
+      "size": 19362,
+      "mode": 384,
+      "sha256": "3c29bbea5e6e51ff708ecd8ca8f3fb391afaf84ad7ebe08bcf824e230c119e1b"
+    },
+    {
+      "path": "data/chunk-000/episode_000032.parquet",
+      "type": "file",
+      "size": 19114,
+      "mode": 384,
+      "sha256": "2cf4896a84d565fb5f306a186030582febc9404a2f983c929a6518773f56e612"
+    },
+    {
+      "path": "data/chunk-000/episode_000033.parquet",
+      "type": "file",
+      "size": 18959,
+      "mode": 384,
+      "sha256": "5d81329bdcee0fd37ad212653565c51a6b0aab249c4f7f1a79e6caf015d46019"
+    },
+    {
+      "path": "data/chunk-000/episode_000034.parquet",
+      "type": "file",
+      "size": 19049,
+      "mode": 384,
+      "sha256": "dfc715af2b59da88d579ff2550d3806cbb6f8db83f12b4bcbe57be450bcee2f8"
+    },
+    {
+      "path": "data/chunk-000/episode_000035.parquet",
+      "type": "file",
+      "size": 19744,
+      "mode": 384,
+      "sha256": "c0b03b34e6e5580cf0775acdb045a928ec63d897380f61f47a4a645a19421c7f"
+    },
+    {
+      "path": "data/chunk-000/episode_000036.parquet",
+      "type": "file",
+      "size": 19455,
+      "mode": 384,
+      "sha256": "7c87808fa4623c01b4641fc9ffa2d859aa68ec29e466b231fb6337f8e92f0724"
+    },
+    {
+      "path": "data/chunk-000/episode_000037.parquet",
+      "type": "file",
+      "size": 18364,
+      "mode": 384,
+      "sha256": "ff367715784ff85a571a9ed05e97631da6493b7c6c4f24158d91b514dca8448e"
+    },
+    {
+      "path": "data/chunk-000/episode_000038.parquet",
+      "type": "file",
+      "size": 19272,
+      "mode": 384,
+      "sha256": "626fa6fb1b9cf4fe177fbf3c79a9edbf7d90e982a2e427eb8d3ca727262729fb"
+    },
+    {
+      "path": "data/chunk-000/episode_000039.parquet",
+      "type": "file",
+      "size": 18456,
+      "mode": 384,
+      "sha256": "bb598061ba63682122afde16267081df5f600733628e1e347085f8baf6933976"
+    },
+    {
+      "path": "data/chunk-000/episode_000040.parquet",
+      "type": "file",
+      "size": 19443,
+      "mode": 384,
+      "sha256": "7a00b6a5a174aa311676a18cf55d6d7d45fcd28895c7e16d7ba2d4eccf9de62d"
+    },
+    {
+      "path": "data/chunk-000/episode_000041.parquet",
+      "type": "file",
+      "size": 18934,
+      "mode": 384,
+      "sha256": "ff7a1680b36c6620abd4c6eb4ad50991f7f39929ffe703f7b5a8dc16142ddfe0"
+    },
+    {
+      "path": "data/chunk-000/episode_000042.parquet",
+      "type": "file",
+      "size": 19834,
+      "mode": 384,
+      "sha256": "5fb9c166481fc9c95b80e0a934e113342a587b30a48a1da3bb8e2c35a791aec2"
+    },
+    {
+      "path": "data/chunk-000/episode_000043.parquet",
+      "type": "file",
+      "size": 19614,
+      "mode": 384,
+      "sha256": "375e0bb553cd21ca7f651aa46683f187d1bb923037fae2b44343b84c33030f37"
+    },
+    {
+      "path": "data/chunk-000/episode_000044.parquet",
+      "type": "file",
+      "size": 18996,
+      "mode": 384,
+      "sha256": "2eea4ff5a3a5dbbc6278fd5abb9d83456ee715260d163f2393c2bb0d82ffe6b7"
+    },
+    {
+      "path": "data/chunk-000/episode_000045.parquet",
+      "type": "file",
+      "size": 19881,
+      "mode": 384,
+      "sha256": "03953c9b342829b14a2fba2440dd16ade7ae524d9f91a96a3721f3cc1767841a"
+    },
+    {
+      "path": "data/chunk-000/episode_000046.parquet",
+      "type": "file",
+      "size": 10596,
+      "mode": 384,
+      "sha256": "1bc575b9fcda505b550b1a959c6764cc384b18dae74428fd84a7e6a98ae88b2d"
+    },
+    {
+      "path": "data/chunk-000/episode_000047.parquet",
+      "type": "file",
+      "size": 19022,
+      "mode": 384,
+      "sha256": "e3aa3a32ef1cb5f387070f43bb041f252b732d7ed767646145febf6d4c44cece"
+    },
+    {
+      "path": "data/chunk-000/episode_000048.parquet",
+      "type": "file",
+      "size": 19133,
+      "mode": 384,
+      "sha256": "498c989f3647325c566288804c7c3a4adee557158f8bf017cf167c1fa008a679"
+    },
+    {
+      "path": "data/chunk-000/episode_000049.parquet",
+      "type": "file",
+      "size": 19586,
+      "mode": 384,
+      "sha256": "d7f4aeb8b31a96e86f6b65a1df3070552e4c9cf98d078b7c504e9c1e69565ffe"
+    },
+    {
+      "path": "data/chunk-000/episode_000050.parquet",
+      "type": "file",
+      "size": 19432,
+      "mode": 384,
+      "sha256": "ed68e83aee2639e2966ccd4f145fedf15595dc8f31f0c053c7c753688865ea53"
+    },
+    {
+      "path": "data/chunk-000/episode_000051.parquet",
+      "type": "file",
+      "size": 19329,
+      "mode": 384,
+      "sha256": "9859d585f3f8a7c6303e381737eb3cff96356e4f804ceeffffb1f0c1853692c6"
+    },
+    {
+      "path": "data/chunk-000/episode_000052.parquet",
+      "type": "file",
+      "size": 19340,
+      "mode": 384,
+      "sha256": "c17770deaa502e7740212555ca737d9464f98924d8f7d24cb945e26027e2bd44"
+    },
+    {
+      "path": "data/chunk-000/episode_000053.parquet",
+      "type": "file",
+      "size": 18979,
+      "mode": 384,
+      "sha256": "c13735f1a7d8d581143445a425d2bdaf152722b4e5e205176ea88643a6779f41"
+    },
+    {
+      "path": "data/chunk-000/episode_000054.parquet",
+      "type": "file",
+      "size": 19399,
+      "mode": 384,
+      "sha256": "f6cf7bb4d57589366c35d88ad94bc27fb946fc914ddb45c4b7fa79993594eb3f"
+    },
+    {
+      "path": "data/chunk-000/episode_000055.parquet",
+      "type": "file",
+      "size": 18858,
+      "mode": 384,
+      "sha256": "0b107e0b6eb5204d635bd518d37e5a88731a1fb5bb143e9c8f5b13ab4319fb69"
+    },
+    {
+      "path": "data/chunk-000/episode_000056.parquet",
+      "type": "file",
+      "size": 18544,
+      "mode": 384,
+      "sha256": "e09efeb88671c5ff8b651cf6d28aa017f840e21eabd188a019c1c12b68254325"
+    },
+    {
+      "path": "data/chunk-000/episode_000057.parquet",
+      "type": "file",
+      "size": 19230,
+      "mode": 384,
+      "sha256": "9f6c9b2e2c8db895dc7e2bd27d6b81c413d939bbb2251eaa683e9f3938870e09"
+    },
+    {
+      "path": "data/chunk-000/episode_000058.parquet",
+      "type": "file",
+      "size": 18322,
+      "mode": 384,
+      "sha256": "287a38459dd9eae12f2f6b3172c62545c672215621ec0fd2d7e8b7db2c3b292e"
+    },
+    {
+      "path": "data/chunk-000/episode_000059.parquet",
+      "type": "file",
+      "size": 19162,
+      "mode": 384,
+      "sha256": "a0c70d0257faf311a14594366e31e5c08208a9ebb2a7ef6490203fccefed37b9"
+    },
+    {
+      "path": "data/chunk-000/episode_000060.parquet",
+      "type": "file",
+      "size": 19034,
+      "mode": 384,
+      "sha256": "afbbe231c7e8f6372129270647fabe0ab5b029cbc9a9b1a520a849225b1440d5"
+    },
+    {
+      "path": "data/chunk-000/episode_000061.parquet",
+      "type": "file",
+      "size": 18442,
+      "mode": 384,
+      "sha256": "f82fa1af36db488efc32addc85ef51d0c7afdcd9d6029d43a9c7de82f1ed7c98"
+    },
+    {
+      "path": "data/chunk-000/episode_000062.parquet",
+      "type": "file",
+      "size": 19488,
+      "mode": 384,
+      "sha256": "3e9ffea7df67e7a6dd80f896728a52c6375372d90792441ed3e39789d527cfad"
+    },
+    {
+      "path": "data/chunk-000/episode_000063.parquet",
+      "type": "file",
+      "size": 19734,
+      "mode": 384,
+      "sha256": "bb40cf47b149facc5b858fc16c7cd42bd3292bdc8cab95bf4f575b489dd4693e"
+    },
+    {
+      "path": "data/chunk-000/episode_000064.parquet",
+      "type": "file",
+      "size": 19685,
+      "mode": 384,
+      "sha256": "a10486c3a8cd655f021bb4ce895b34b5e2fec2f7908de1f49ed24eac5560313e"
+    },
+    {
+      "path": "data/chunk-000/episode_000065.parquet",
+      "type": "file",
+      "size": 19660,
+      "mode": 384,
+      "sha256": "32315e6241b0045f62dcff1dafb5e1bf11ef57b8d4db897484bc930b9855af0f"
+    },
+    {
+      "path": "data/chunk-000/episode_000066.parquet",
+      "type": "file",
+      "size": 19521,
+      "mode": 384,
+      "sha256": "4283bc5691c9982f2a9c32333f184582767a91f338637b9508a0e3cd79b56413"
+    },
+    {
+      "path": "data/chunk-000/episode_000067.parquet",
+      "type": "file",
+      "size": 19928,
+      "mode": 384,
+      "sha256": "1f7205f76701dac35ff035d7cbe0565de05f1aabfc3933773515fd0c483f26d9"
+    },
+    {
+      "path": "data/chunk-000/episode_000068.parquet",
+      "type": "file",
+      "size": 19794,
+      "mode": 384,
+      "sha256": "4e0b68649048aaac51401d57cb262660649f2cb2abe288beb95beb1e2a340f50"
+    },
+    {
+      "path": "data/chunk-000/episode_000069.parquet",
+      "type": "file",
+      "size": 19745,
+      "mode": 384,
+      "sha256": "21464ee75bfa40fbaf5d3c8d9a7523a9ffa43ba4bc9db4716d9a410036684790"
+    },
+    {
+      "path": "data/chunk-000/episode_000070.parquet",
+      "type": "file",
+      "size": 19615,
+      "mode": 384,
+      "sha256": "4402d4d0d771d2e64cbb2e0bfa7da1151ab1e436404a9711b19c5fe6daa93e30"
+    },
+    {
+      "path": "data/chunk-000/episode_000071.parquet",
+      "type": "file",
+      "size": 20037,
+      "mode": 384,
+      "sha256": "a7c3293451accdd1239613c462044b696e6d8431f8cd394f1fb1163312a36e89"
+    },
+    {
+      "path": "data/chunk-000/episode_000072.parquet",
+      "type": "file",
+      "size": 19838,
+      "mode": 384,
+      "sha256": "f2383d804b98042b1d9638bbcec72406204393b181df9fe13dbb0ca8c5a83eac"
+    },
+    {
+      "path": "data/chunk-000/episode_000073.parquet",
+      "type": "file",
+      "size": 19589,
+      "mode": 384,
+      "sha256": "f83d62e8ca9bc31758f119181f7118eadce32a0c0fcb89c2b54e5f4cf502dfaf"
+    },
+    {
+      "path": "data/chunk-000/episode_000074.parquet",
+      "type": "file",
+      "size": 20058,
+      "mode": 384,
+      "sha256": "5288dc7b1d72100d15519451ab99aa765772a26d823e75284aa0013ea3963890"
+    },
+    {
+      "path": "data/chunk-000/episode_000075.parquet",
+      "type": "file",
+      "size": 19545,
+      "mode": 384,
+      "sha256": "17461d675092246ea8e6304e718b11f1d05a81a0c8ac070297af6487f2f4912e"
+    },
+    {
+      "path": "data/chunk-000/episode_000076.parquet",
+      "type": "file",
+      "size": 19327,
+      "mode": 384,
+      "sha256": "521d7db89c33ef02f8506f267b5535fc45a55b08f61c9d454bce3eb8f3164a14"
+    },
+    {
+      "path": "data/chunk-000/episode_000077.parquet",
+      "type": "file",
+      "size": 19812,
+      "mode": 384,
+      "sha256": "163b3cfcd42b6b43014a6f900b682b16a776f4b68117888b710621634ec97762"
+    },
+    {
+      "path": "data/chunk-000/episode_000078.parquet",
+      "type": "file",
+      "size": 19963,
+      "mode": 384,
+      "sha256": "239833fc7a3ebc8a363aae5aad6a6a358f21b6dc4d624ecf35ad2bdfb7ca3408"
+    },
+    {
+      "path": "data/chunk-000/episode_000079.parquet",
+      "type": "file",
+      "size": 19263,
+      "mode": 384,
+      "sha256": "2e58d6a4c6edd12839f0fa2fc4bfa79bb477fc49ab5b3f77a83e7a7c43307ea4"
+    },
+    {
+      "path": "data/chunk-000/episode_000080.parquet",
+      "type": "file",
+      "size": 19449,
+      "mode": 384,
+      "sha256": "b585ff0b62e6503431d9effd0f059ea8a2228e81cbec07cb41ccc309dc7aba15"
+    },
+    {
+      "path": "data/chunk-000/episode_000081.parquet",
+      "type": "file",
+      "size": 19173,
+      "mode": 384,
+      "sha256": "f4930e386664f02dc3ca1b4d7d4b1e08f6e30590fbf011f0674f088876793696"
+    },
+    {
+      "path": "data/chunk-000/episode_000082.parquet",
+      "type": "file",
+      "size": 19259,
+      "mode": 384,
+      "sha256": "553701a148a16db928968f82d4d48f829154d0a15cb469d46def96181210f6f0"
+    },
+    {
+      "path": "data/chunk-000/episode_000083.parquet",
+      "type": "file",
+      "size": 18782,
+      "mode": 384,
+      "sha256": "b354ffd7a4c815082a3e313810284ba2280e02c6b6d92769484932a0322c8ba9"
+    },
+    {
+      "path": "data/chunk-000/episode_000084.parquet",
+      "type": "file",
+      "size": 18765,
+      "mode": 384,
+      "sha256": "25e135fbb29ad2c6c6d264f480f50936ee82f2816391bff33905ee8f9c0addc0"
+    },
+    {
+      "path": "data/chunk-000/episode_000085.parquet",
+      "type": "file",
+      "size": 19131,
+      "mode": 384,
+      "sha256": "374439bab58781e7159eebafdd65f5dad4e5a6252c597b93b494790d440d76b8"
+    },
+    {
+      "path": "data/chunk-000/episode_000086.parquet",
+      "type": "file",
+      "size": 19626,
+      "mode": 384,
+      "sha256": "9dfd552949f006376bf507e9a1f26f5f7b629e1912aa365a0050a818ddbf7ec4"
+    },
+    {
+      "path": "data/chunk-000/episode_000087.parquet",
+      "type": "file",
+      "size": 18976,
+      "mode": 384,
+      "sha256": "c6c72b81ad164ef8770463ee9f862d7163ca16a40ed4c938d90465cfb6e8842f"
+    },
+    {
+      "path": "data/chunk-000/episode_000088.parquet",
+      "type": "file",
+      "size": 18933,
+      "mode": 384,
+      "sha256": "bf255e800ae43b7d2f79cd5f3b1386abec6e5c5e9e6925f1c2febe2f87675e52"
+    },
+    {
+      "path": "data/chunk-000/episode_000089.parquet",
+      "type": "file",
+      "size": 19346,
+      "mode": 384,
+      "sha256": "4f9da68de1e4d24c3d712dad397eeca02930ce0b76fc76747d2beab242222d08"
+    },
+    {
+      "path": "data/chunk-000/episode_000090.parquet",
+      "type": "file",
+      "size": 19010,
+      "mode": 384,
+      "sha256": "1e1c927a3e2db50cf8bef640e1fc3ed42ebd73c81174055dd037098bc42356c3"
+    },
+    {
+      "path": "data/chunk-000/episode_000091.parquet",
+      "type": "file",
+      "size": 19378,
+      "mode": 384,
+      "sha256": "8b5815ecdd26377b70b5cbfbd7a612300af6dd9d5d46fa58af3dab3f330bbab6"
+    },
+    {
+      "path": "data/chunk-000/episode_000092.parquet",
+      "type": "file",
+      "size": 19288,
+      "mode": 384,
+      "sha256": "0ccfc25cd12a443f0fbf093d7c9d26d2b617d356f5559a273ba4a7e02c71588e"
+    },
+    {
+      "path": "data/chunk-000/episode_000093.parquet",
+      "type": "file",
+      "size": 19182,
+      "mode": 384,
+      "sha256": "3e921d0927f40535c7385da64a91ad7f816c231bc35f68aa1362a1276476efb1"
+    },
+    {
+      "path": "data/chunk-000/episode_000094.parquet",
+      "type": "file",
+      "size": 19595,
+      "mode": 384,
+      "sha256": "ead718578c0ba6d1dfa96dae6261108724625bed14f7ddfe90a98fa449ea3f2e"
+    },
+    {
+      "path": "data/chunk-000/episode_000095.parquet",
+      "type": "file",
+      "size": 19236,
+      "mode": 384,
+      "sha256": "c2995014ba74e0ffa5cf73e41d7f99e83c8f4dfe54e9ea14023898414c5c0c8a"
+    },
+    {
+      "path": "data/chunk-000/episode_000096.parquet",
+      "type": "file",
+      "size": 19484,
+      "mode": 384,
+      "sha256": "a9566cc33cacfc3f1b44958707a04a53865c4f8693e6f5576dd6b1399aafebd0"
+    },
+    {
+      "path": "data/chunk-000/episode_000097.parquet",
+      "type": "file",
+      "size": 18739,
+      "mode": 384,
+      "sha256": "e74b84106e61f86e2da7a30b1304fc8bcdaa9c6bdb1f58d844a02debb18b4de2"
+    },
+    {
+      "path": "data/chunk-000/episode_000098.parquet",
+      "type": "file",
+      "size": 19923,
+      "mode": 384,
+      "sha256": "21393dcd7abe075a9aa3c4e5dcf3e4a037a7b4c0a3a4f15937178cc3ec8c14d9"
+    },
+    {
+      "path": "data/chunk-000/episode_000099.parquet",
+      "type": "file",
+      "size": 18925,
+      "mode": 384,
+      "sha256": "6108aef1509003fdadfc9ef9c1332999cd559105eed2fba884389819dbb49377"
+    },
+    {
+      "path": "data/chunk-000/episode_000100.parquet",
+      "type": "file",
+      "size": 18147,
+      "mode": 384,
+      "sha256": "9c864627945e167a2e0b79f82f4193766d2ace643e73c9effbbb952f9afd094d"
+    },
+    {
+      "path": "data/chunk-000/episode_000101.parquet",
+      "type": "file",
+      "size": 19641,
+      "mode": 384,
+      "sha256": "b557b98d224918b5330e0685409abd243a17f186cafc4c393c9c1d8a70ac92c0"
+    },
+    {
+      "path": "data/chunk-000/episode_000102.parquet",
+      "type": "file",
+      "size": 19607,
+      "mode": 384,
+      "sha256": "8bd7cb67e54b75bcf0ff9bff106c987e24312073866d392248e3b1a83852f1f5"
+    },
+    {
+      "path": "data/chunk-000/episode_000103.parquet",
+      "type": "file",
+      "size": 19085,
+      "mode": 384,
+      "sha256": "20daf5d204cacb36b5324613f19a56d562852e73edc52ac2bb19432b7979ca54"
+    },
+    {
+      "path": "data/chunk-000/episode_000104.parquet",
+      "type": "file",
+      "size": 19407,
+      "mode": 384,
+      "sha256": "e21e51c064f94043b23d7ddcd1e88014fb504e991452cc19171497a9d053768f"
+    },
+    {
+      "path": "data/chunk-000/episode_000105.parquet",
+      "type": "file",
+      "size": 19520,
+      "mode": 384,
+      "sha256": "2caea967540f5ae3a0a44a8354b6fdc6dc778c66c062c7c3f09502625a03686b"
+    },
+    {
+      "path": "data/chunk-000/episode_000106.parquet",
+      "type": "file",
+      "size": 19219,
+      "mode": 384,
+      "sha256": "0df6f727171624af984a89a9a487f5ab129ab6cfd9c7dcf34822457c9f6dc698"
+    },
+    {
+      "path": "data/chunk-000/episode_000107.parquet",
+      "type": "file",
+      "size": 18994,
+      "mode": 384,
+      "sha256": "a97987ab8e11b3938ab215d741b073e9b871473e4afe9c15a059ec3832f7e5a6"
+    },
+    {
+      "path": "data/chunk-000/episode_000108.parquet",
+      "type": "file",
+      "size": 19516,
+      "mode": 384,
+      "sha256": "22795556df9b3f517e7b6c43226b6f35c386280e58cc0cf8bdd6a36ef78b50f8"
+    },
+    {
+      "path": "data/chunk-000/episode_000109.parquet",
+      "type": "file",
+      "size": 19619,
+      "mode": 384,
+      "sha256": "182470c417aad74c035f14ab260f8bcb5c1fdaa75d572adc3196d316973345e7"
+    },
+    {
+      "path": "data/chunk-000/episode_000110.parquet",
+      "type": "file",
+      "size": 20352,
+      "mode": 384,
+      "sha256": "34e9d34610f563c3280981a23d44db21bca55eb2733260cc8e4d16a79bc75df0"
+    },
+    {
+      "path": "data/chunk-000/episode_000111.parquet",
+      "type": "file",
+      "size": 19887,
+      "mode": 384,
+      "sha256": "ede4afe4aaed9e02831fe5bbfc46a6a72b54afcb330c2316a8f4848c24132dba"
+    },
+    {
+      "path": "data/chunk-000/episode_000112.parquet",
+      "type": "file",
+      "size": 20259,
+      "mode": 384,
+      "sha256": "0d394b1760e17322099262f64a7ccc42194c1054c80a2bd08d6d27b34a06e531"
+    },
+    {
+      "path": "data/chunk-000/episode_000113.parquet",
+      "type": "file",
+      "size": 19373,
+      "mode": 384,
+      "sha256": "708c812d617768a2aaed13df3826859fdd8db96535f809752f8ded81da969d7f"
+    },
+    {
+      "path": "data/chunk-000/episode_000114.parquet",
+      "type": "file",
+      "size": 19488,
+      "mode": 384,
+      "sha256": "85c5f47d4b1b7ce9c907ff7658554bf9b953b9fa83c644735a0c49379da7e58c"
+    },
+    {
+      "path": "data/chunk-000/episode_000115.parquet",
+      "type": "file",
+      "size": 19778,
+      "mode": 384,
+      "sha256": "da134383751e556acc0ef5c0a489e460dfb999061e12c8c91671918d4ae82360"
+    },
+    {
+      "path": "data/chunk-000/episode_000116.parquet",
+      "type": "file",
+      "size": 19842,
+      "mode": 384,
+      "sha256": "b713fef2dc80795a7500ff563b589ae34d7488237fe3e0a460674c4b8810265b"
+    },
+    {
+      "path": "data/chunk-000/episode_000117.parquet",
+      "type": "file",
+      "size": 26681,
+      "mode": 384,
+      "sha256": "b04d846d8b81c8fb2a8d6a0e20d40e588778d3c45f24cd6dadc9cec3adcbf254"
+    },
+    {
+      "path": "data/chunk-000/episode_000118.parquet",
+      "type": "file",
+      "size": 26853,
+      "mode": 384,
+      "sha256": "0dd987596efeb9cc5932a79721a6c9f737cff34bb394c2a7a964af5bd5ff3601"
+    },
+    {
+      "path": "data/chunk-000/episode_000119.parquet",
+      "type": "file",
+      "size": 26863,
+      "mode": 384,
+      "sha256": "56ebdce5f91ea23213450bc940a2cf6fb445497621ee49615e8dc908ad81a095"
+    },
+    {
+      "path": "data/chunk-000/episode_000120.parquet",
+      "type": "file",
+      "size": 28728,
+      "mode": 384,
+      "sha256": "9c7b9cd11f3188e6acf35f42f09006a2473ab27c20f5504d26454965b893ca87"
+    },
+    {
+      "path": "data/chunk-000/episode_000121.parquet",
+      "type": "file",
+      "size": 26979,
+      "mode": 384,
+      "sha256": "906469fb795d955811acecaf10c348ba70755bb373b20c7f22ff6c8d9d82bbba"
+    },
+    {
+      "path": "data/chunk-000/episode_000122.parquet",
+      "type": "file",
+      "size": 27239,
+      "mode": 384,
+      "sha256": "2e686b9edba96e25da7f9901d747e83e298022d80c566c01ab322f1fcb3e2e36"
+    },
+    {
+      "path": "data/chunk-000/episode_000123.parquet",
+      "type": "file",
+      "size": 26563,
+      "mode": 384,
+      "sha256": "3a4bbf7132d9472afc2beb3bd273fdc8a74d5923ab9f9892249ce3254887051e"
+    },
+    {
+      "path": "data/chunk-000/episode_000124.parquet",
+      "type": "file",
+      "size": 27324,
+      "mode": 384,
+      "sha256": "85503e602e8a6bfe5265cc152ac32d78fc4c95e963a1fc9820079f0d46b55f7c"
+    },
+    {
+      "path": "data/chunk-000/episode_000125.parquet",
+      "type": "file",
+      "size": 26174,
+      "mode": 384,
+      "sha256": "b9e944d474835c4d37299bf42f1cfd46b19aa6aea24b9cd0dfdd65988383a119"
+    },
+    {
+      "path": "data/chunk-000/episode_000126.parquet",
+      "type": "file",
+      "size": 25755,
+      "mode": 384,
+      "sha256": "20ebfc5042712af3dfa29b124e9cc27f3c264c477403c7ec00a596245e8dc8c7"
+    },
+    {
+      "path": "data/chunk-000/episode_000127.parquet",
+      "type": "file",
+      "size": 27014,
+      "mode": 384,
+      "sha256": "edc332576f565a41c1300ab2e3c1c4db92ebca87f0c0665f14def9eb4346fc16"
+    },
+    {
+      "path": "data/chunk-000/episode_000128.parquet",
+      "type": "file",
+      "size": 26157,
+      "mode": 384,
+      "sha256": "63ca9d1b9fd2fef972f62a0ffadd6adf809aa76a5c115631468ed08e85670407"
+    },
+    {
+      "path": "data/chunk-000/episode_000129.parquet",
+      "type": "file",
+      "size": 25496,
+      "mode": 384,
+      "sha256": "45bf050f7185aafedc86c64538dba3385262fbbf10e8bcc60bcacacf3d9e6936"
+    },
+    {
+      "path": "data/chunk-000/episode_000130.parquet",
+      "type": "file",
+      "size": 25979,
+      "mode": 384,
+      "sha256": "100a5c61c474d66b3406a5fe3a80bdc659b59ab81c4a90d95e068faa6b68fecc"
+    },
+    {
+      "path": "data/chunk-000/episode_000131.parquet",
+      "type": "file",
+      "size": 27065,
+      "mode": 384,
+      "sha256": "5a4fa5cf5b88e862a88fb5d3b69e4313f3a9912b054eacaf16c2bc0d0b190686"
+    },
+    {
+      "path": "data/chunk-000/episode_000132.parquet",
+      "type": "file",
+      "size": 25463,
+      "mode": 384,
+      "sha256": "29110f66145cb4aa20da986882c5b87b08cf20a0963b6927cec22a4268b41a0e"
+    },
+    {
+      "path": "data/chunk-000/episode_000133.parquet",
+      "type": "file",
+      "size": 26345,
+      "mode": 384,
+      "sha256": "3e2d09745a41eba8f489d30684183066d663473c23bbc854cd412c869cdf6ff9"
+    },
+    {
+      "path": "data/chunk-000/episode_000134.parquet",
+      "type": "file",
+      "size": 25062,
+      "mode": 384,
+      "sha256": "6053dbe4f04f6ae53037a5d87711acf1d89d2087075ccbba5b0f1f557fc0a412"
+    },
+    {
+      "path": "data/chunk-000/episode_000135.parquet",
+      "type": "file",
+      "size": 25436,
+      "mode": 384,
+      "sha256": "7c69d328d8a9517bff87cddc616fa1a90c6be8a73328f32c1eb474aff78725e6"
+    },
+    {
+      "path": "data/chunk-000/episode_000136.parquet",
+      "type": "file",
+      "size": 25693,
+      "mode": 384,
+      "sha256": "bbaf68ad95714c9b81348b59342379a4f78f8e1370eedf47a0f218de9d440dfb"
+    },
+    {
+      "path": "data/chunk-000/episode_000137.parquet",
+      "type": "file",
+      "size": 27871,
+      "mode": 384,
+      "sha256": "f8a2482c882919ecb99d49e2215280de3cbee5cb7a8eefd019e8629e7cb17d68"
+    },
+    {
+      "path": "data/chunk-000/episode_000138.parquet",
+      "type": "file",
+      "size": 25395,
+      "mode": 384,
+      "sha256": "55567e5b40277d7715579b186abf9c1f9cbe0ab1f9d42275c32f68e012519a7a"
+    },
+    {
+      "path": "data/chunk-000/episode_000139.parquet",
+      "type": "file",
+      "size": 25263,
+      "mode": 384,
+      "sha256": "55733efd4d0c67192022136182c476b89a30c671a79aae679fa0308a09e2c451"
+    },
+    {
+      "path": "data/chunk-000/episode_000140.parquet",
+      "type": "file",
+      "size": 25871,
+      "mode": 384,
+      "sha256": "cba9f0824ece39f77cd3026cea700e085a43654f21b0f954593e4a37d079d117"
+    },
+    {
+      "path": "data/chunk-000/episode_000141.parquet",
+      "type": "file",
+      "size": 25880,
+      "mode": 384,
+      "sha256": "27ebd68e9a078714d62fd7fbb7a213bc0a43eabbcba6a882f6b05d3cbb876c20"
+    },
+    {
+      "path": "data/chunk-000/episode_000142.parquet",
+      "type": "file",
+      "size": 26025,
+      "mode": 384,
+      "sha256": "518e7034c73212283a2f527c0bf33a000b8dccb523802643b65f7c5fba90fadc"
+    },
+    {
+      "path": "data/chunk-000/episode_000143.parquet",
+      "type": "file",
+      "size": 26149,
+      "mode": 384,
+      "sha256": "7747bc7d2cdb488727a9ef0d00a759bd25ae3aae2dbe5c23bff2b8087b4a05c7"
+    },
+    {
+      "path": "data/chunk-000/episode_000144.parquet",
+      "type": "file",
+      "size": 26138,
+      "mode": 384,
+      "sha256": "6dfa8670569ed2b5fac0ad033b53c679c3f24778f5273eb5f8f9388195b4a4c5"
+    },
+    {
+      "path": "data/chunk-000/episode_000145.parquet",
+      "type": "file",
+      "size": 26815,
+      "mode": 384,
+      "sha256": "3558a4f2cf7073e65568f2d1957174e3b7d6542a4ceb9388ad0dbabd494cf6cc"
+    },
+    {
+      "path": "data/chunk-000/episode_000146.parquet",
+      "type": "file",
+      "size": 26844,
+      "mode": 384,
+      "sha256": "ed003a1a61e1117f1bd10a613ebcf4a5c90164a9fb517c194bf49eae11bf71c7"
+    },
+    {
+      "path": "data/chunk-000/episode_000147.parquet",
+      "type": "file",
+      "size": 26748,
+      "mode": 384,
+      "sha256": "0183d68e4a62b6b3f85a218dbe30917b92c6e13e3154433d34bab0faff115c5a"
+    },
+    {
+      "path": "data/chunk-000/episode_000148.parquet",
+      "type": "file",
+      "size": 27143,
+      "mode": 384,
+      "sha256": "8221484e4ad1ce5fce65cadb2d74fe7406e80a23a00597445ab3322b8b5c5a17"
+    },
+    {
+      "path": "data/chunk-000/episode_000149.parquet",
+      "type": "file",
+      "size": 26324,
+      "mode": 384,
+      "sha256": "a6380ac08e99595a05edf0ce94fb80fefc19bb7a3d477d7e96c6fca491f30fd7"
+    },
+    {
+      "path": "data/chunk-000/episode_000150.parquet",
+      "type": "file",
+      "size": 26784,
+      "mode": 384,
+      "sha256": "74346d328bbb5232c0a440af3b144754ed41fb6c3fffab024a4e390cb0851c13"
+    },
+    {
+      "path": "data/chunk-000/episode_000151.parquet",
+      "type": "file",
+      "size": 26093,
+      "mode": 384,
+      "sha256": "8be01b663b302b07d76d5507f8843d65a0e609fd843dc22cdd47735a4a8bce47"
+    },
+    {
+      "path": "data/chunk-000/episode_000152.parquet",
+      "type": "file",
+      "size": 28206,
+      "mode": 384,
+      "sha256": "e060e66177797b1585028862665ca013ad53cd63741d0c39abb9ff47f9178cbf"
+    },
+    {
+      "path": "data/chunk-000/episode_000153.parquet",
+      "type": "file",
+      "size": 26472,
+      "mode": 384,
+      "sha256": "9509314874906b5c5f6f1f87142281293acf34cbd42af396ce2e0294cdb23629"
+    },
+    {
+      "path": "data/chunk-000/episode_000154.parquet",
+      "type": "file",
+      "size": 25225,
+      "mode": 384,
+      "sha256": "76d68ab519bb2365c95cda8a1e3d6f5afe86a27b93ef87e5f5dec249b0fc771d"
+    },
+    {
+      "path": "data/chunk-000/episode_000155.parquet",
+      "type": "file",
+      "size": 25773,
+      "mode": 384,
+      "sha256": "665b2eadc746dfb4d999c5b75cec537454f0b76ae707a067a4e804cca304f080"
+    },
+    {
+      "path": "data/chunk-000/episode_000156.parquet",
+      "type": "file",
+      "size": 25889,
+      "mode": 384,
+      "sha256": "4718936aa9a137309ab86e6ad2ae75d4aa65b87560e88099cc41a269e2f47d86"
+    },
+    {
+      "path": "meta/episodes.jsonl",
+      "type": "file",
+      "size": 15397,
+      "mode": 384,
+      "sha256": "8c0dfd70c8fc42c17bc376e82dab1bdbb7c9f8201a7113dde41b302ba64b051a"
+    },
+    {
+      "path": "meta/episodes_stats.jsonl",
+      "type": "file",
+      "size": 704131,
+      "mode": 384,
+      "sha256": "f11e4866b508ec4b1046ee7d7790c4165439309d1c25611ff94509326bb8729a"
+    },
+    {
+      "path": "meta/info.json",
+      "type": "file",
+      "size": 2477,
+      "mode": 384,
+      "sha256": "95469ea8aaeac9f0f96d0f5f4622496a7b9d5e66f1b11fd89d72693d520d05f4"
+    },
+    {
+      "path": "meta/modality.json",
+      "type": "file",
+      "size": 524,
+      "mode": 384,
+      "sha256": "f28d445c8038c4191ce5ba1559c3f04bfabd4078f210abf0b3b422cc154d15d3"
+    },
+    {
+      "path": "meta/relative_stats.json",
+      "type": "file",
+      "size": 20158,
+      "mode": 384,
+      "sha256": "ed3ca45148a076b9453da8c179db837da37f21e5dc2fae79cf846404bda8c054"
+    },
+    {
+      "path": "meta/stats.json",
+      "type": "file",
+      "size": 12966,
+      "mode": 436,
+      "sha256": "61edfa721dd72f9bf8c975d54004c6326bf0b6a9e34ac37bc4a1221d11ab0914"
+    },
+    {
+      "path": "meta/tasks.jsonl",
+      "type": "file",
+      "size": 246,
+      "mode": 384,
+      "sha256": "48a67efa368d0023a9931f92e252c818274fd58d578955987097fcb1bbbd8742"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000000.mp4",
+      "type": "file",
+      "size": 2144676,
+      "mode": 384,
+      "sha256": "18880a560e024768c7a08cceba9be70a3eb3b309ac9c0d6c85a71d2568442af5"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000001.mp4",
+      "type": "file",
+      "size": 2127425,
+      "mode": 384,
+      "sha256": "90caa11808c8e21ecfafea936c46d7fa3c5cbf7266e4200a7970c3c466122848"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000002.mp4",
+      "type": "file",
+      "size": 2180232,
+      "mode": 384,
+      "sha256": "d54b6390d71edec9adb515de363e7db979f5ad7d9abf321cf4ee321bda46db84"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000003.mp4",
+      "type": "file",
+      "size": 2162656,
+      "mode": 384,
+      "sha256": "f76f996a62ae95a8d8f875c8e22007fccff8931cfae38625e8c20a7dfb8e3aba"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000004.mp4",
+      "type": "file",
+      "size": 2237179,
+      "mode": 384,
+      "sha256": "8ed900879a6d159f09110ac2c4027689864a4fb5ab0f424746e91e23227bab07"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000005.mp4",
+      "type": "file",
+      "size": 2197213,
+      "mode": 384,
+      "sha256": "98696143d50e35d7879032c917936057fcf1370727098c60c9d753cea2ca4ee6"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000006.mp4",
+      "type": "file",
+      "size": 2189219,
+      "mode": 384,
+      "sha256": "f0e2b894a26e794a26b7a2f15a68f9d54776fbd735589826bdbcec215d682f33"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000007.mp4",
+      "type": "file",
+      "size": 2217758,
+      "mode": 384,
+      "sha256": "d1742c79cd86e25dadfafd8fce095314a928eb3e78ce4f005e04ef3b468190c8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000008.mp4",
+      "type": "file",
+      "size": 2127190,
+      "mode": 384,
+      "sha256": "2d431dff778b5327a98d4ceff250f3e54f3632d04a19aa2eee56c4b48dead7dd"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000009.mp4",
+      "type": "file",
+      "size": 2138731,
+      "mode": 384,
+      "sha256": "7c9e6c2e4f018be8fe1f0caf55dcdd82e627f1f0aba358f7e462597bf0857eea"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000010.mp4",
+      "type": "file",
+      "size": 2145519,
+      "mode": 384,
+      "sha256": "81d5556bf6dd33ce147f3ee1ce82269c18f9bddf99933a09d5fc8f715673aa93"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000011.mp4",
+      "type": "file",
+      "size": 2129224,
+      "mode": 384,
+      "sha256": "fd0c48cce5725fc4a2ca9ea4ec855b8eb88a83e4924ad220861a7ac307553b3c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000012.mp4",
+      "type": "file",
+      "size": 2137720,
+      "mode": 384,
+      "sha256": "338d20c3eab6f568f70bb4678ca83c34595afeee1e113ba9b41f1cb37280e6eb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000013.mp4",
+      "type": "file",
+      "size": 2105745,
+      "mode": 384,
+      "sha256": "f049eeccf341ce30d0f2480f6d975ee5c95a54e4ef7e18ce2d13e451e3df6c28"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000014.mp4",
+      "type": "file",
+      "size": 2123690,
+      "mode": 384,
+      "sha256": "d5aa9f77631b769ed8581f222cfcbf456330240051b9f7fdf23b5d9df1503d19"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000015.mp4",
+      "type": "file",
+      "size": 2245845,
+      "mode": 384,
+      "sha256": "7f407e1a3a6768df8ebcb10f40aa6834c74805815c498c15a4f86040b8295070"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000016.mp4",
+      "type": "file",
+      "size": 2104725,
+      "mode": 384,
+      "sha256": "67a48afa6908f726fea7236e552bd183e59b3421f44509bbb80360b63b2cdee0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000017.mp4",
+      "type": "file",
+      "size": 2112567,
+      "mode": 384,
+      "sha256": "4a607a19bc2e570ce8ada337dd084cfd49f214bf9277f14c539e10bdcd4ccda8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000018.mp4",
+      "type": "file",
+      "size": 2105943,
+      "mode": 384,
+      "sha256": "15286f69c56808769a154d080e724e8713f06b69dde99f3a39f2c4d945d8f06a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000019.mp4",
+      "type": "file",
+      "size": 2143923,
+      "mode": 384,
+      "sha256": "3b6516bce1023e75c9df6fc12c30ed43f5c62a59ba660a6fc0644007f8165ff4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000020.mp4",
+      "type": "file",
+      "size": 2118422,
+      "mode": 384,
+      "sha256": "c8c2c8eb55ecdd4a7b276c85afeb1770f1cd0af78cba82e32e2f9fcb1c4fdb45"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000021.mp4",
+      "type": "file",
+      "size": 2104876,
+      "mode": 384,
+      "sha256": "7dd3c3ad4ab40a4b0ed5be7c8ea154bb36e0191b52db263a3112f43b2870e092"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000022.mp4",
+      "type": "file",
+      "size": 2100647,
+      "mode": 384,
+      "sha256": "3ef77017d213849de14a87b9b2d4e7461646129642a5f1cd936a251738c0fe8d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000023.mp4",
+      "type": "file",
+      "size": 2113313,
+      "mode": 384,
+      "sha256": "509a746204cda85877052d5b65d5c12b112711adcc84e747775f5b957d7b510c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000024.mp4",
+      "type": "file",
+      "size": 2112868,
+      "mode": 384,
+      "sha256": "5c88f96e3af8b8c02317819997da0f2674c8961af1bf164f341864167874411b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000025.mp4",
+      "type": "file",
+      "size": 2141567,
+      "mode": 384,
+      "sha256": "8c90c4fb46262e85921ed4bacae0100cc73ce3a9bd52a4c3e7fd462c42630484"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000026.mp4",
+      "type": "file",
+      "size": 2123658,
+      "mode": 384,
+      "sha256": "04900998ac01c6ddaee858f6a06235f2eda2db2fbef52de7fabbb2a1b56ecadd"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000027.mp4",
+      "type": "file",
+      "size": 2098364,
+      "mode": 384,
+      "sha256": "6b067c3ecc8ce6bec55c4a1b06457617db3f2607dd96514e1d809d0a38bdc607"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000028.mp4",
+      "type": "file",
+      "size": 2084080,
+      "mode": 384,
+      "sha256": "16cccabeb3892eb4f07835c9d7bf57529b05350b41e1ba0009c5a3cc917ffb46"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000029.mp4",
+      "type": "file",
+      "size": 2100147,
+      "mode": 384,
+      "sha256": "ed3382cefc2789b230e8fffeece7ba06aa480ad59bb85e53c3105e7239b5219f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000030.mp4",
+      "type": "file",
+      "size": 2097459,
+      "mode": 384,
+      "sha256": "838870338fdaac9e6a961bf2a22235d7ce70920242d9221425b894d69353cb14"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000031.mp4",
+      "type": "file",
+      "size": 2086915,
+      "mode": 384,
+      "sha256": "71780ee13a1f55f741f806524bee9db24e859b4e5aeb299007bf3076c3d3a574"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000032.mp4",
+      "type": "file",
+      "size": 2093165,
+      "mode": 384,
+      "sha256": "b30fd02712bbb1b9d9e0889586a1f1825e25eecc929253237921823b47dc7ae0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000033.mp4",
+      "type": "file",
+      "size": 2095257,
+      "mode": 384,
+      "sha256": "be9311e0ac43016cc27097ac2040c5d369e7b1fb8dcc5b206a81ac11df650345"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000034.mp4",
+      "type": "file",
+      "size": 2083254,
+      "mode": 384,
+      "sha256": "f8f9fc0b8307e0cfd188354d9b56fdf50d1e71bde222961bafc79ec778046bac"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000035.mp4",
+      "type": "file",
+      "size": 2065352,
+      "mode": 384,
+      "sha256": "82c8eb745dda3f57ec4f34c684d6e5cd50b57068f5ec2a8bf79c396b8ace20e7"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000036.mp4",
+      "type": "file",
+      "size": 2089603,
+      "mode": 384,
+      "sha256": "74a409907b9de15c8a0106a5566c5bf5121ba8820c4c8a9868ff0b73847c2081"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000037.mp4",
+      "type": "file",
+      "size": 2077349,
+      "mode": 384,
+      "sha256": "a90efdebfde4f481a607cdbcac6be087216ebd1c73920903fa5e54cb1ed25e79"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000038.mp4",
+      "type": "file",
+      "size": 2121850,
+      "mode": 384,
+      "sha256": "a3fd0ef0ca7fe1e460ea8783fc5b43042ed7066726cb8e2eaed1f890818a478b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000039.mp4",
+      "type": "file",
+      "size": 2125531,
+      "mode": 384,
+      "sha256": "4a9e2cadb5838a1040a864e038fda5c1c8d596c549eb7a533fdbfba28017415b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000040.mp4",
+      "type": "file",
+      "size": 2059956,
+      "mode": 384,
+      "sha256": "5fd798c65776c5587d2342cd7ab40abc23acc856937fd0343300f6ab4af93899"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000041.mp4",
+      "type": "file",
+      "size": 2100105,
+      "mode": 384,
+      "sha256": "b129bf962a33d7caad6835d4cc8cb812ac99251642b374b5b9983a2583405101"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000042.mp4",
+      "type": "file",
+      "size": 2089570,
+      "mode": 384,
+      "sha256": "1def269a2d144a0d26827d359cd26256ed0fb33bd9b068dbfa4ed325b2557e94"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000043.mp4",
+      "type": "file",
+      "size": 2123992,
+      "mode": 384,
+      "sha256": "08fe805d227ca1be086ae58b5e2649cab6041b3e806ae79974fc22dd21b23a92"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000044.mp4",
+      "type": "file",
+      "size": 2117851,
+      "mode": 384,
+      "sha256": "852e4ab1b9eff98f7cb7d04fe868b2ef832406b06017ae428051e96b16e03e4e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000045.mp4",
+      "type": "file",
+      "size": 2074854,
+      "mode": 384,
+      "sha256": "5ba83d3eab2f12af794dfb6a3e010676a86df7dead9525d22a4c3ffb2fba3f16"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000046.mp4",
+      "type": "file",
+      "size": 2071333,
+      "mode": 384,
+      "sha256": "c8fb66a7ca4a829ee402552ad4e495bb321880e071ad17eba5cfe5244a0822c7"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000047.mp4",
+      "type": "file",
+      "size": 2174021,
+      "mode": 384,
+      "sha256": "642510da3d1323580733215b57f4655a326ea486612a10ae9890afc19ab73a72"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000048.mp4",
+      "type": "file",
+      "size": 2174730,
+      "mode": 384,
+      "sha256": "a93a18902e81d2ed14d00961765f8ed6a68cbe3a8129ce3f43cea1b967cd8e14"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000049.mp4",
+      "type": "file",
+      "size": 2136038,
+      "mode": 384,
+      "sha256": "cbbeb8747f1c65b4c718cc3734d202212780f821c25b25f7fdee4213a3d555ce"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000050.mp4",
+      "type": "file",
+      "size": 2235057,
+      "mode": 384,
+      "sha256": "de0ea5deb4a0ff0c342c1eda62313707ee511def230feb08754e830ef5e41b5c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000051.mp4",
+      "type": "file",
+      "size": 2205484,
+      "mode": 384,
+      "sha256": "5d73f2c09293896014d362d15515bb4af3162368c584de5e824ac65f4d5ad81c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000052.mp4",
+      "type": "file",
+      "size": 2221365,
+      "mode": 384,
+      "sha256": "d3792ff53cc703a4c706106207a10df5b418d0b4798d5dca1eae95fda0ab8b42"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000053.mp4",
+      "type": "file",
+      "size": 2205870,
+      "mode": 384,
+      "sha256": "833acb70d869ab02476e0d4f597cac5459401390d8902a54a4cde93b171c36db"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000054.mp4",
+      "type": "file",
+      "size": 2202691,
+      "mode": 384,
+      "sha256": "16b7fefc3da09b3183a2c7553198812a50effea3e0dba4b16d7a4ac5103a5adb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000055.mp4",
+      "type": "file",
+      "size": 2204338,
+      "mode": 384,
+      "sha256": "69b6b267c4221ce394d886c963a5dbd1718431612b63c8d8f7b091cc5b266e31"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000056.mp4",
+      "type": "file",
+      "size": 2222574,
+      "mode": 384,
+      "sha256": "3ada76ea13c172e8fa9635feda01a5a76a90a46d9ff364d40a74e758053a9786"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000057.mp4",
+      "type": "file",
+      "size": 2227876,
+      "mode": 384,
+      "sha256": "32a5a4ce9f1fe0cfdf44bbc13b6156cd9c2c993f128e7c6a20a07ad047be5272"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000058.mp4",
+      "type": "file",
+      "size": 2217793,
+      "mode": 384,
+      "sha256": "7c764d90551d8b410a2308dd306f69fe665f7276f0e2af6eb7b3d93f98ddd61d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000059.mp4",
+      "type": "file",
+      "size": 2213928,
+      "mode": 384,
+      "sha256": "a789f3357b2be5b0960b6608ef844950cc242154bb54fca99984e07af717c6ef"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000060.mp4",
+      "type": "file",
+      "size": 2222777,
+      "mode": 384,
+      "sha256": "e12cb7764059871c056bf11e9c71a0cce44f38982a349d0dd7b878c90c6f6e6e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000061.mp4",
+      "type": "file",
+      "size": 2223924,
+      "mode": 384,
+      "sha256": "53cf6d013df11cc06ac9d90b9018945defb53a8bd344f87280b7e0ca085d9a75"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000062.mp4",
+      "type": "file",
+      "size": 2300794,
+      "mode": 384,
+      "sha256": "d2f9dd7254da0e72d9dc8cd4c6e3c1f1912ac817cde074b9c9069600a3dacffb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000063.mp4",
+      "type": "file",
+      "size": 2305859,
+      "mode": 384,
+      "sha256": "fdb85697ea73ca938b4d448a9649164871e56af3fe4444d48aba4a8b1f1a8d68"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000064.mp4",
+      "type": "file",
+      "size": 2315539,
+      "mode": 384,
+      "sha256": "e15c65d2186fc39ebf8f49d5e69182931feccd5643e7862225cdf4f6675fe83a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000065.mp4",
+      "type": "file",
+      "size": 2336619,
+      "mode": 384,
+      "sha256": "63a00e841b51afdc30899175fe2d70d032f01602bf2f5d82258e357db9000e59"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000066.mp4",
+      "type": "file",
+      "size": 2277554,
+      "mode": 384,
+      "sha256": "5f56a3a4da40193085d038feb1e2c473711b1c80efb31eef8b37642840cb5170"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000067.mp4",
+      "type": "file",
+      "size": 2291648,
+      "mode": 384,
+      "sha256": "deab494649293892400dc5b0bca396ad8a841fe875d43ef986a4a081198fc3bb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000068.mp4",
+      "type": "file",
+      "size": 2304329,
+      "mode": 384,
+      "sha256": "d75b5359e70d5645e1b8f952db4d33729e1a42a48a0d11bd4765a29cd674d183"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000069.mp4",
+      "type": "file",
+      "size": 2290917,
+      "mode": 384,
+      "sha256": "825dcf93b2e1dfa13872101bb4b251fb76607d13e237d268c20531a3b3f38494"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000070.mp4",
+      "type": "file",
+      "size": 2324238,
+      "mode": 384,
+      "sha256": "849f5f7cc5cda2e31ffb31620b61b34ef7379c7adf577bc16ecb054680c9bdcd"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000071.mp4",
+      "type": "file",
+      "size": 2305254,
+      "mode": 384,
+      "sha256": "31af8a166d3f661dc8b9353bc99cc4717f5e86e9e75826345a93bc286b6ee7df"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000072.mp4",
+      "type": "file",
+      "size": 2318106,
+      "mode": 384,
+      "sha256": "d254c52d3d202c12b87b36b6837125eb747ffbed98d539a4424f20326489b18a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000073.mp4",
+      "type": "file",
+      "size": 2364282,
+      "mode": 384,
+      "sha256": "dd34b0757388f79a6e60295e5a265531ddcde350d5623dea2e7ed4c6617ba3b4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000074.mp4",
+      "type": "file",
+      "size": 2354530,
+      "mode": 384,
+      "sha256": "0c42c41857ada6f1041c0a3b36846ab7a8c6159f0b15bcd0bb580016b88c0092"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000075.mp4",
+      "type": "file",
+      "size": 2375912,
+      "mode": 384,
+      "sha256": "1a3ce076c32ae0f0ab50b0f46f19ee75d50b68f608215b31ad7738782bd60248"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000076.mp4",
+      "type": "file",
+      "size": 2359844,
+      "mode": 384,
+      "sha256": "979bddb48fd003e3ce4c66f29ba4f353ed6e5d2338ba06ecdaf413b048ea0d87"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000077.mp4",
+      "type": "file",
+      "size": 2360548,
+      "mode": 384,
+      "sha256": "2cdde23cceb0957f95eb33530f14edd3dd38041b1ba50f18cedc396a40868d32"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000078.mp4",
+      "type": "file",
+      "size": 2330008,
+      "mode": 384,
+      "sha256": "88926b569f20e1bf6e1d2a69b3a53524fbc55db305dc05322f9f58e7b6bd757c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000079.mp4",
+      "type": "file",
+      "size": 2306373,
+      "mode": 384,
+      "sha256": "22ac4881d6fbf4ec7cfa135a507475bf78d3999b0028c30c17d47e2edb4f2a76"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000080.mp4",
+      "type": "file",
+      "size": 2303317,
+      "mode": 384,
+      "sha256": "c4e589b4bb524983b19bf209f628fd878ed680875b553974ae2cac6515994819"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000081.mp4",
+      "type": "file",
+      "size": 2280918,
+      "mode": 384,
+      "sha256": "94970097132e47395d37c8ed3da21d0c7667deda4c96ae25728adba514f8032e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000082.mp4",
+      "type": "file",
+      "size": 2259518,
+      "mode": 384,
+      "sha256": "c57cb590fc60714aadf62d7697eda1b6db9ed7b4ca976377b1f33d4fcd167b73"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000083.mp4",
+      "type": "file",
+      "size": 2271730,
+      "mode": 384,
+      "sha256": "5ef1cb5cabd4fc34355ef7c6d6d61eaecb6f1805ea2e0ee6a757d894dd2b583c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000084.mp4",
+      "type": "file",
+      "size": 2241054,
+      "mode": 384,
+      "sha256": "84b466450554458be3617814869f5c10f3915516658a7f78b92dd54f156769ff"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000085.mp4",
+      "type": "file",
+      "size": 2271064,
+      "mode": 384,
+      "sha256": "d062456d5aa533de6766db86bbe4e1684b159417700cea9cb207f7851105e29e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000086.mp4",
+      "type": "file",
+      "size": 2264160,
+      "mode": 384,
+      "sha256": "fc90fb942babcc4f2940319cc15e62aad82e3c8209ce2834d3c91754b040a1c4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000087.mp4",
+      "type": "file",
+      "size": 2257537,
+      "mode": 384,
+      "sha256": "6a5fe4f6b3aba3cd37321233f925ebf3fc04ddb054b18813f19c3194b1116715"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000088.mp4",
+      "type": "file",
+      "size": 2257830,
+      "mode": 384,
+      "sha256": "fa40ad30f996c6a7d045dc9565382e34b730e1a44857180174b9f12b75521f70"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000089.mp4",
+      "type": "file",
+      "size": 2296411,
+      "mode": 384,
+      "sha256": "b8cfacb1c0141d79d950a3a6dc6a53c4a196bf0e40be552be15a3f4fbcb4132c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000090.mp4",
+      "type": "file",
+      "size": 2277301,
+      "mode": 384,
+      "sha256": "41fefe71496d2a71dfbe420856030a804cf1c2b2d10a5c1536bb71f2c976f1a2"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000091.mp4",
+      "type": "file",
+      "size": 2281194,
+      "mode": 384,
+      "sha256": "4df8219cbb462dcac236820e87ac3c45475dd00d81be88324ad844a9e7a66f9e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000092.mp4",
+      "type": "file",
+      "size": 2279262,
+      "mode": 384,
+      "sha256": "2f4968de67c17e6a57439cf20a1067e5bb9bcc845b40a0575fd9403bf3d9e9f9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000093.mp4",
+      "type": "file",
+      "size": 2268762,
+      "mode": 384,
+      "sha256": "da24c0969ea55b8a1275da41a390c0679ddd4717899bd60e110b6c4c77183e35"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000094.mp4",
+      "type": "file",
+      "size": 2253242,
+      "mode": 384,
+      "sha256": "ba94f7b8ebcf6cc4598f80d960f26fbdce744a4ec0f0400b53e3af6560f9e86b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000095.mp4",
+      "type": "file",
+      "size": 2249613,
+      "mode": 384,
+      "sha256": "78bd28fb33e910a41fc182a4b8ad9d080e41988bdba8ff5aed8fa041fc98f274"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000096.mp4",
+      "type": "file",
+      "size": 2260181,
+      "mode": 384,
+      "sha256": "dd32164472fd32dd09fc8d3135213b4eb514a8e1bf9be4d01e17562cc7ef914f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000097.mp4",
+      "type": "file",
+      "size": 2246332,
+      "mode": 384,
+      "sha256": "67d2e3d4a88afd219b05df9a88b2cadb71a36be53f30d16e6e626761540e9941"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000098.mp4",
+      "type": "file",
+      "size": 2231105,
+      "mode": 384,
+      "sha256": "ad473f379adc18bbaf229364fad312a5150553c80bcf90e145c6aebae0655ac6"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000099.mp4",
+      "type": "file",
+      "size": 2216863,
+      "mode": 384,
+      "sha256": "3900debc513b787f9661ddbc126ce6ae3e4372a17072c3433c7581d9d7c3f121"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000100.mp4",
+      "type": "file",
+      "size": 2216847,
+      "mode": 384,
+      "sha256": "a8a399f8abd9919a7150f5775415552def917c521ffac61d33301f37c586a316"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000101.mp4",
+      "type": "file",
+      "size": 2320674,
+      "mode": 384,
+      "sha256": "810663603946b2caca828b71e41a56e27261184881645368340d207c5454f366"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000102.mp4",
+      "type": "file",
+      "size": 2272820,
+      "mode": 384,
+      "sha256": "de6f4cfc0d2eb3d81a7c899a50ad07553e90b41aca8f75184347fcbd5f8fefb3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000103.mp4",
+      "type": "file",
+      "size": 2277809,
+      "mode": 384,
+      "sha256": "80f7e9e1cceca2dffb65f6fec254ff75a6c4e82fc4776caa08110eb762692d87"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000104.mp4",
+      "type": "file",
+      "size": 2267934,
+      "mode": 384,
+      "sha256": "1f6cb4e23dff36cad43156a80da245819c4a3b283c34fad907ff944b42fe97dd"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000105.mp4",
+      "type": "file",
+      "size": 2283435,
+      "mode": 384,
+      "sha256": "77c4891a0b16ead66f94aa5ad2b4b2d2fcc5b54727904b37d6c5287dfef35f89"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000106.mp4",
+      "type": "file",
+      "size": 2281319,
+      "mode": 384,
+      "sha256": "ab6b1acaa318bc2746f2fc80e7d7466679b1d41d9c8feca10f021a75474d173a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000107.mp4",
+      "type": "file",
+      "size": 2261065,
+      "mode": 384,
+      "sha256": "47991be2ef1e1919b4a5aa1be1fea89583cece282b3ec52b6e4749d079dbb7b2"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000108.mp4",
+      "type": "file",
+      "size": 2229059,
+      "mode": 384,
+      "sha256": "b7aad9f03d3ad1b43ad70ed8ade6e9f5471c7aeaecb8cc86c5be1e832959eb18"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000109.mp4",
+      "type": "file",
+      "size": 2252127,
+      "mode": 384,
+      "sha256": "9b82ce038a043089ee5be3594a1d12a43e60b42df381483c2c798d967fa9dfca"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000110.mp4",
+      "type": "file",
+      "size": 2308961,
+      "mode": 384,
+      "sha256": "2a6aeb617072375ed255edff0d4ce093898cd9f3d471d27bbd946f342bb2a8db"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000111.mp4",
+      "type": "file",
+      "size": 2236903,
+      "mode": 384,
+      "sha256": "ef0b7df46019c3802f6b3aa83fd36b5818a307e0f024e098c0c8b221c8b4d267"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000112.mp4",
+      "type": "file",
+      "size": 2237584,
+      "mode": 384,
+      "sha256": "a05cb095beccd470f9bb35345c568669d07b036e08ead34bcf3127372e4927ae"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000113.mp4",
+      "type": "file",
+      "size": 2221100,
+      "mode": 384,
+      "sha256": "9fa8c7d87f6ef74500357aa11055e1ccccf22ccfb4ed3e4859fbabe27c8e7347"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000114.mp4",
+      "type": "file",
+      "size": 2217077,
+      "mode": 384,
+      "sha256": "c4f17b0afe15d3e297f22f95baacdbe0db9389cf53fb4b92ad5cdc120ac400f9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000115.mp4",
+      "type": "file",
+      "size": 2248970,
+      "mode": 384,
+      "sha256": "969bb0243823bfb2791e30c039f14415ee0473b1591f21407f6aeb7f49cdcbb1"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000116.mp4",
+      "type": "file",
+      "size": 2246945,
+      "mode": 384,
+      "sha256": "70a4cb42b9aa1d77bb099fb8651e8b5e2adff17b96c9059d68e78483f888c907"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000117.mp4",
+      "type": "file",
+      "size": 3514924,
+      "mode": 384,
+      "sha256": "d44f0543aa9adf7cc15d41797c4ffdc31603d96e9eaf50a582325832d2ba22fc"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000118.mp4",
+      "type": "file",
+      "size": 3633784,
+      "mode": 384,
+      "sha256": "06c968cf59d539ebb84f0b9badf80723b6d16084a751a14a740546fea0041e54"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000119.mp4",
+      "type": "file",
+      "size": 3633771,
+      "mode": 384,
+      "sha256": "cea8e4a64f7bfc4571d3a7d0baa809ea6da2291b63e8b889158257638b0f7516"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000120.mp4",
+      "type": "file",
+      "size": 4267146,
+      "mode": 384,
+      "sha256": "292a83cd91f1bfa74752009a03abb5cc51c496792ea2a8b2235a865907634aa5"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000121.mp4",
+      "type": "file",
+      "size": 3539740,
+      "mode": 384,
+      "sha256": "d0657a58218a23d2f43d40d79c05217344c6e69427a710a87f25c84fef49cd42"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000122.mp4",
+      "type": "file",
+      "size": 3710497,
+      "mode": 384,
+      "sha256": "a811bc3aea98baebca0599f0d7f471550dc6aa9cba93985eeb2efa9e48679768"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000123.mp4",
+      "type": "file",
+      "size": 3517058,
+      "mode": 384,
+      "sha256": "eed15e2f7680049efc88979923fff500328674a878df871ac0c1c212c70e483b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000124.mp4",
+      "type": "file",
+      "size": 3569483,
+      "mode": 384,
+      "sha256": "fd248d965fb702014634ab2095a508518ff672f93c0d2b57f23a79da05891184"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000125.mp4",
+      "type": "file",
+      "size": 3410181,
+      "mode": 384,
+      "sha256": "75ccae8be2543923f5e2291393affd8560dae4238ae36022ba66cae5a947f1f5"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000126.mp4",
+      "type": "file",
+      "size": 3289945,
+      "mode": 384,
+      "sha256": "13ac709bf5e7fd7583b3a336f94fcd24d8052972fe8f7b7c5f93e478bd3605fe"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000127.mp4",
+      "type": "file",
+      "size": 3594101,
+      "mode": 384,
+      "sha256": "422776845ab2c2421da865e55fac072591f2a96094e0ecccaf642d0edc962995"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000128.mp4",
+      "type": "file",
+      "size": 3388335,
+      "mode": 384,
+      "sha256": "cef7e8fc5ca5a708ddc5a196f4093e7c1f8b453fdc7871a663043b3ae0793b35"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000129.mp4",
+      "type": "file",
+      "size": 3241633,
+      "mode": 384,
+      "sha256": "b7894cb830a15a2d7d4c140989f74324381d3501c20b92b3ed6c9b542260f87f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000130.mp4",
+      "type": "file",
+      "size": 3318024,
+      "mode": 384,
+      "sha256": "1ece4c1efc0e2648d5887013ec83afe4143055cb1614ba9540278e9a2a70be10"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000131.mp4",
+      "type": "file",
+      "size": 3477022,
+      "mode": 384,
+      "sha256": "1404666cb1d95c67a88b40965c6a852a56dad26a24b521cb4c96f3345ffb6b92"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000132.mp4",
+      "type": "file",
+      "size": 3213084,
+      "mode": 384,
+      "sha256": "d608195cc43b0955966600e2861b5c63ae5493c3de001c56ddf2cb898af73763"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000133.mp4",
+      "type": "file",
+      "size": 3622022,
+      "mode": 384,
+      "sha256": "7afe518c49ae8a28e780ebca17731a353748220fca3ac32ca5c92eef9f922c75"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000134.mp4",
+      "type": "file",
+      "size": 3160777,
+      "mode": 384,
+      "sha256": "c263913e601d8feb84e8f59cf9f5205a226247d80739c50f5412fdbe32f8d832"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000135.mp4",
+      "type": "file",
+      "size": 3225161,
+      "mode": 384,
+      "sha256": "dd2042bf70fe75e9027ffc5e3f22d9ae878195c7b11cf03db0e771428652b6ba"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000136.mp4",
+      "type": "file",
+      "size": 3267087,
+      "mode": 384,
+      "sha256": "9d30f5644b82bd0196351b8a227f87e283b5531ec0edac9dd914eae67917095a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000137.mp4",
+      "type": "file",
+      "size": 3862736,
+      "mode": 384,
+      "sha256": "f02bf6c61da8bbc488e1801b99d8c9126f87326528d0f34de9ad4cfae23d594d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000138.mp4",
+      "type": "file",
+      "size": 3128869,
+      "mode": 384,
+      "sha256": "b43ff21a62ff2faac197f76e74deb12d34f96000a73a220c90b5ff4eb4584138"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000139.mp4",
+      "type": "file",
+      "size": 3017432,
+      "mode": 384,
+      "sha256": "9128e7307794b1f0a4845c00756619427406ac9cb6de5c4c5545e0799a0aac2f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000140.mp4",
+      "type": "file",
+      "size": 3226500,
+      "mode": 384,
+      "sha256": "b95ebdac9ebafc4006c97f40726f9386f631fa1a14a289f1bf053fcbd7808218"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000141.mp4",
+      "type": "file",
+      "size": 3179326,
+      "mode": 384,
+      "sha256": "84a291d1028ba4a0c333b1590ed10d4491046c01637096e5fced177cb32f0d6c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000142.mp4",
+      "type": "file",
+      "size": 3184198,
+      "mode": 384,
+      "sha256": "a99a81506494ee8855e6d30c56ff196b79c3021106d694c91866f761a5bb4fd2"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000143.mp4",
+      "type": "file",
+      "size": 3152464,
+      "mode": 384,
+      "sha256": "8c77f39b3bf05c8ef9480d0902851f39e9595935c152126296c0763200e71ab8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000144.mp4",
+      "type": "file",
+      "size": 3229641,
+      "mode": 384,
+      "sha256": "5396c1e5ad75f453fd604f193f7a5cf67f989646e4af8084d09708ce3b3c0d12"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000145.mp4",
+      "type": "file",
+      "size": 3398217,
+      "mode": 384,
+      "sha256": "133e5e4cccec262cd56adc1c3269551966e31c3c1494ecaa68e53a3bcb26861b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000146.mp4",
+      "type": "file",
+      "size": 3391942,
+      "mode": 384,
+      "sha256": "cdce4ee9efd410fce8ada1e5d709a9578845d47178d081d7cfd767da97b1e6ac"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000147.mp4",
+      "type": "file",
+      "size": 3292937,
+      "mode": 384,
+      "sha256": "0717789a6713c356a9590efa79926f683d8cee8acc4030ad487b317152573ec3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000148.mp4",
+      "type": "file",
+      "size": 3414013,
+      "mode": 384,
+      "sha256": "5b5e837fffe4383edb935b999703b52e4a6133b8d211206af41b4eaa540b9f41"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000149.mp4",
+      "type": "file",
+      "size": 3271043,
+      "mode": 384,
+      "sha256": "e58dfc8f637b645365b58d6b51424554bca0e7ab0f47d8c873d08ad47b698ae3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000150.mp4",
+      "type": "file",
+      "size": 3451071,
+      "mode": 384,
+      "sha256": "dad0f3eaabb4802dad9f900160d16d002644a247c85bb278eecbe1d0cf7ad164"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000151.mp4",
+      "type": "file",
+      "size": 3227425,
+      "mode": 384,
+      "sha256": "8291c8d67a766f55154e2c5efa57592f48fa1da804440a283ff18bcad83cd18c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000152.mp4",
+      "type": "file",
+      "size": 3699058,
+      "mode": 384,
+      "sha256": "c1f04c89d0ea750dc7ab8575054923cd31a084e3c090e1209ff0fdd79b9bfe4c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000153.mp4",
+      "type": "file",
+      "size": 3383163,
+      "mode": 384,
+      "sha256": "92d737bb1d34b104914a17d4ee29b5b15afc81a859dcff685a90348be63417b8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000154.mp4",
+      "type": "file",
+      "size": 3087712,
+      "mode": 384,
+      "sha256": "82506dcbdaee945235ebf01fe6ebca2313a9fd87e8d9cb795ea3fa6cb22c7f8c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000155.mp4",
+      "type": "file",
+      "size": 3165907,
+      "mode": 384,
+      "sha256": "6c2353dc2bc42cdb3cc626ccf07f38177414ad91a0fd2aadb837b2c09a0e183e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.top/episode_000156.mp4",
+      "type": "file",
+      "size": 3220419,
+      "mode": 384,
+      "sha256": "8c784bcc92117f8f2211c18a848109580fba0d9d839f18b2d60b4700423ed788"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000000.mp4",
+      "type": "file",
+      "size": 1589175,
+      "mode": 384,
+      "sha256": "8e2bbf6449c820a1725671c9adbb2e6dcb301c0324f31e1cb38e79cc0ad6ccce"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000001.mp4",
+      "type": "file",
+      "size": 1534293,
+      "mode": 384,
+      "sha256": "97a84353a59f458b9f33f05af8b5919070106e7521168a609669d8b00cbba036"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000002.mp4",
+      "type": "file",
+      "size": 1543421,
+      "mode": 384,
+      "sha256": "404ef1f0da28ecf0dafebaebcc7e24abf53c03e4b723c666756c699240020c15"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000003.mp4",
+      "type": "file",
+      "size": 1664057,
+      "mode": 384,
+      "sha256": "d48e4dd2d3bffd8d6e870d3776c908a4919ac1d7a17035b0aa6fdb28bcb60008"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000004.mp4",
+      "type": "file",
+      "size": 1568139,
+      "mode": 384,
+      "sha256": "85c07f25480cbbf391a950363824b11ed582b82f91be57f4c47388fdb006e237"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000005.mp4",
+      "type": "file",
+      "size": 1550958,
+      "mode": 384,
+      "sha256": "4781b4175ab67b80180e3d2805ec4b8947aec46afc1148549a4dab892768d9a9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000006.mp4",
+      "type": "file",
+      "size": 1533965,
+      "mode": 384,
+      "sha256": "8d073d3a534ecb5aaaca56f0545c1682199681457f2d0c8ae0f91d37acd2a7d6"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000007.mp4",
+      "type": "file",
+      "size": 1654484,
+      "mode": 384,
+      "sha256": "f9b9d8573169d414680bad9bd4b15f3af35de63adc18f206faa15b9b60eece1b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000008.mp4",
+      "type": "file",
+      "size": 1617341,
+      "mode": 384,
+      "sha256": "6cb62cb39a02edb7c8c5c2728725fc44bf58a71487c333e973a567cf2ff6603e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000009.mp4",
+      "type": "file",
+      "size": 1639774,
+      "mode": 384,
+      "sha256": "39349b84ff3f693ebf01fe2360dd4f0c1218503190276fb2ccbafee9de7c12ec"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000010.mp4",
+      "type": "file",
+      "size": 1594630,
+      "mode": 384,
+      "sha256": "a7062e4ce247f023857fdac07daec6f717b80c496b42516a35f158682f9a6edb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000011.mp4",
+      "type": "file",
+      "size": 1566590,
+      "mode": 384,
+      "sha256": "25582cfcad0dae6733ce5410cbc334dcac36daa872340dc73362019e212d17c8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000012.mp4",
+      "type": "file",
+      "size": 1579710,
+      "mode": 384,
+      "sha256": "a1fbf6cec80db98832206009bca3d7dad412710672434e36907777db0c4ca28c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000013.mp4",
+      "type": "file",
+      "size": 1642623,
+      "mode": 384,
+      "sha256": "f64e55a7d87f3e503c73fbbe07af5eeb61b92e150981e312647ce3af53740a23"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000014.mp4",
+      "type": "file",
+      "size": 1530521,
+      "mode": 384,
+      "sha256": "365f3181017eb78accb1dd9172bf2b28b8487b3cc95d29c2e995dd504a0b5bdd"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000015.mp4",
+      "type": "file",
+      "size": 1617985,
+      "mode": 384,
+      "sha256": "33f4cdc6a2018a8996c9761e81ead5a37e606f64005600c341db1d8fb77fc866"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000016.mp4",
+      "type": "file",
+      "size": 1583585,
+      "mode": 384,
+      "sha256": "dfa2461ba7f98f58c471fbc489ace792623484e73477eca32591e5eff958fda0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000017.mp4",
+      "type": "file",
+      "size": 1605800,
+      "mode": 384,
+      "sha256": "41b7b64dfd4c85a68a62bd8df87595e47cf3654f8aa4327098f3bd591bdd0310"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000018.mp4",
+      "type": "file",
+      "size": 1638927,
+      "mode": 384,
+      "sha256": "459a7ba29887703b3a4b5d3ed2ea35b5becbe5986e22b27e5b6a37e5119ce7aa"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000019.mp4",
+      "type": "file",
+      "size": 1633560,
+      "mode": 384,
+      "sha256": "c1334cf8e7302bb0c63414c54396390ea022ad8b8f6650abe5399123390580e9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000020.mp4",
+      "type": "file",
+      "size": 1622108,
+      "mode": 384,
+      "sha256": "9c945fdebecb62373db86050d97bbfa84f9507abf0141f80a195eda6e78e86d3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000021.mp4",
+      "type": "file",
+      "size": 1631611,
+      "mode": 384,
+      "sha256": "7ead3d2469264c1066fc691ccba983b7f61c6f7e61a27c224c5f5526b2a60b7b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000022.mp4",
+      "type": "file",
+      "size": 1609017,
+      "mode": 384,
+      "sha256": "660c747f7c574278b6b53f7cecf0726ba36c0bfd519b5f6b6460851bed0df5ba"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000023.mp4",
+      "type": "file",
+      "size": 1642095,
+      "mode": 384,
+      "sha256": "814ad79e0c3ba9f23cadbce8a231e77120551893bb28bd74adf8276731618e94"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000024.mp4",
+      "type": "file",
+      "size": 1640497,
+      "mode": 384,
+      "sha256": "9b6a3558363b61387ae20b4d75e08f7c7129cac67f7641d685d3813d3b5c2861"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000025.mp4",
+      "type": "file",
+      "size": 1676282,
+      "mode": 384,
+      "sha256": "0fbe96aec5a077857432c193280649b4bd572780c129a14c64c53cf015f9f62d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000026.mp4",
+      "type": "file",
+      "size": 1617860,
+      "mode": 384,
+      "sha256": "1ba9a9a5d41acb02ca329664f8a24a89f5a77186a06d051593460afb90016d27"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000027.mp4",
+      "type": "file",
+      "size": 1598726,
+      "mode": 384,
+      "sha256": "5edffc9061ef3d50afc750c87dc54e763e3e968b4da9729fb6a7b11b30d16c14"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000028.mp4",
+      "type": "file",
+      "size": 1577813,
+      "mode": 384,
+      "sha256": "36a2888b409cdbdcf3c660a4309a566435b19830840e65cb7c50edb054bdad95"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000029.mp4",
+      "type": "file",
+      "size": 1578493,
+      "mode": 384,
+      "sha256": "42f7deba90e0f5eedcf056e30216b0e68a05abeae3381987a1aaad8f05e0e1b2"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000030.mp4",
+      "type": "file",
+      "size": 1540176,
+      "mode": 384,
+      "sha256": "c254338d7e98823f2ea6c38ab1d320b5a08618d18eb4deeb6ff15b084ae22829"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000031.mp4",
+      "type": "file",
+      "size": 1600326,
+      "mode": 384,
+      "sha256": "fc7c9771daea0539039f39bf77b3bbb5c3437e757559f80ac78e44964d5ad404"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000032.mp4",
+      "type": "file",
+      "size": 1571925,
+      "mode": 384,
+      "sha256": "b89a303a87ebd4d4ec9a4fb91874a0b95cdabaa9f4befd87e1a6f6d6aa729739"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000033.mp4",
+      "type": "file",
+      "size": 1552511,
+      "mode": 384,
+      "sha256": "9065f500c5c929d5202a03d739987287c59781b104b379564ab378a0edcda4f8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000034.mp4",
+      "type": "file",
+      "size": 1528878,
+      "mode": 384,
+      "sha256": "7b58e57d33692aa006a1753f66813012e15b208eddbc17e308c45d3dd9a0a582"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000035.mp4",
+      "type": "file",
+      "size": 1536452,
+      "mode": 384,
+      "sha256": "0c1dd5bf2adc01c3d90dc6a6b2c36d9a25cd7d33c7a7413676a9c447650dbf6a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000036.mp4",
+      "type": "file",
+      "size": 1523345,
+      "mode": 384,
+      "sha256": "bccf5b91c519b37b0a0d63f850a0a339c3a78d2703c06ccf669f7f248402fa70"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000037.mp4",
+      "type": "file",
+      "size": 1571486,
+      "mode": 384,
+      "sha256": "3a4403a5d55366d4602acf6fa943de5bbb4fbff7db3592592d8d89bbf8213b0b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000038.mp4",
+      "type": "file",
+      "size": 1609853,
+      "mode": 384,
+      "sha256": "0ce36ef17318a268fccb2ee18a52c4cdab80634ffad233d0804791372025d044"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000039.mp4",
+      "type": "file",
+      "size": 1606535,
+      "mode": 384,
+      "sha256": "aa265b4b7cb14ac8bb8fa2e0ebd20209ca4108c6ae9f3338393cb35c2f08cf27"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000040.mp4",
+      "type": "file",
+      "size": 1510359,
+      "mode": 384,
+      "sha256": "c3ecb45d231dbad2d3412ba81fc137557d041215259bb26e9cf9c08c4a8b8d48"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000041.mp4",
+      "type": "file",
+      "size": 1524523,
+      "mode": 384,
+      "sha256": "a44a5ea3d4a1ee94747eaa00a1cca9b1541c59e2d9f6577211d4e659a6cde739"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000042.mp4",
+      "type": "file",
+      "size": 1608435,
+      "mode": 384,
+      "sha256": "28701f41474161e26c2d48d8c95538298e0cb635c6821c4b499a30cbd4243a61"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000043.mp4",
+      "type": "file",
+      "size": 1520044,
+      "mode": 384,
+      "sha256": "5c17f8e09e82df1c43db11b9915a8da30bdac43e1777c0955b1c3ca308d773c1"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000044.mp4",
+      "type": "file",
+      "size": 1507635,
+      "mode": 384,
+      "sha256": "15ded0b6b9157fb99ebc4d6c89842c7bf189bd8779b78253e8b1fd8b0f1b8d68"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000045.mp4",
+      "type": "file",
+      "size": 1497553,
+      "mode": 384,
+      "sha256": "16fd403ec85c7a0900aed60c9682031dcb972a19c90a1599d304f49ae344ce7e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000046.mp4",
+      "type": "file",
+      "size": 1437420,
+      "mode": 384,
+      "sha256": "29771d9025daaa3d9042e14ed6740a33ff8b7273382d5235d494f4ae14bf9f8a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000047.mp4",
+      "type": "file",
+      "size": 1555826,
+      "mode": 384,
+      "sha256": "0e7247dfdc7fa7cc1c93c65a8f1978d8b28fb0b95878644227ce9e1f4d3c42c4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000048.mp4",
+      "type": "file",
+      "size": 1547795,
+      "mode": 384,
+      "sha256": "7a4b9f170efa2143318e9c5317ff24e5f51d4b0aca7585ea79e7c30d45c7de44"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000049.mp4",
+      "type": "file",
+      "size": 1507450,
+      "mode": 384,
+      "sha256": "4868fe86bde5f88fc034a2daf96455eb576461ecf98475fd29b1533e039465b0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000050.mp4",
+      "type": "file",
+      "size": 1580779,
+      "mode": 384,
+      "sha256": "8a180ba0c3ec035b1af7b0904b0691af6e094644fa566bfd85b3726870df701e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000051.mp4",
+      "type": "file",
+      "size": 1507539,
+      "mode": 384,
+      "sha256": "c711724081ae0c9eea46173296cc97e2da258423488cf8755145aff212227156"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000052.mp4",
+      "type": "file",
+      "size": 1517435,
+      "mode": 384,
+      "sha256": "517474a296c25f2a0e76021e361b93fb020440a46f0dabf26bbbe65f22a09f62"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000053.mp4",
+      "type": "file",
+      "size": 1559334,
+      "mode": 384,
+      "sha256": "64f91c835887d7516554cac5b194a182794aa908c9f224969ea1d6220ce660dc"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000054.mp4",
+      "type": "file",
+      "size": 1529700,
+      "mode": 384,
+      "sha256": "07ebd5655af731a44916689c28917fdf18254153449aacc56c819a919693c3e4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000055.mp4",
+      "type": "file",
+      "size": 1558925,
+      "mode": 384,
+      "sha256": "d28a308e5b5e7c2491305dbb8e278963fc6aeac9a7e5118b8247998cd8705a70"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000056.mp4",
+      "type": "file",
+      "size": 1568210,
+      "mode": 384,
+      "sha256": "cf292015d9343b3746a9ef831ad12eaa3cb43a351befbb7f94949452027ae352"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000057.mp4",
+      "type": "file",
+      "size": 1508708,
+      "mode": 384,
+      "sha256": "42ef0317dea067876dd057464a7f58f6bb303f356271dd48b2c1413d5be9e0b3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000058.mp4",
+      "type": "file",
+      "size": 1480850,
+      "mode": 384,
+      "sha256": "7f0730246957ac07c8518f8c35ea9097cecedbc2f404f9bbe1eea4f3d5dd0051"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000059.mp4",
+      "type": "file",
+      "size": 1483376,
+      "mode": 384,
+      "sha256": "9963fa09135c873f2c474e2b123ab290fc872b0986e2ad4bc9122fbc02777eb9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000060.mp4",
+      "type": "file",
+      "size": 1488154,
+      "mode": 384,
+      "sha256": "6ae663051d95b6b92babd47d89e2c9b6ce15cfcebf8f4a77f3c2b36ae3a904df"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000061.mp4",
+      "type": "file",
+      "size": 1487345,
+      "mode": 384,
+      "sha256": "97c78402cfb5bef0f4a5ecea1e761784798a8b56bf6016ac4b96f0e036d34407"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000062.mp4",
+      "type": "file",
+      "size": 1411437,
+      "mode": 384,
+      "sha256": "78b11f0eb921a3f7ffde6ac88646e7ab9eac9053a2c18598451ad7f27b23e718"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000063.mp4",
+      "type": "file",
+      "size": 1426172,
+      "mode": 384,
+      "sha256": "4d1a5eefd430ff566c23746272bbecfd435998e4c8886fa94d23aea73fe999fe"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000064.mp4",
+      "type": "file",
+      "size": 1434098,
+      "mode": 384,
+      "sha256": "5f75a3ed166a38463204ef43dd969e0233ecff3aecf17289c6b1d2940b516e66"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000065.mp4",
+      "type": "file",
+      "size": 1569281,
+      "mode": 384,
+      "sha256": "4936d539c977b18309c73f75787ace307d5fb64629aa1ed22d473879996954da"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000066.mp4",
+      "type": "file",
+      "size": 1451768,
+      "mode": 384,
+      "sha256": "206474ae6748c0624342d2489e796b71e7c0f90089a5cd50ea67946fdb74a112"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000067.mp4",
+      "type": "file",
+      "size": 1304237,
+      "mode": 384,
+      "sha256": "451eeff233a5d2d695063b0b6b5a95c4be115393447c2745f5340b13c6274582"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000068.mp4",
+      "type": "file",
+      "size": 1620463,
+      "mode": 384,
+      "sha256": "0c4d0f20c7f2d5397c09659d01534545c9c8ee9e5fe7564bbd482cc236287779"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000069.mp4",
+      "type": "file",
+      "size": 1409963,
+      "mode": 384,
+      "sha256": "60edfb3df380e204aec05170ae22a70f0f9402fa75c5e8521f12bf20c9ff5f28"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000070.mp4",
+      "type": "file",
+      "size": 1440868,
+      "mode": 384,
+      "sha256": "92e1a1d35a9b9fc0bffe7f3d6a9ee52a61a538edab0c28a46d64cd7613652a92"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000071.mp4",
+      "type": "file",
+      "size": 1494320,
+      "mode": 384,
+      "sha256": "c46bc0c0b1a399b52a712846718fa67ca841b3a235d38fb4dff295472635e780"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000072.mp4",
+      "type": "file",
+      "size": 1430704,
+      "mode": 384,
+      "sha256": "e9d89fb46d9a413dc5e7fda9099599ffc2c70ce4df8abc92dde85412312b4f5b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000073.mp4",
+      "type": "file",
+      "size": 1415453,
+      "mode": 384,
+      "sha256": "c9fb326fb500444a1dc939953c1206f4cfea6ada82145eb650be2fcc65de4498"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000074.mp4",
+      "type": "file",
+      "size": 1393590,
+      "mode": 384,
+      "sha256": "7fa4ca79f39feaf05d020583a34566c037f1cf437acb8b41dd6e928dec323b82"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000075.mp4",
+      "type": "file",
+      "size": 1458789,
+      "mode": 384,
+      "sha256": "9f3a8f52b886389a3c4fb2b4c65b049ebca612bed8077988103824d457601479"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000076.mp4",
+      "type": "file",
+      "size": 1429126,
+      "mode": 384,
+      "sha256": "d6b97a0396e21209eb6220090438a51b65504ed295ef74f7020e49b8e33fca13"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000077.mp4",
+      "type": "file",
+      "size": 1483754,
+      "mode": 384,
+      "sha256": "da4f2775dba8d48db8baf70c5d7a697c7982093616f6718d16ed52359a3d47a6"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000078.mp4",
+      "type": "file",
+      "size": 1410091,
+      "mode": 384,
+      "sha256": "e22c65f8206c634f0a0c4231895dedf0a9a21918abb34bc7b756fd3f99209aed"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000079.mp4",
+      "type": "file",
+      "size": 1343510,
+      "mode": 384,
+      "sha256": "97a4b0d28893a72609cd7275400b8d0d32c823512b45203ea661895e2f75997f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000080.mp4",
+      "type": "file",
+      "size": 1383979,
+      "mode": 384,
+      "sha256": "4fa8f0d1be44a50f3a1a4fa601456a7ab45300846e362aa62360bc8ca067fd8f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000081.mp4",
+      "type": "file",
+      "size": 1416945,
+      "mode": 384,
+      "sha256": "420a4bc43474cbe6f50a4210e2a6f95dcfdca278247434a679389952d0efa67a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000082.mp4",
+      "type": "file",
+      "size": 1350971,
+      "mode": 384,
+      "sha256": "8c3c1b043929babed690d3535f159ce8c10c3553b87d922c681df1944c409c77"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000083.mp4",
+      "type": "file",
+      "size": 1330756,
+      "mode": 384,
+      "sha256": "d713f5744ab42364735bf14ef5c75f405120321fdaef14ca1841203c78168196"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000084.mp4",
+      "type": "file",
+      "size": 1320374,
+      "mode": 384,
+      "sha256": "59bab947ebd10842a1749c7273523bac709fa8921be1db98fc225a17b8899d65"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000085.mp4",
+      "type": "file",
+      "size": 1316333,
+      "mode": 384,
+      "sha256": "60c0ef6f703cd745b2350e2094fa6ef328f0d8cffd5dcb4b094b8dcd22fcd557"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000086.mp4",
+      "type": "file",
+      "size": 1364715,
+      "mode": 384,
+      "sha256": "0ffe810bac6f4a832c05ecd68d5a6ae65302024c87be1dcb2919909be416ca46"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000087.mp4",
+      "type": "file",
+      "size": 1346572,
+      "mode": 384,
+      "sha256": "0b596777d1917fa9e35fa863565f214a1b213db806c7c3a26f46dc2a195bf682"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000088.mp4",
+      "type": "file",
+      "size": 1305609,
+      "mode": 384,
+      "sha256": "d98c6a6b293c1d09c120176e088c2af5052f887ef4772655ab676c9d1345ce13"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000089.mp4",
+      "type": "file",
+      "size": 1470364,
+      "mode": 384,
+      "sha256": "8a00c79f246285f1446c29bb2ad74632607736e9ae97afcd2045b36207fbe990"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000090.mp4",
+      "type": "file",
+      "size": 1333116,
+      "mode": 384,
+      "sha256": "e9e90f8337869f5cedfde3d4278fcd6afd0c020dc348fcf9133888752c4b7b5d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000091.mp4",
+      "type": "file",
+      "size": 1311077,
+      "mode": 384,
+      "sha256": "01557897293e8347d40a504991410df8abe0d9f8d2d85b18a834c759b7ec33f5"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000092.mp4",
+      "type": "file",
+      "size": 1279944,
+      "mode": 384,
+      "sha256": "e76812df0ded3d8e41ad3b179354ed76030c98ecc42391cfef72b16d1764c8a1"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000093.mp4",
+      "type": "file",
+      "size": 1365447,
+      "mode": 384,
+      "sha256": "01ec3abb70da0449fa31652d7cbaa9b99e5ea1cb3c1007898d3a2d1939dd2a5a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000094.mp4",
+      "type": "file",
+      "size": 1280945,
+      "mode": 384,
+      "sha256": "413e0b1eb8e2ba06283bad21f5772ffcf43b40a9791ce7e769b08b1229432397"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000095.mp4",
+      "type": "file",
+      "size": 1362148,
+      "mode": 384,
+      "sha256": "755520dc6f4a17e32a6bb040445ccfe65c53eccc7e710c68a1f909f9b34b6ebb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000096.mp4",
+      "type": "file",
+      "size": 1368493,
+      "mode": 384,
+      "sha256": "82333ceb432633e4b04211ea4a81e392ea343d0d1cffb0da36548c050e33d73c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000097.mp4",
+      "type": "file",
+      "size": 1455455,
+      "mode": 384,
+      "sha256": "e386d48af82a4cc12ff00ad5de3fd160627ba4354edfd2b9ff3a1fd336b211b0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000098.mp4",
+      "type": "file",
+      "size": 1416606,
+      "mode": 384,
+      "sha256": "2e816a6245852022663c58345c3ad9399cd13e01aa8e9fc0591eec87d0e3b24b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000099.mp4",
+      "type": "file",
+      "size": 1493696,
+      "mode": 384,
+      "sha256": "b5c9436e8c5362d86d0f5993247fbcf15d6b538f83230cb6e5d8b91dbe5278aa"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000100.mp4",
+      "type": "file",
+      "size": 1351809,
+      "mode": 384,
+      "sha256": "8128dcab2e45d68fa7c37f7efb93332ad7dd40559fb9b0730ca513d141be2e09"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000101.mp4",
+      "type": "file",
+      "size": 1361734,
+      "mode": 384,
+      "sha256": "8fa3221564eac42805ae4e1e25e35327a1e128db1345b0f8df6739b9c5340721"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000102.mp4",
+      "type": "file",
+      "size": 1357974,
+      "mode": 384,
+      "sha256": "4fd63e27c7ecc184bb7d15460755e6e8b8a71ac24b7d194fdd60f216cf014b38"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000103.mp4",
+      "type": "file",
+      "size": 1325564,
+      "mode": 384,
+      "sha256": "9361b949359a63fc8e28960aab4f0654e7d66cec6ee6510151a5e0ac6b6a5b94"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000104.mp4",
+      "type": "file",
+      "size": 1450886,
+      "mode": 384,
+      "sha256": "6bd9bc32a04ff63ffb749819f939824ede061cb0be5fc5277fd47780f549018b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000105.mp4",
+      "type": "file",
+      "size": 1403925,
+      "mode": 384,
+      "sha256": "391fdbe8a1dbb6aa2c0c83c9aaf11492df625459594374f4e73665492abd1d3c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000106.mp4",
+      "type": "file",
+      "size": 1339776,
+      "mode": 384,
+      "sha256": "3442fb9e3813c9f10908a75902468fe85321921570fcf611421baf0fd8d40e60"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000107.mp4",
+      "type": "file",
+      "size": 1500479,
+      "mode": 384,
+      "sha256": "a358bd893c0879ec8023283ffdca05cec15a696c1f4eb9faf9be1bc80911a6c6"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000108.mp4",
+      "type": "file",
+      "size": 1538494,
+      "mode": 384,
+      "sha256": "217773a379e3c3cb40a894b15a2745771d9ae6b439ffd88093a4c0a92b05e0d4"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000109.mp4",
+      "type": "file",
+      "size": 1351829,
+      "mode": 384,
+      "sha256": "c482a52796012d88899dffe11295fc4122c1209e261c0de60e5dddda516183f9"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000110.mp4",
+      "type": "file",
+      "size": 1526035,
+      "mode": 384,
+      "sha256": "e9345ea16e44a59fc19efc1ec4e834d715295f12136301a32c5b6140a6074a8d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000111.mp4",
+      "type": "file",
+      "size": 1411107,
+      "mode": 384,
+      "sha256": "ef80fd01cf7e931e65a1a03f8a4cedc26bc38df3665a97ec4a1b33bcae41a7b0"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000112.mp4",
+      "type": "file",
+      "size": 1435204,
+      "mode": 384,
+      "sha256": "9f85d89fe87506830916f69e7465abae6eb793162ab7e590015d8c5888d67c19"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000113.mp4",
+      "type": "file",
+      "size": 1371045,
+      "mode": 384,
+      "sha256": "c2456dc2ccfe60300c77d7079e95acbafba78a7ad6e7d3104c2297fdee27988d"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000114.mp4",
+      "type": "file",
+      "size": 1332258,
+      "mode": 384,
+      "sha256": "6dfd4fe101dc8065765092f1c32352800a05aa74183a6ce1cadf353cb2f2366c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000115.mp4",
+      "type": "file",
+      "size": 1417597,
+      "mode": 384,
+      "sha256": "a7350d699e6a21cd2064b6743bc5dfaddd20166477e09eb5b3f6f5892b5d544c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000116.mp4",
+      "type": "file",
+      "size": 1304622,
+      "mode": 384,
+      "sha256": "d5ed575b37f8bedfc7226d3ad2a8ccb820ec9653eb885eb5a111d82bb57e3489"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000117.mp4",
+      "type": "file",
+      "size": 2139732,
+      "mode": 384,
+      "sha256": "fc00f54fe8d484d33b728cd2426ee5db1a6b07bc86c148a47e007172f9259b26"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000118.mp4",
+      "type": "file",
+      "size": 2205675,
+      "mode": 384,
+      "sha256": "5d7756270f026dc00b742358548bc69d7efe3bc0c8227cccd311daf62076b4fc"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000119.mp4",
+      "type": "file",
+      "size": 2118320,
+      "mode": 384,
+      "sha256": "0fd79534838c66da705d76cb1b2dd112f4210cd52180f852bcf3ecf136e71d1a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000120.mp4",
+      "type": "file",
+      "size": 2509796,
+      "mode": 384,
+      "sha256": "400a6cf8824728451059bf78ce015d84d43312282ad67980a8c21f75235089db"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000121.mp4",
+      "type": "file",
+      "size": 2303931,
+      "mode": 384,
+      "sha256": "8abac684f6eecaaae3af5d68424481f4258a9b5efae5d88c995cf40d47fcc49c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000122.mp4",
+      "type": "file",
+      "size": 2446382,
+      "mode": 384,
+      "sha256": "4b9e4654a8c39dd97bdd8c4561b489722a94276797b9265393280511d0b80621"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000123.mp4",
+      "type": "file",
+      "size": 2322565,
+      "mode": 384,
+      "sha256": "739a96d182f1de4b8df15edcceeea38a84c828564d14bc0bfc270256ac99afde"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000124.mp4",
+      "type": "file",
+      "size": 2294167,
+      "mode": 384,
+      "sha256": "45ff8f8ad5c1ce806a3f3d5645788307f5c423ec59b40ca5c5a63e4beb1bb594"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000125.mp4",
+      "type": "file",
+      "size": 2195214,
+      "mode": 384,
+      "sha256": "4fdf6816388421af7ab7bb3d9daa70d72871ddb23ebe0811da18372d267ff098"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000126.mp4",
+      "type": "file",
+      "size": 2001971,
+      "mode": 384,
+      "sha256": "78e6c74556933be73011469b135f80806806777b889f631729a2336f4e113a7c"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000127.mp4",
+      "type": "file",
+      "size": 2156735,
+      "mode": 384,
+      "sha256": "b676109de2dd468e6f022f94d9407a835997239963f470fbda15130655aaf804"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000128.mp4",
+      "type": "file",
+      "size": 1989498,
+      "mode": 384,
+      "sha256": "d33789e7c4c0d5ad774151d3fecec582e8bd3e29cee15f9f64d7f9be517529aa"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000129.mp4",
+      "type": "file",
+      "size": 1935150,
+      "mode": 384,
+      "sha256": "07dd55ec47d31eea3be9b7708e8ff275d4d184069995781a314926cb0db508ad"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000130.mp4",
+      "type": "file",
+      "size": 1966545,
+      "mode": 384,
+      "sha256": "20bf5a42cfe6e4b0f1bec91fc69ff0499a67af52b7e56d6e0be1b8d15751e1f1"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000131.mp4",
+      "type": "file",
+      "size": 2188593,
+      "mode": 384,
+      "sha256": "0ee176cc90f6521a522f0e0ffb964e5e497e9c23db424b3ada2cacf5afc36705"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000132.mp4",
+      "type": "file",
+      "size": 2008335,
+      "mode": 384,
+      "sha256": "3f590719a56b1e2cbc7a25311ef6fde15ecc67a95f7e4a006793c6e4b005813a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000133.mp4",
+      "type": "file",
+      "size": 2328809,
+      "mode": 384,
+      "sha256": "a703feef927d4108d8409918c9446412c264a5bc7f79163b323a20965fbfb23f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000134.mp4",
+      "type": "file",
+      "size": 2141425,
+      "mode": 384,
+      "sha256": "da76082aff33eb83f7f3f0ce141624d9b72544163be2c81344a205a2f49d9b84"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000135.mp4",
+      "type": "file",
+      "size": 2086594,
+      "mode": 384,
+      "sha256": "962a0ce71d4a15b6226294bf36034dd74f6cde0f608351cddad7300fc782b001"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000136.mp4",
+      "type": "file",
+      "size": 1941964,
+      "mode": 384,
+      "sha256": "78a882419ef4161b0c46437930b2ec0b004ac6895ec496117609af767c9acc3e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000137.mp4",
+      "type": "file",
+      "size": 2516257,
+      "mode": 384,
+      "sha256": "740c7ab04b5ab8854e7cf58e02645807d204cade11e871b81ac144d17e1b8f45"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000138.mp4",
+      "type": "file",
+      "size": 2147020,
+      "mode": 384,
+      "sha256": "2f2d6a8fc485919027631487dbad24d744acd69202c7ea32886d6367656c1fb3"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000139.mp4",
+      "type": "file",
+      "size": 2027387,
+      "mode": 384,
+      "sha256": "dcfe94aa38b96e7c13026c5191eac7b01dbb680cc97031b4d3ec1c134ac63cc8"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000140.mp4",
+      "type": "file",
+      "size": 2045439,
+      "mode": 384,
+      "sha256": "69e4fb7202c4be8ca999be92ff1574d97466b75e07776962812856ae9bb2ba17"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000141.mp4",
+      "type": "file",
+      "size": 2052348,
+      "mode": 384,
+      "sha256": "a3af84653791360d675c5e195f3ae89bba43759dfc34311cbaf8881c6bbe652e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000142.mp4",
+      "type": "file",
+      "size": 2006541,
+      "mode": 384,
+      "sha256": "fd5e56bffd4d318f620e2fb61a2d60e65b4039e227f7dc3d6c0a0e9e3f771dab"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000143.mp4",
+      "type": "file",
+      "size": 2088214,
+      "mode": 384,
+      "sha256": "53113e8e6c8a391e49a7c6deed762b3fae385bf6dc8d0f29762cca4daaff2f20"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000144.mp4",
+      "type": "file",
+      "size": 2080860,
+      "mode": 384,
+      "sha256": "0dec67f38609dce90962d01cd354a6d49311469675641eeea15e1fd49996ae9f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000145.mp4",
+      "type": "file",
+      "size": 2366248,
+      "mode": 384,
+      "sha256": "77fe8500f5f03c54aa7c663f23855228adf09bf1ffbec9330103c6762dfc2404"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000146.mp4",
+      "type": "file",
+      "size": 2270438,
+      "mode": 384,
+      "sha256": "a17620d60730d70086cf6d9e86bdd7af9207ba6897984cc7837758909c1d282e"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000147.mp4",
+      "type": "file",
+      "size": 2070948,
+      "mode": 384,
+      "sha256": "328eeb9ab355c5a1904e5d965bb2cc19e2f24d5e716b1c0b869fe380a3560fba"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000148.mp4",
+      "type": "file",
+      "size": 2139499,
+      "mode": 384,
+      "sha256": "965ee546c52f0200eb6ca039816b0c7817bf546a603e459d453df67d29c11f8b"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000149.mp4",
+      "type": "file",
+      "size": 2117532,
+      "mode": 384,
+      "sha256": "f01d350073669cf4423cac9452b0be7a71d28439773586c9391a05698d6a0e90"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000150.mp4",
+      "type": "file",
+      "size": 2173984,
+      "mode": 384,
+      "sha256": "5db50baacdb159884d01f1621697f2bcd6595193c5923f7c69614555f41edcdb"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000151.mp4",
+      "type": "file",
+      "size": 2053279,
+      "mode": 384,
+      "sha256": "2d91678360f6ea1e142d474cfe15576f7760459fac43e6fe383f12402d6e808f"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000152.mp4",
+      "type": "file",
+      "size": 2336056,
+      "mode": 384,
+      "sha256": "9ab3ea2842d94a2c69cec5657c931d256bba68a15330b05a427a8966d31b139a"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000153.mp4",
+      "type": "file",
+      "size": 2155990,
+      "mode": 384,
+      "sha256": "f93c56a6bad4a415b28aba2522cbd720889061587243954f09f4dec873f4ab39"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000154.mp4",
+      "type": "file",
+      "size": 1968894,
+      "mode": 384,
+      "sha256": "bc448fcb824a64ff3965cea84d4db642e8f059f3ceffe3de706d5dd46b6f3a62"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000155.mp4",
+      "type": "file",
+      "size": 2039418,
+      "mode": 384,
+      "sha256": "0fae68e7faa6e17fe7ee1786969851e503ace86b053b0f5494a4662b63eb6675"
+    },
+    {
+      "path": "videos/chunk-000/observation.images.wrist/episode_000156.mp4",
+      "type": "file",
+      "size": 2215287,
+      "mode": 384,
+      "sha256": "73cf1c33b6ae72403f8f7270fe12c0cb1c74291006e7090d4384097cc6086407"
+    }
+  ]
+}

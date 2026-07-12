@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "train_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/smoke/smoke_20260711_144453/train",
+  "checkpoint_steps": [
+    1,
+    2
+  ],
+  "resume_from_checkpoint_one": true,
+  "scheduler_states": {
+    "checkpoint_1": {
+      "last_epoch": 1,
+      "last_lrs": [
+        0.0001,
+        0.0001
+      ]
+    },
+    "checkpoint_2": {
+      "last_epoch": 2,
+      "last_lrs": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "trainable_tensor": "action_head.action_decoder.layer1.W",
+  "trainable_tensor_dtypes": {
+    "base": "torch.bfloat16",
+    "checkpoint_1": "torch.float32",
+    "checkpoint_2": "torch.float32"
+  },
+  "trainable_base_to_step_one_max_abs_diff": 0.0,
+  "trainable_step_one_to_step_two_max_abs_diff": 0.00010013580322265625,
+  "first_step_zero_delta_consistent_with_warmup": true,
+  "frozen_tensor": "backbone.model.model.language_model.layers.0.self_attn.q_proj.weight",
+  "frozen_tensor_dtypes": {
+    "base": "torch.bfloat16",
+    "checkpoint_2": "torch.bfloat16"
+  },
+  "frozen_base_to_step_two_max_abs_diff": 0.0,
+  "loss_metrics": [
+    {
+      "step": null,
+      "name": "terminal_loss",
+      "value": 1.4883127212524414
+    },
+    {
+      "step": null,
+      "name": "terminal_loss",
+      "value": 0.5696015954017639
+    }
+  ],
+  "peak_sampled_gpu_memory_mib": 37852
+}

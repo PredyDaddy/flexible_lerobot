@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "label": "original_pi05_checkpoint",
+  "root": "/data/cqy_workspace/flexible_lerobot/outputs/pi05_eraser_cup_multi_task_runs/20260602_200955/checkpoints/020000/pretrained_model",
+  "entry_count": 7,
+  "aggregate_sha256": "f85fc56ece26154920725faa43ed54a432e06f0ae5cddd80ca684e6e6f4cf846",
+  "entries": [
+    {
+      "path": "config.json",
+      "type": "file",
+      "size": 2123,
+      "mode": 436,
+      "sha256": "065ba376e90c44deeda3725c646814771a13a90a47f3db9bc8b7d71da021df2e"
+    },
+    {
+      "path": "model.safetensors",
+      "type": "file",
+      "size": 7473096344,
+      "mode": 436,
+      "sha256": "f32f699ab40ca2e4bc490a0160aeb01bb4399133db1dcc5b6a7dbb9f2f000273"
+    },
+    {
+      "path": "policy_postprocessor.json",
+      "type": "file",
+      "size": 660,
+      "mode": 436,
+      "sha256": "74cc64db243614dadc22fc2a4488fe37f515754f5fe8532055072076b8bf512c"
+    },
+    {
+      "path": "policy_postprocessor_step_0_unnormalizer_processor.safetensors",
+      "type": "file",
+      "size": 7536,
+      "mode": 436,
+      "sha256": "2cb801cb065bdec5db657be633badba83cace9cb8c54c4c20f389eed8cd7aa0e"
+    },
+    {
+      "path": "policy_preprocessor.json",
+      "type": "file",
+      "size": 1717,
+      "mode": 436,
+      "sha256": "4dd9ba340a8a66f51a90a6d0a56a911bffa118736ec0574296ed1a0e7e9aaa7f"
+    },
+    {
+      "path": "policy_preprocessor_step_2_normalizer_processor.safetensors",
+      "type": "file",
+      "size": 7536,
+      "mode": 436,
+      "sha256": "2cb801cb065bdec5db657be633badba83cace9cb8c54c4c20f389eed8cd7aa0e"
+    },
+    {
+      "path": "train_config.json",
+      "type": "file",
+      "size": 6369,
+      "mode": 436,
+      "sha256": "9c62b78a9f11de5e04767e22e7bcc14189a9ae443883f471d022ad2e5153416f"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "model_path": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/outputs/formal/so101_n17_b2_e10_20260711/train/checkpoint-63600",
+  "dataset_path": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/data/converted_v21/desk_cleanup_v1/eraser_cup_multi_task",
+  "engine_dir": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/artifacts/tensorrt/so101_n17_b1_bf16_full/engines",
+  "rtc_options": {
+    "rtc_enabled": true,
+    "rtc_advance_steps": 8,
+    "rtc_frozen_steps": 2,
+    "rtc_ramp_rate": 2.0
+  },
+  "comparisons": {
+    "initial_chunk": {
+      "cosine": 0.9999990463256836,
+      "l1_mean": 0.07615610957145691,
+      "linf": 0.3618621826171875
+    },
+    "rtc_chunk": {
+      "cosine": 0.9999990463256836,
+      "l1_mean": 0.06254768371582031,
+      "linf": 0.48587799072265625
+    }
+  },
+  "engines": [
+    {
+      "name": "vit_bf16.engine",
+      "bytes": 1624346924,
+      "sha256": "4cac6dbe51d015de70375159c4ee9b550a5f76a56eb1c4f535635f749629fed8"
+    },
+    {
+      "name": "llm_bf16.engine",
+      "bytes": 1614083244,
+      "sha256": "cc8c9337686c82c409c6b2faf3631b8eccd79df67747e65dd689c7c19058a18a"
+    },
+    {
+      "name": "vl_self_attention.engine",
+      "bytes": 403395796,
+      "sha256": "6b0405ca5b02a0bdb4888edeb56e018d66f521d758bc2711b998256610702ab2"
+    },
+    {
+      "name": "state_encoder.engine",
+      "bytes": 109603668,
+      "sha256": "7e80254e3167ee6734d5375da4945fdb8c47a8472865e01dc5ea209150babc78"
+    },
+    {
+      "name": "action_encoder.engine",
+      "bytes": 466487324,
+      "sha256": "b3945d8936563d76ad8a6ea1f318bfa9b44499be288580a1778bce24584893bf"
+    },
+    {
+      "name": "dit_bf16.engine",
+      "bytes": 2191012276,
+      "sha256": "d4ae8c670e283e4fbca69be12a18f592746b43d80e3a43eaa8386ab8df3ee9fb"
+    },
+    {
+      "name": "action_decoder.engine",
+      "bytes": 75959916,
+      "sha256": "9c38576a2922ae1d955a44c9e63d3d0c79bb135b96e39a8e1831bc3fa84713f9"
+    }
+  ],
+  "elapsed_s": 10.846016382798553
+}

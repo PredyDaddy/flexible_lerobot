@@ -1,0 +1,2122 @@
+{
+  "schema_version": 1,
+  "label": "original_gr00t_reference",
+  "root": "/data/cqy_workspace/flexible_lerobot/my_devs/gr00t_17/reference",
+  "entry_count": 302,
+  "aggregate_sha256": "bbf3a837d8b0f8cd3fdd885ef01de65e170399287be6b907050025e8b0140c6f",
+  "entries": [
+    {
+      "path": "Isaac-GR00T-n1.7-release/.coveragerc",
+      "type": "file",
+      "size": 501,
+      "mode": 436,
+      "sha256": "2ce054e10931087817331d80520ec0ab6be7de4288e2065d49ed02288a2c2934"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.dockerignore",
+      "type": "file",
+      "size": 341,
+      "mode": 436,
+      "sha256": "e4bbd8b6bf9a525ace8f304ee62e81997e262830783729957cd91f173e3ad884"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.gitattributes",
+      "type": "file",
+      "size": 382,
+      "mode": 436,
+      "sha256": "d60b17e12a36d265216a069caadd0b6924a43b2768d7cf13f1a2ce11559246fd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/ISSUE_TEMPLATE/bug_report.yml",
+      "type": "file",
+      "size": 2003,
+      "mode": 436,
+      "sha256": "c95a1592339282455e2c85079e8e1c58f2d582579ac2ee8aa47573431cdb9680"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/ISSUE_TEMPLATE/documentation.yml",
+      "type": "file",
+      "size": 602,
+      "mode": 436,
+      "sha256": "e135c532c0815d09eb5ede41283271bc0ecce29a4072cb8ae481ef87c4ffdcf5"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/ISSUE_TEMPLATE/feature_request.yml",
+      "type": "file",
+      "size": 935,
+      "mode": 436,
+      "sha256": "173f9d2bfaa69e1031a0e2b9a0665183ae5b1b1e311a35ee39ba68bf47c0526c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/actions/setup-venv/action.yml",
+      "type": "file",
+      "size": 1624,
+      "mode": 436,
+      "sha256": "53fb0a1e7ac8f5fae4258ddee02968e195dc6cb4d1b733b8c5a8b5b008dce1bb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/pull_request_template.md",
+      "type": "file",
+      "size": 864,
+      "mode": 436,
+      "sha256": "3bd59875171c68cd89fc00b709a959d9998fb6ba5894cba42c043b729f1130ff"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.github/workflows/main.yml",
+      "type": "file",
+      "size": 1421,
+      "mode": 436,
+      "sha256": "c5e4befa7aa68d184e00d52ddeda037a5496fccde063f31a31f4166c1b212efb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.gitignore",
+      "type": "file",
+      "size": 2082,
+      "mode": 436,
+      "sha256": "c77210cb6404c8a53b3d5e1bcc1f7f6eab6140b2d6fdce16ac1d50a64ef0ef1c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/.gitmodules",
+      "type": "file",
+      "size": 407,
+      "mode": 436,
+      "sha256": "85e208b03d2219007a1872e4b7a94032182816a479958a35f492c1f53feccd42"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/AGENTS.md",
+      "type": "symlink",
+      "target": "CLAUDE.md",
+      "mode": 511
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/ATTRIBUTIONS.md",
+      "type": "file",
+      "size": 974434,
+      "mode": 436,
+      "sha256": "a4b8f31f3cd191b97735b266161f5cca757f133e23e6c26549d78ff0997dc3ff"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/CLAUDE.md",
+      "type": "file",
+      "size": 3548,
+      "mode": 436,
+      "sha256": "aa90c74a3379ed3e3692dc3329b66b63bf5f7533d454c0fdf339fef1abd976ea"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/CONTRIBUTING.md",
+      "type": "file",
+      "size": 377,
+      "mode": 436,
+      "sha256": "556372b81a6501dae0209dc5bd0a287186a025c8051a0057fc558208b275ed0d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/FAQ.md",
+      "type": "file",
+      "size": 6351,
+      "mode": 436,
+      "sha256": "fe265ee61d3f2a455be71f96801e6ab6bbe7aeaec78c81a4732ced5a4c77cf22"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/LICENSE",
+      "type": "file",
+      "size": 10808,
+      "mode": 436,
+      "sha256": "93363510f62ce25ad1a47605b0b06ab335edd82f1a444531c58dd30b6e5a5a0c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/README.md",
+      "type": "file",
+      "size": 26937,
+      "mode": 436,
+      "sha256": "bcf8d478544321cf0295734b7c7ae45eccebae92391d5175d47fc60a12cdcb6e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/.gitignore",
+      "type": "file",
+      "size": 1,
+      "mode": 436,
+      "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "3a1dd2fb032dad55682939492d58e90dff2ef3634b8f4ae71375dc761a5f4ddd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "1a6bcc8bb9697be078e6fae90fe3bc438aefbdfd72811990d9699fa7d8db6873"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "a553dcdb4b3ebf6f5289336eb4d39e27bc1c85309f008b44e34c18fb4d772634"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/data/chunk-000/episode_000003.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "ce7d7474d54b0c1dd24ab73840deb8d4410fc31e5cb505ed99ea0c5eee317532"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/data/chunk-000/episode_000004.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "6ea82397f2b07212157584b2aead9bfe144d4d160b396d65c9a9dc133c749514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/episodes.jsonl",
+      "type": "file",
+      "size": 361,
+      "mode": 436,
+      "sha256": "50c621838184c19e1a57b73f8eeed6b076747bdc48dda67420d79c87ffc942c7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/info.json",
+      "type": "file",
+      "size": 3222,
+      "mode": 436,
+      "sha256": "c30352da29d9d3410447c75440fa83cb3a9109cd4a582e8437c2bffbbf0c6a08"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/modality.json",
+      "type": "file",
+      "size": 664,
+      "mode": 436,
+      "sha256": "cc0229b172325386ce5056a81b6de7e3bc3c9028c1468f876bc0b8f7a4cfced0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/relative_stats.json",
+      "type": "file",
+      "size": 20165,
+      "mode": 436,
+      "sha256": "ed6118c67e353f7bd791f199b938d1de518126be792dfabc3e39b6cbda9dc0d9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/stats.json",
+      "type": "file",
+      "size": 2965,
+      "mode": 436,
+      "sha256": "8dc23f46da0c9c2140430938025569ebf7208cf200547c4e7056be5d17ca2f75"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/meta/tasks.jsonl",
+      "type": "file",
+      "size": 101,
+      "mode": 436,
+      "sha256": "30f117f61a76c9767546f7480b998079b3fe611b5688613c292e57d34b36537c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.front/episode_000000.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "c5e5a71142d6cd7d07df5356f01d472fb7b7ad5f375fd0bcfda2bff302c23d48"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.front/episode_000001.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "133734129f3783da7b55ba28f7f05aac4ad578cd72ec5baea1018720067255de"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.front/episode_000002.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "f0ad65d21e64536b5302b4a6f627bbc5fef2d99b5048ea09e9ea6681a51c23a3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.front/episode_000003.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "77712beed0a2ec7272367ac77eec82754d8034c0a934ac492feb8b05bc3b095b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.front/episode_000004.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "877eca9a977e4a5c6fe7be2dddb584b1d0f8d6629e880dc348c48424a9debac6"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.wrist/episode_000000.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "e9050febf88e9f542a17655ce1950f83b0ae3967c33be7eaa2bef51ae0d2ac44"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.wrist/episode_000001.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "f55435e5ae7ee3c6603040795b0869f0d9871501f28bc60aa23d89c7ea2b09a1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.wrist/episode_000002.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "7cbec6bc5483734dd51c0ce2f8c6c5eaffd893a560ad86ccdc328fd54a4ae911"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.wrist/episode_000003.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "f31a48d88e962e3a4d9aac6dcba821cc90e56c678aa9565bf2f0d96218de5ab6"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5/videos/chunk-000/observation.images.wrist/episode_000004.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "cb27a72d73eb331a1c90e23f0b3dd5966c0fa59cd030ac1a734108de747036e2"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "3a1dd2fb032dad55682939492d58e90dff2ef3634b8f4ae71375dc761a5f4ddd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/masks/chunk-000/observation.images.front/episode_000000_masks.npz",
+      "type": "file",
+      "size": 1930481,
+      "mode": 436,
+      "sha256": "a7d2840a15639385914803b6a2c0c7fc2f7485fcad6e9683fdb4e8bbafe6e756"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/masks/chunk-000/observation.images.wrist/episode_000000_masks.npz",
+      "type": "file",
+      "size": 2075699,
+      "mode": 436,
+      "sha256": "511e00dbaaca29953ee717d76071e36c1905ac7350200173b308e48c7e434a6a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/episodes.jsonl",
+      "type": "file",
+      "size": 72,
+      "mode": 436,
+      "sha256": "e1b27c59c5d0816bd8e596d5b079322d1f441b0821c8a2fd743a47e33cbd98b0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/info.json",
+      "type": "file",
+      "size": 3320,
+      "mode": 436,
+      "sha256": "1c461d2f33144623a54ea9dda9c815279709f8dd88831056af6b6eb8b7518d5d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/modality.json",
+      "type": "file",
+      "size": 854,
+      "mode": 436,
+      "sha256": "caa1e6c8b0efda0a4094dcdda345875092f8969d6e88bf5955bccd725852c0f9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/relative_stats.json",
+      "type": "file",
+      "size": 20165,
+      "mode": 436,
+      "sha256": "ed6118c67e353f7bd791f199b938d1de518126be792dfabc3e39b6cbda9dc0d9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/stats.json",
+      "type": "file",
+      "size": 2965,
+      "mode": 436,
+      "sha256": "8dc23f46da0c9c2140430938025569ebf7208cf200547c4e7056be5d17ca2f75"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/meta/tasks.jsonl",
+      "type": "file",
+      "size": 101,
+      "mode": 436,
+      "sha256": "30f117f61a76c9767546f7480b998079b3fe611b5688613c292e57d34b36537c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/videos/chunk-000/observation.images.front/episode_000000.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "c5e5a71142d6cd7d07df5356f01d472fb7b7ad5f375fd0bcfda2bff302c23d48"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/cube_to_bowl_5_with_mask/videos/chunk-000/observation.images.wrist/episode_000000.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "e9050febf88e9f542a17655ce1950f83b0ae3967c33be7eaa2bef51ae0d2ac44"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "03395110418bb7536afe9eead77653b309dd9af88a2811c7fddc89e371c69ca6"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "0a12f4a206999b52b2493d9b35c791a2c080c1d7638d46958f3ad098091bf416"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "fa9109fb56051cfc661f8bc40fdd8512c488272adc1893bcfaa4e2935271bf60"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/meta/episodes.jsonl",
+      "type": "file",
+      "size": 239,
+      "mode": 436,
+      "sha256": "768a3d1bb2ea76ae0b8dd9d967c4ce18d0c05c08a2059d55a1b324b5f169f1b6"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/meta/info.json",
+      "type": "file",
+      "size": 912,
+      "mode": 436,
+      "sha256": "9cfaf37856f202f9cbd8f883639597974b04bc0c6d6a87ded33efb283cd2e569"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/meta/modality.json",
+      "type": "file",
+      "size": 707,
+      "mode": 436,
+      "sha256": "9ccdf1c25a2422b62dfd23abc511010809d3d72595580914507c9013a9736861"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/meta/stats.json",
+      "type": "file",
+      "size": 20648,
+      "mode": 436,
+      "sha256": "9097a8a28414abc8816b3e00dc0c5541755a185be9e58834eb0effe72be982a0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/meta/tasks.jsonl",
+      "type": "file",
+      "size": 176,
+      "mode": 436,
+      "sha256": "2725dd9d41f36c5c7e261933b02dac42b39cfb69b5880315dfcfa90c60c7825b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.exterior_1_left/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "990fb8a5c4ea6b000c97c8c3e0842dd95c662b63ca2da74650b149bab2d1be58"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.exterior_1_left/episode_000001.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "596fb88bb8e58ff8b0bba70ff39b942f38e2fc8a8ed9d64bcdbefe5acf84f0bc"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.exterior_1_left/episode_000002.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "50109ea31977cea37a8113657ddbcf3395340e8d544679d0c000beaa61490fe8"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.wrist_left/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "75f5ec61197feb02a5c87c89febc28100ec5775ea370a70bf94ba24888d677b7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.wrist_left/episode_000001.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "bf6f5b887fa31f90920e43cd35185081e9d372661631531a83c05e0c3e211e4f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/droid_sample/videos/chunk-000/observation.images.wrist_left/episode_000002.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "9cf4aca44d38af73eef060c19cb7f63c19b3d2434485dbc52790ff5af82aae29"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "e18da9404a25264d4dd369cf0e7f1105bcbafa3aec9e44240bd53c4653d4f682"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "ddfd17398e7038f46eff3e592b1283be00689e17025d0103e07dff67ca76152a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "2465b9a1ac2a0fc33238290732442eba5c9570b57e8e2053c177f2a9ffa593c1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/data/chunk-000/episode_000003.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "af54b2f8f5aacfee4bd43398761ac7acd16526bb7f9e2ab7e81b43c5708eb1c8"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/data/chunk-000/episode_000004.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "2bab3ab3165caa2051923e2665fa5fd59268447a9841ee04f046218b7de72e1f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/episodes.jsonl",
+      "type": "file",
+      "size": 630,
+      "mode": 436,
+      "sha256": "af9c7c70d7b6a1e322f430fc2f073b40219e8a0c0c1034968cdda39ee6b38f84"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/episodes_stats.jsonl",
+      "type": "file",
+      "size": 938760,
+      "mode": 436,
+      "sha256": "884f963e29d3078a0c32099d055a7d46e4701935b2a00f70c68801baae9619ea"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/info.json",
+      "type": "file",
+      "size": 3342,
+      "mode": 436,
+      "sha256": "bed28e0687b6c4e32b10340a65beee744a130a9d31f428f7cffcaa63027b8783"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/modality.json",
+      "type": "file",
+      "size": 1394,
+      "mode": 436,
+      "sha256": "ecb86712195689112f8328c7952523e558d1b495dcbc3be7e2d4cd5a16a0cf6d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/stats.json",
+      "type": "file",
+      "size": 3545,
+      "mode": 436,
+      "sha256": "57a8ba4ba73c351933e7194b798c6cdd773a5bf400452c375d51e3a8ef04587e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/meta/tasks.jsonl",
+      "type": "file",
+      "size": 321,
+      "mode": 436,
+      "sha256": "203fd038a65515e1d41917b1543dd889ce73b54a6a3690eceebf6f6145f719d3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.image/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "a54ccfc9a2e7e6a1e2385a8f2704130f5c8cb5f80436a2ac62193b1728a1d4d0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.image/episode_000001.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "6a0234043d866c025ba1e5b8b0caf2c874967fc4793d5942997515cf5dc5be6f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.image/episode_000002.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "7b15d12ceab7ca9cc88f222364d2539d141c72034b0969cb6d7dbbc77070011f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.image/episode_000003.mp4",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "9a4f25299955625018d7649cc70229db684c840d056a84c040ebd18d45ee8695"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.image/episode_000004.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "a52b5cb6b78390a63e7e938997e9442c955316fe85b3926d79a3acb97f4c4a65"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.wrist_image/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "3dd8895ca2648dc88adc3a8b16e6db8511efd2ac628aff4b55e53a1f27b44c24"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.wrist_image/episode_000001.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "1146a02ea6e9a9f42bceb173532fd9d0767dce6ab1f66c824b89551ce6143ae1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.wrist_image/episode_000002.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "2ac2f63ec8f0cee5195fde269868ff6c85259cb499a0c4864966553a961985ad"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.wrist_image/episode_000003.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "7cd1a411db1a2cd80a1df24f2395a53f2ef5051e6f984e1d49523e228ffa84bd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/libero_demo/videos/chunk-000/observation.images.wrist_image/episode_000004.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "21058f9b0d95de158869c5a37ffe33306ed9a7cefb92695d2deba7f7efa4f973"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 129,
+      "mode": 436,
+      "sha256": "95fa4cf61063bb2d326b65dc154d43fe8ff23b3b5597f338d4b57571dcae1fc9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 129,
+      "mode": 436,
+      "sha256": "281f1e39668b02fed619305d141c8e757b3eefb076549e4182c652ce1a03fcf7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 129,
+      "mode": 436,
+      "sha256": "2ac495665294143a4d4c692ef6e2a8cc9b789b6a8d63680fa94943e02c2c5ea4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/meta/episodes.jsonl",
+      "type": "file",
+      "size": 296,
+      "mode": 436,
+      "sha256": "4d9e370097fef27230f9d692ddcb25e3d8e568ebfdc6e6bb793a490ce984bc67"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/meta/info.json",
+      "type": "file",
+      "size": 1501,
+      "mode": 436,
+      "sha256": "791f2fbbe4e1cf90509738e185ca64decef725da4052b8dc714ad495b636295f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/meta/modality.json",
+      "type": "file",
+      "size": 1404,
+      "mode": 436,
+      "sha256": "996fcef36b11ec0920ace799a77c7bf7dec5c103556ebdf408d5ec6472d35a79"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/meta/stats.json",
+      "type": "file",
+      "size": 2719,
+      "mode": 436,
+      "sha256": "d68f5cbadc3dc7606eaf563724468eade153a9539289cdaca97107912f76bcb2"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/meta/tasks.jsonl",
+      "type": "file",
+      "size": 236,
+      "mode": 436,
+      "sha256": "1428e8a0522379ef2f7243e8b0a6f1d8b229bdbbbe42df5e992def81f0bc4fdf"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/videos/chunk-000/observation.images.image_0/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "7326aea8edd2052d14bd8b5ca4df50fe39329c55a45c1508de981cc130ec110e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/videos/chunk-000/observation.images.image_0/episode_000001.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "174aafbca3045e451e2140f576d084cba4eba1bf21d07e4559a01bacfbad4d98"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_bridge_sample/videos/chunk-000/observation.images.image_0/episode_000002.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "0c28140ae8341de3b83a9ae8423f9ff57df458356d9545b39ac0e25b6f7207b7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/data/chunk-000/episode_000000.parquet",
+      "type": "file",
+      "size": 130,
+      "mode": 436,
+      "sha256": "9491c5a6e7aa442831431121c607abd26d95cf05a0c35d873152e01defd9c5d4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/data/chunk-000/episode_000001.parquet",
+      "type": "file",
+      "size": 129,
+      "mode": 436,
+      "sha256": "b8168abf61a02b249bd09005618c4d07ea448a77c0b84a877abfca255464bbf1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/data/chunk-000/episode_000002.parquet",
+      "type": "file",
+      "size": 129,
+      "mode": 436,
+      "sha256": "ea11275fd765f1229bf0d9bb89fe01e8ae0aa8d009bdba7c9047978c6ff70f36"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/meta/episodes.jsonl",
+      "type": "file",
+      "size": 256,
+      "mode": 436,
+      "sha256": "661c1935170ac630a3990cd541a0f4599c858bf5cfeae3c54af0bb86a30f61c7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/meta/info.json",
+      "type": "file",
+      "size": 1498,
+      "mode": 436,
+      "sha256": "fb153415b8faa8c5c69f6ae1dac1f749b5d5e5ab691345c6466961a8e4b56393"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/meta/modality.json",
+      "type": "file",
+      "size": 1392,
+      "mode": 436,
+      "sha256": "b2cea76cf61f163b1d39fde0f13b558ea4552f0105e09b37ec067f962a69aaec"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/meta/stats.json",
+      "type": "file",
+      "size": 3549,
+      "mode": 436,
+      "sha256": "b2fb466ae86671515a19c5441dbabac4f58a96079f0f1af503c682f31ee58dfa"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/meta/tasks.jsonl",
+      "type": "file",
+      "size": 195,
+      "mode": 436,
+      "sha256": "bba047d7a76c1008e42607d014351ecd3b85a0d9c2424173960662f44e8a7ea8"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/videos/chunk-000/observation.images.image/episode_000000.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "016ef4db6d82180ee2cd1201eb04c35218ef3238aafdef80f6b941aeb735a23a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/videos/chunk-000/observation.images.image/episode_000001.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "a8443b99e5e0be18d2ca262d04a430b3d699e1497f16c7eaa4825d3fb42b87ff"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/demo_data/simplerenv_fractal_sample/videos/chunk-000/observation.images.image/episode_000002.mp4",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "646ac373a463e88662f6fa4893cfee325d2aa8348890fc8d91d01753f52fe201"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/docker/.dockerignore",
+      "type": "file",
+      "size": 463,
+      "mode": 436,
+      "sha256": "5dcc8b6630f08b30406d5015e4f84afd4677c1a4eeaa6b8a67d85370408b2a70"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/docker/Dockerfile",
+      "type": "file",
+      "size": 2868,
+      "mode": 436,
+      "sha256": "41c7839289546188f148f4b73d007a2b271abb7d3a9b10a834a7febb4f79ea1f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/docker/README.md",
+      "type": "file",
+      "size": 3282,
+      "mode": 436,
+      "sha256": "fb23ceca82116c9a86e8c8ec7fe8f96cc3b70df3938aec909483c87a4dc37a75"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/docker/build.sh",
+      "type": "file",
+      "size": 1605,
+      "mode": 493,
+      "sha256": "716ce8da6371200490980872e1accc35bc06373135f9e786ecd85ee974372284"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/DROID/README.md",
+      "type": "file",
+      "size": 4468,
+      "mode": 436,
+      "sha256": "fd3e5b582fea039bb6955df71ce7a9bf27966a22805de8cf02faab43bfbc1cb2"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/DROID/main_gr00t.py",
+      "type": "file",
+      "size": 18824,
+      "mode": 436,
+      "sha256": "352b987b5feee0823ba7b82b1f74d3d1b6de8aad41379627a94057fc5d06404b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/DROID/server_client.py",
+      "type": "file",
+      "size": 13103,
+      "mode": 436,
+      "sha256": "a0c41440a219c777fd4eaf5a30ac97593f68c315457e66dd65203122e73a0c12"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/DROID/utils.py",
+      "type": "file",
+      "size": 3245,
+      "mode": 436,
+      "sha256": "3faee5dad738ebc59e7c4e0f898bc92bacc4b68022e704ea0f58a0cf55055a9b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/LIBERO/README.md",
+      "type": "file",
+      "size": 9082,
+      "mode": 436,
+      "sha256": "7e0e6a3f84832792b840b83881ded5570826a27a01a1811d0655b62a027070af"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/LIBERO/modality.json",
+      "type": "file",
+      "size": 1394,
+      "mode": 436,
+      "sha256": "ecb86712195689112f8328c7952523e558d1b495dcbc3be7e2d4cd5a16a0cf6d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/LIBERO/patches/episode_000082.mp4",
+      "type": "file",
+      "size": 306176,
+      "mode": 436,
+      "sha256": "b260ad525ee22f47a517b30f18147b01a2a92791eb18235e37b307ab955d739b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SO100/README.md",
+      "type": "file",
+      "size": 3134,
+      "mode": 436,
+      "sha256": "41bc7a6e3cb610ce9f726699b6132e01a6adfaa389095a573c54dc1f666f58df"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SO100/modality.json",
+      "type": "file",
+      "size": 664,
+      "mode": 436,
+      "sha256": "cc0229b172325386ce5056a81b6de7e3bc3c9028c1468f876bc0b8f7a4cfced0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SO100/so100_config.py",
+      "type": "file",
+      "size": 2631,
+      "mode": 436,
+      "sha256": "5257ac7980856565ea9d822e99c1ec7d5e57b34763b3b86658ff9f831237effb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SimplerEnv/README.md",
+      "type": "file",
+      "size": 5014,
+      "mode": 436,
+      "sha256": "1cffa3c9cbdf52bb0635862ef5242cd603c39f841ea0b5772c8c67d77d648c66"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SimplerEnv/bridge_modality.json",
+      "type": "file",
+      "size": 1404,
+      "mode": 436,
+      "sha256": "996fcef36b11ec0920ace799a77c7bf7dec5c103556ebdf408d5ec6472d35a79"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SimplerEnv/convert_av1_to_h264.py",
+      "type": "file",
+      "size": 3212,
+      "mode": 436,
+      "sha256": "19b6749d81c3619b6045c5e3ba30f7bcda0999c75e72b428400964fa2a2ad882"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/SimplerEnv/fractal_modality.json",
+      "type": "file",
+      "size": 1392,
+      "mode": 436,
+      "sha256": "b2cea76cf61f163b1d39fde0f13b558ea4552f0105e09b37ec067f962a69aaec"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/finetune.sh",
+      "type": "file",
+      "size": 4056,
+      "mode": 436,
+      "sha256": "39dd8ae4deae78a65cfdfa45226c47c57257e66fb2a4d3dc3f7c5348687dd587"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/mask-guided-background-suppression/README.md",
+      "type": "file",
+      "size": 8343,
+      "mode": 436,
+      "sha256": "174a8cbc4bfc9d258bf8a4b8738e70bc0c5f29655aa8f04823aafa7895057287"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/mask-guided-background-suppression/so101_config.py",
+      "type": "file",
+      "size": 2010,
+      "mode": 436,
+      "sha256": "ac6dc952bd53bb85a32066b8e3479b25cc645ef059e27f08ee75b62d3533f666"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/examples/mask-guided-background-suppression/test_extra_augmentation.py",
+      "type": "file",
+      "size": 7543,
+      "mode": 436,
+      "sha256": "843eb6137f6e8c4a90cb18d6c1cbfbab32f7ec73a49ff3d64ed5181723b3362d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/GR00T_inference.ipynb",
+      "type": "file",
+      "size": 451397,
+      "mode": 436,
+      "sha256": "8a35b29181cab00d434aa7fe8d7050d29eb0fa8db5c21960eb3bbcf17f9f4be0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/data_config.md",
+      "type": "file",
+      "size": 11688,
+      "mode": 436,
+      "sha256": "7387e35ad3ccae7fbe9337e20cefbb941f5e548edc7d7a411dcad61918731765"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/data_preparation.md",
+      "type": "file",
+      "size": 9187,
+      "mode": 436,
+      "sha256": "2fa1a3f1aba8dbf1480e2ecd4cb968cb781c95915139e30d61d8fc42d708f1ed"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/finetune_new_embodiment.md",
+      "type": "file",
+      "size": 6327,
+      "mode": 436,
+      "sha256": "0cadfd8c7af75dab1b856baafe339d9bd105bea50de8088840056691d5c5267f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/hardware_recommendation.md",
+      "type": "file",
+      "size": 4884,
+      "mode": 436,
+      "sha256": "ff5063275a16e7cfef180d54dfc5cf56df3351950d50795bb3cfe756d8c0fd78"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/policy.md",
+      "type": "file",
+      "size": 23763,
+      "mode": 436,
+      "sha256": "a3567c36ab126dff61e924dcc87b0a4b61927254723d8de78409d643f5dce03f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/getting_started/real_world_deployment.md",
+      "type": "file",
+      "size": 21070,
+      "mode": 436,
+      "sha256": "5ecccc798f84ec1b4e7685bd3866d6c5f112dcdfc992a15925a881fb44f06683"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/__init__.py",
+      "type": "file",
+      "size": 4907,
+      "mode": 436,
+      "sha256": "0233f3e8dff014e166075e00bab07d554df6d4178e65ba3a15ebe14e40cc3a82"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/base_config.py",
+      "type": "file",
+      "size": 6125,
+      "mode": 493,
+      "sha256": "55f3027bf435434fb406f3384ab4b2ce2fb615f72b539fa29fbc09509008e261"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/data/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/data/data_config.py",
+      "type": "file",
+      "size": 3669,
+      "mode": 493,
+      "sha256": "b389f9b9168522c46275a5154c2f5092e4f47505d542fdfd51d6bba29da2db89"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/data/embodiment_configs.py",
+      "type": "file",
+      "size": 7340,
+      "mode": 436,
+      "sha256": "de92a131919a95ce082f344cd79766621c2e02e023717fa3c23544b92a008052"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/deepspeed/zero2_config.json",
+      "type": "file",
+      "size": 828,
+      "mode": 436,
+      "sha256": "8b0cd28759c69f399c559e906c2f3337db52450a6da61c763e02009a687d42dd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/deepspeed/zero3_config.json",
+      "type": "file",
+      "size": 848,
+      "mode": 436,
+      "sha256": "1e197fb4e8712cb8d726198f980877bf674688b3bade41af3779b3135e311fa9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/finetune_config.py",
+      "type": "file",
+      "size": 6301,
+      "mode": 436,
+      "sha256": "763810281152ca17099438530be43195e8b5aae148421dc5d907c5ad8ee06401"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/model/__init__.py",
+      "type": "file",
+      "size": 1637,
+      "mode": 436,
+      "sha256": "64fce2a393b80abb30f5a3ee3e529489233997487c52a6fbf203fd74e97d0e66"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/model/gr00t_n1d7.py",
+      "type": "file",
+      "size": 6421,
+      "mode": 436,
+      "sha256": "d66feabd79f03e669db04f1386338670e5dd1cff41fbaea23687c34e6952c904"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/training/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/configs/training/training_config.py",
+      "type": "file",
+      "size": 4034,
+      "mode": 493,
+      "sha256": "d2656ba75905c8a401d98073243f2bbacfdad26d1dcbf1c3fd3c00b8e95d3220"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/collator/__init__.py",
+      "type": "file",
+      "size": 721,
+      "mode": 436,
+      "sha256": "fc7caf6412180d0bc12ca41be082e0cdd141daa90ba12d958628bbdf57f80002"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/collator/collators.py",
+      "type": "file",
+      "size": 1013,
+      "mode": 493,
+      "sha256": "2fb50c5a808d023aa759043f4ddaf54a313efc04ff036a3c16b2c126b808c516"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/dataset/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/dataset/factory.py",
+      "type": "file",
+      "size": 4150,
+      "mode": 436,
+      "sha256": "89aca290edd7a74bc49e5ba72ec7f7d328c47a8e18f0a7166fd4bf72060cc32d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/dataset/lerobot_episode_loader.py",
+      "type": "file",
+      "size": 27228,
+      "mode": 493,
+      "sha256": "0d12a396ff365f5d329116e9b946535ac291a5d66543da0685113891a849fe03"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/dataset/sharded_mixture_dataset.py",
+      "type": "file",
+      "size": 19857,
+      "mode": 493,
+      "sha256": "7ed4a5f585dd12b7dcf33a18c23b569fc006f65050b96cf6f1acac92aba5f13d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/dataset/sharded_single_step_dataset.py",
+      "type": "file",
+      "size": 12419,
+      "mode": 436,
+      "sha256": "fa02811b76172752d1844a7de5416b5a4300ac46addbd4b7813a5fe8eefad980"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/embodiment_tags.py",
+      "type": "file",
+      "size": 6995,
+      "mode": 493,
+      "sha256": "e1d2e640a6b9eacf06cd201d61b128baeb3b6fb0ebace1afb66d6279f7d96c5a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/interfaces.py",
+      "type": "file",
+      "size": 5257,
+      "mode": 436,
+      "sha256": "daa4c6c41e785abc549181153d870fd8d6cca70e3a5ebc43e51bc6b492fad864"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/state_action/action_chunking.py",
+      "type": "file",
+      "size": 26398,
+      "mode": 436,
+      "sha256": "0b8379b903a87ec35e1671afa15f8bb4af8d948ee239b5e0eb1c90c8b4dd6b78"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/state_action/pose.py",
+      "type": "file",
+      "size": 24020,
+      "mode": 436,
+      "sha256": "4a09d0f1da9fe80bd8c3b0788e04c06979666f5dd636a91799a21e7d92c5f808"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/state_action/state_action_processor.py",
+      "type": "file",
+      "size": 28786,
+      "mode": 436,
+      "sha256": "4d52c8246d651540bf12304a3d9f39b6eadf2c8c1a63ffda1225345617711269"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/stats.py",
+      "type": "file",
+      "size": 11952,
+      "mode": 436,
+      "sha256": "715626bc3560a928a35b753d97bf058f62555604d70e0951c3b32d6effe6bc7b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/types.py",
+      "type": "file",
+      "size": 4970,
+      "mode": 436,
+      "sha256": "329acd11ca7a92c3894bbe44fe3fed2677b9c9f83bee6adcb4aeab8b1e846a1a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/data/utils.py",
+      "type": "file",
+      "size": 12000,
+      "mode": 436,
+      "sha256": "3cd7789dabdfaca5826ec3357d4c46697486d7f01c20ce03d7df6d4931a05123"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/open_loop_eval.py",
+      "type": "file",
+      "size": 13116,
+      "mode": 436,
+      "sha256": "91a1ff4a090e01a8e50ddb2147983bc07063de145cafbe73adadc8e9ef09e754"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/real_robot/SO100/eval_so100.py",
+      "type": "file",
+      "size": 8980,
+      "mode": 436,
+      "sha256": "4b33cf7471428ebf833f1b2cd5b6d1bc0614d4739c29d84187d7749956b67c8e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/real_robot/SO100/pyproject.toml",
+      "type": "file",
+      "size": 446,
+      "mode": 436,
+      "sha256": "43cf4526a9b821eb5cd488db252f5916d58d32f161450a6744be35a1dd4a51ac"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/rollout_policy.py",
+      "type": "file",
+      "size": 18516,
+      "mode": 436,
+      "sha256": "e3a918fc7129dd392c2b59dc30d6a97149e27d072e5096b2e03d78a1b442a532"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/run_gr00t_server.py",
+      "type": "file",
+      "size": 6233,
+      "mode": 436,
+      "sha256": "0c85528fbf917347991215d8a82e081cbfea06e753a472def33ada713eed645f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/LIBERO/libero_env.py",
+      "type": "file",
+      "size": 9322,
+      "mode": 436,
+      "sha256": "2d6400a2cc94a33454a8dbe32bbb71df0c36afe808f0b6925ab71850c87bc399"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/LIBERO/setup_libero.sh",
+      "type": "file",
+      "size": 1616,
+      "mode": 436,
+      "sha256": "1d9ec98511574bd4b2e727187c2821c03105725eb067af7fc407c1fc3627c5ee"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/SimplerEnv/setup_SimplerEnv.sh",
+      "type": "file",
+      "size": 1800,
+      "mode": 436,
+      "sha256": "963a309b084355b9b087aaa8a848bcea5b9326382ba07cacfe3d194097271f2c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/SimplerEnv/simpler_env.py",
+      "type": "file",
+      "size": 11764,
+      "mode": 436,
+      "sha256": "7be1e9450db9bab76bff57c7fac9359a816b5faf15b50b83bb101e1bc5527ccc"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/env_utils.py",
+      "type": "file",
+      "size": 1852,
+      "mode": 436,
+      "sha256": "9cd4106737d4d5a5c5c29c6bffc84a628a08f3cb8f8a3a22affa946468398d3c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/wrapper/multistep_wrapper.py",
+      "type": "file",
+      "size": 15655,
+      "mode": 436,
+      "sha256": "a3e3499a7e574f23123c54f057ca49d8d5dbb63fbd9606b6740a8fe3d6fdfa76"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/eval/sim/wrapper/video_recording_wrapper.py",
+      "type": "file",
+      "size": 19772,
+      "mode": 493,
+      "sha256": "13c7ff421f6dae900b69a4b90f938d9c1040943e2ce8db12cd7d72dbd97c1725"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/dist_utils.py",
+      "type": "file",
+      "size": 1092,
+      "mode": 436,
+      "sha256": "5e9f6fe032faf45d4be261b86aaf7480f290965a9a42a8cb684c3256766f1b1c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/experiment.py",
+      "type": "file",
+      "size": 12523,
+      "mode": 493,
+      "sha256": "ff67118ece188df19c4a9b67e52067612ef231e5b416ffd240f108cc3d61a0a3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/launch_finetune.py",
+      "type": "file",
+      "size": 4850,
+      "mode": 436,
+      "sha256": "053348390bec9f25f682fec95ffda7015d278cd3924c0a3b696f1a0ac2739145"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/launch_train.py",
+      "type": "file",
+      "size": 1678,
+      "mode": 436,
+      "sha256": "e1e86e694459b661b4ce53424acb44aeb3ebccee63de0accde9637ad244a0c7f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/trainer.py",
+      "type": "file",
+      "size": 13713,
+      "mode": 493,
+      "sha256": "e3448a16c5ec2e3229a81080c826bf2200dd94f32af83b40bfa40595e2a97b2f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/experiment/utils.py",
+      "type": "file",
+      "size": 5504,
+      "mode": 493,
+      "sha256": "31adf57ae653178b94c0c7a7bb30023c0cd79b6e2ddd745a1dea0f423c4b8b34"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/__init__.py",
+      "type": "file",
+      "size": 765,
+      "mode": 493,
+      "sha256": "c8285a55bed73f760502b37034f59eba80610555d2ec5a49b027bd78fdb64e97"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/base/model_pipeline.py",
+      "type": "file",
+      "size": 4446,
+      "mode": 436,
+      "sha256": "223981b0974fe6ca3768896cfa7e0a7409667506a64df6d77106af57b75365eb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/gr00t_n1d7/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/gr00t_n1d7/gr00t_n1d7.py",
+      "type": "file",
+      "size": 25632,
+      "mode": 436,
+      "sha256": "74577b38775041d26495ce459db5b818007ca8075947e9f542a7a1677c6689b5"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/gr00t_n1d7/image_augmentations.py",
+      "type": "file",
+      "size": 22333,
+      "mode": 493,
+      "sha256": "162ca1d419dc477c8c9eb4f6656cd337722c43defdb951df42d87a137405bcab"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/gr00t_n1d7/processing_gr00t_n1d7.py",
+      "type": "file",
+      "size": 31945,
+      "mode": 436,
+      "sha256": "210d96de3955f159f415e990a43e8fc3e75815feffb156fff4f1672df64f697b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/gr00t_n1d7/setup.py",
+      "type": "file",
+      "size": 11644,
+      "mode": 436,
+      "sha256": "bdc3cf8a6b9c92a0e3f46d79dc3de05b0a8c70c4289d44ac0aa1c75698a93f31"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/modules/__init__.py",
+      "type": "file",
+      "size": 724,
+      "mode": 436,
+      "sha256": "8d39b2b127a2f9b08581fb05a0f3099e1490d3cb83a25e7140a768d416e7aaf7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/modules/dit.py",
+      "type": "file",
+      "size": 18323,
+      "mode": 493,
+      "sha256": "d4da27be51d9ebe1c923dedd3ae80fe2754c97f96500e82c26fe19fec0062c13"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/modules/embodiment_conditioned_mlp.py",
+      "type": "file",
+      "size": 8961,
+      "mode": 436,
+      "sha256": "d8c60775642016262e3df742e7ed10da38007d7a6bc6aa94fcb427f2ff9e1752"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/modules/flowmatching_modules.py",
+      "type": "file",
+      "size": 3820,
+      "mode": 436,
+      "sha256": "3a458cf5de3a44043495da411c952318b764bda3332bb8941c670c0ebcbe1e0d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/modules/qwen3_backbone.py",
+      "type": "file",
+      "size": 6064,
+      "mode": 436,
+      "sha256": "c73316c2f2b17739fbea9f302d6dd190ac12b03e9f11f254681fbc13eecb2eb2"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/model/registry.py",
+      "type": "file",
+      "size": 918,
+      "mode": 436,
+      "sha256": "665a57055e9351eae8084bebfb8a32835fbe5231395c047a6f1520853d20fd4e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/policy/__init__.py",
+      "type": "file",
+      "size": 838,
+      "mode": 436,
+      "sha256": "34a63218deecd2a4318af43ce5606c231b4b8629df434381012d1b9ddfe1e1fe"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/policy/gr00t_policy.py",
+      "type": "file",
+      "size": 33849,
+      "mode": 436,
+      "sha256": "a357118ddb448c4533de165de7ce8c077d630a5e9f4ce74ba5db6f2fdc0cca6e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/policy/policy.py",
+      "type": "file",
+      "size": 4735,
+      "mode": 436,
+      "sha256": "b53326aee0c26ea34201d70510ad92608a96929d7f39039f578c3d865446de23"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/policy/replay_policy.py",
+      "type": "file",
+      "size": 18785,
+      "mode": 436,
+      "sha256": "3ffd9da3ea579ed5c61b3c99a834facdbbeb87be3a172eb83fc0f0d50bc349a3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/policy/server_client.py",
+      "type": "file",
+      "size": 9621,
+      "mode": 436,
+      "sha256": "7ccd9f51e21b45d5b75753e90c8ad6c3d99671ac70fed7147d991fdbdca9f16b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/utils/initial_actions.py",
+      "type": "file",
+      "size": 1814,
+      "mode": 436,
+      "sha256": "dd85765d4f938229a2b999922269163c95ec00c40c37124644313c5678cd091c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/gr00t/utils/video_utils.py",
+      "type": "file",
+      "size": 21258,
+      "mode": 436,
+      "sha256": "0673c2c022c68aeb80c67ceda448e4aa92d54a714e7429da26097a97c685c510"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/GR00T-reference-arch-diagram.png",
+      "type": "file",
+      "size": 272654,
+      "mode": 436,
+      "sha256": "4b7e2849d68c2251707aeeabf6f5ea87e255b1d5bd81be63775b905c31121b3a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/agibot_g1.gif",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "6c8a72100e94d2dbace1f9053373abcd1f7c43e647dbfee6ac4bb3d9c9ff4258"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/banner.gif",
+      "type": "file",
+      "size": 133,
+      "mode": 436,
+      "sha256": "d5a0eb007b8d0e71f6647722a3901647bc05dd156a28f27c2e10206bd9450021"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/header_compress.png",
+      "type": "file",
+      "size": 113441,
+      "mode": 436,
+      "sha256": "f4f6b2990a0a103a1850de587a396f15de4f81aec9516807eb20bec949a07e82"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/model-architecture.png",
+      "type": "file",
+      "size": 3184280,
+      "mode": 436,
+      "sha256": "bbf161c66daac88799b5bc7b5c110429f48d7f96ae315113e2b2e6d1f11c9e54"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/open_loop_eval_so100.jpg",
+      "type": "file",
+      "size": 105848,
+      "mode": 436,
+      "sha256": "cbcf87841fd985c463509405095f56f94f6c76846d6be2bca1ad14606812cf88"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/stacked_demo.gif",
+      "type": "file",
+      "size": 133,
+      "mode": 436,
+      "sha256": "94b65f6e3b29d82990f3604945a5dde03836367799c9ff35c7065efc4dba9f08"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/unitree_g1.gif",
+      "type": "file",
+      "size": 132,
+      "mode": 436,
+      "sha256": "dfbae3ce2d557267bcad0b21329b6ecdb8875a7e7b92ab1d7f49b22d6d2cac87"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/media/yam.gif",
+      "type": "file",
+      "size": 133,
+      "mode": 436,
+      "sha256": "49ff007fe2b320d0eb690be338ff8c289aea27cbe63af4c6395677fd0d9b4b4c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/pyproject.toml",
+      "type": "file",
+      "size": 4500,
+      "mode": 436,
+      "sha256": "9d67b1190f6372bb73719452da1bbfcf02699ff5dd0cee58d260633d979c987e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/activate_orin.sh",
+      "type": "file",
+      "size": 2383,
+      "mode": 436,
+      "sha256": "4306083e7f6085b2c59b4f1c50e212ce70d23bdbbea30194152aff2d7b6a3596"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/activate_spark.sh",
+      "type": "file",
+      "size": 2149,
+      "mode": 436,
+      "sha256": "7799445f2e20864614e4786fd3c7f4fe9fc4775587c29cf93f9bb03bb6adf72e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/activate_thor.sh",
+      "type": "file",
+      "size": 2147,
+      "mode": 436,
+      "sha256": "bdb776d71a30befc34fa288f59b54151fe27cfd9f11f72a8c39418327b08115a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/GR00T_inference_timing.ipynb",
+      "type": "file",
+      "size": 451343,
+      "mode": 436,
+      "sha256": "eab49f3225304ddfefc25556f82fc0ec6255c45ba03d81b368302aeaf5fa840d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/README.md",
+      "type": "file",
+      "size": 23953,
+      "mode": 436,
+      "sha256": "bf3bc5d18ce8484de75c88487ff50f47d942238e22b9a50af0434628037159d3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/benchmark_inference.py",
+      "type": "file",
+      "size": 25851,
+      "mode": 436,
+      "sha256": "2e72421222585be48b44d2088e347b055b30a2fe19dcb876845999201142370d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/build_tensorrt_engine.py",
+      "type": "file",
+      "size": 18341,
+      "mode": 436,
+      "sha256": "0a54c42d172f4c5b78e12e89fe0ab9a8b262de54d10c0bf224316b608841013f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/build_trt_pipeline.py",
+      "type": "file",
+      "size": 18025,
+      "mode": 436,
+      "sha256": "d32faa44a70e23594e81ce3784c5952cda43338b5494c6e5c8cd96edce649c8e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/dgpu/install_deps.sh",
+      "type": "file",
+      "size": 3812,
+      "mode": 493,
+      "sha256": "9a4e6f72e3d789f9f7508ba411e703348133535a85758192c047b3af1c5ac54d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/dgpu/wheels/flash_attn-2.7.4.post1-cp310-cp310-linux_aarch64.whl",
+      "type": "file",
+      "size": 134,
+      "mode": 436,
+      "sha256": "7dcdee46b55640b793cf87a2e0cfbcf1b600da49033f0f791cda757526e0f8e7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/dgpu/wheels/torchcodec-0.10.0a0-cp310-cp310-linux_aarch64.whl",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "40baec43002284c7581eea9095e070e898b4c2c8f3fe0890ea765501d3e1a5ef"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/export_onnx_n1d7.py",
+      "type": "file",
+      "size": 61159,
+      "mode": 493,
+      "sha256": "d12c4e72854ad5fef8e417395e937e487e0a9156e8cf3d63c461f90a202676c3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/orin/Dockerfile",
+      "type": "file",
+      "size": 1372,
+      "mode": 436,
+      "sha256": "64ec09ef1092a9c2a148897a447cb95088db9fb5df1d18bb611b5bb43ead420e"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/orin/install_deps.sh",
+      "type": "file",
+      "size": 6709,
+      "mode": 436,
+      "sha256": "d7ed5e69db804d286ea20691a5e2fc8e20053a07d545e6fee8e287da115bd0a1"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/orin/pyproject.toml",
+      "type": "file",
+      "size": 2653,
+      "mode": 436,
+      "sha256": "a93e245f1227be27a69b348e4b7dfb1e2dc0e93b8d08707ab81175365fd28b95"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/orin/uv.lock",
+      "type": "file",
+      "size": 251743,
+      "mode": 436,
+      "sha256": "28fbe675faff3b0c6aec4ecd78386ed4f40d88aa43b7b63691cd41ed0a039b27"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/orin/wheels/torchcodec-0.10.0a0-cp310-cp310-linux_aarch64.whl",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "286768bec336443e14e01975f48387f3d31b630a374624ad28bddef8e621ac70"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/Dockerfile",
+      "type": "file",
+      "size": 1401,
+      "mode": 436,
+      "sha256": "b5c8e620d9fc7f06fc6b4a166b22116874e30b9e048eb6e6447f7d4ae72f9bf9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/install_deps.sh",
+      "type": "file",
+      "size": 11359,
+      "mode": 436,
+      "sha256": "02a9b7dd8659aa6298d6dc041a9ad49c1f2893fa0918e61082a577142d0db4c3"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/pyproject.toml",
+      "type": "file",
+      "size": 2073,
+      "mode": 436,
+      "sha256": "cf24cf65c6c8c98bb3591c4d037a62fad94a4ad7fd9bca665590862771b0e6b5"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/uv.lock",
+      "type": "file",
+      "size": 240994,
+      "mode": 436,
+      "sha256": "183f0da43eda0dea17239ebf75a47d78289a833b92fdd45550e21b3ba64baa6a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/wheels/flash_attn-2.8.3-cp312-cp312-linux_aarch64.whl",
+      "type": "file",
+      "size": 133,
+      "mode": 436,
+      "sha256": "2ea90851f915ff695bf282080a2925ec5fd71293251e2713c008133623184deb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/spark/wheels/torchcodec-0.10.0a0-cp312-cp312-linux_aarch64.whl",
+      "type": "file",
+      "size": 131,
+      "mode": 436,
+      "sha256": "ef43743add118931232aa54c5eb15513b3e176280ea95b2925f257dcec30c9f9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/standalone_inference_script.py",
+      "type": "file",
+      "size": 31174,
+      "mode": 436,
+      "sha256": "10178403e9f05a4ac0e9fffc123c1354c991c2d58842ace7a346ba204bc28eda"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/thor/Dockerfile",
+      "type": "file",
+      "size": 1393,
+      "mode": 436,
+      "sha256": "12af9eee10fe91a02b9b615650f238c15477aa6584cad84b45fd7341b40c60bd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/thor/install_deps.sh",
+      "type": "file",
+      "size": 7337,
+      "mode": 436,
+      "sha256": "aa1e079d64f79e809b0624f2e538f776e3f22eb75f182f217bad7f403afcf535"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/thor/pyproject.toml",
+      "type": "file",
+      "size": 3267,
+      "mode": 436,
+      "sha256": "f236891df8b70251c23f3b767eb8d20451ba22f66268f3262874496bfb41441c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/thor/uv.lock",
+      "type": "file",
+      "size": 241547,
+      "mode": 436,
+      "sha256": "b5badc2d32e2739d3c18300757dc8c86c7184e6c070369116e78135ffe3ec970"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/trt_model_forward.py",
+      "type": "file",
+      "size": 34691,
+      "mode": 436,
+      "sha256": "9494f5c57f9c72f5c1199cd90f2674935e62051c7286655682875cdcc5a3b98a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/trt_torch.py",
+      "type": "file",
+      "size": 8172,
+      "mode": 436,
+      "sha256": "b4551ba76455c4f0fcf6de3d06914f06df31f8d3bbb045295399bac84991b5cd"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/deployment/verify_n1d7_trt.py",
+      "type": "file",
+      "size": 10153,
+      "mode": 436,
+      "sha256": "b4bcf4a03a9c48a31a28a9d1f4e843723be71d32e562cf3039c80001b03097c9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/download_droid_sample.py",
+      "type": "file",
+      "size": 16377,
+      "mode": 436,
+      "sha256": "de54253a94a7a22dcf6b6d90c69e783e41e0444473b90f8508a427121057e860"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/download_simplerenv_sample.py",
+      "type": "file",
+      "size": 10006,
+      "mode": 436,
+      "sha256": "f9ac05a80b4f8ee34ef663496dbf4cd2da8d48729288838f9de8011cee585cf5"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/eval/check_sim_eval_ready.py",
+      "type": "file",
+      "size": 7949,
+      "mode": 436,
+      "sha256": "d8ce9fd4f4e866b06819faf4f5986b7cae1f273d4c44c0bcfac8f828f2e8d328"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/lerobot_conversion/README.md",
+      "type": "file",
+      "size": 548,
+      "mode": 436,
+      "sha256": "4b5f4e965718cd3746546c2b759c27648fdedb5d743de60c82a22c9a59539960"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/lerobot_conversion/convert_v3_to_v2.py",
+      "type": "file",
+      "size": 19470,
+      "mode": 436,
+      "sha256": "3ec025e0656e9e2b654d4901149592ec26664c8fe1f9962839a6e67d8c825f2f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/lerobot_conversion/pyproject.toml",
+      "type": "file",
+      "size": 389,
+      "mode": 436,
+      "sha256": "d29e094221de036d662c10ef9cebd7afdfefa8cee38b5a43c5fb579ec513a00a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/patch_triton_cuda13.sh",
+      "type": "file",
+      "size": 2425,
+      "mode": 493,
+      "sha256": "6a0e614fc6206bd6ae9131d1f1ba1d16b26a7300a532d592593819329dc4ae43"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/validate_hf_config_alignment.py",
+      "type": "file",
+      "size": 37793,
+      "mode": 436,
+      "sha256": "766e02b630416b4f85d0940373d5c13d1fd8eb6827767594ec6d1742b756f61f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/scripts/verify_droid_rotation_correction.py",
+      "type": "file",
+      "size": 7097,
+      "mode": 436,
+      "sha256": "12dc8578f11138adf7b21e5a57c34f0e2af121131184a856679bf9625eeef9da"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/__init__.py",
+      "type": "file",
+      "size": 679,
+      "mode": 436,
+      "sha256": "c4dc0cf54a15db963e684ed996a7ceb38a3737390327929f05930ac903f33514"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/conftest.py",
+      "type": "file",
+      "size": 2953,
+      "mode": 436,
+      "sha256": "f9616cb2d7cf14b28d3271bb62aa77e0d3f04ab3568c9045cc52ad7f810ebea7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/examples/__init__.py",
+      "type": "file",
+      "size": 732,
+      "mode": 436,
+      "sha256": "c08e21098a50911dd2756a920d93b2a7dde69f341251b71461b2748ac7553d82"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/examples/test_droid.py",
+      "type": "file",
+      "size": 5193,
+      "mode": 436,
+      "sha256": "157b62aad5fc5e099cd72de124d0b66bc70fb4991b52e074399c25b1b85f4e81"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/examples/test_libero.py",
+      "type": "file",
+      "size": 14457,
+      "mode": 436,
+      "sha256": "fd62b539956ec74dd27a943cc7c564523028bd3156e648171093737a47e5cb08"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/examples/test_simplerenv.py",
+      "type": "file",
+      "size": 6089,
+      "mode": 436,
+      "sha256": "cd07766a913b9192287389717a550dc835399dcb9b107b48534eb3debdb3d9ce"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/examples/test_so100.py",
+      "type": "file",
+      "size": 6693,
+      "mode": 436,
+      "sha256": "e19e85a85020c33ab9bf422f048524332cb7c5ca299c30940fa89c1a466b3f5d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/fixtures/README.md",
+      "type": "file",
+      "size": 711,
+      "mode": 436,
+      "sha256": "0db213a68131b5ed22d5edb2b2fb1ec0e21c2cc24634666d241295538bcb2013"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/fixtures/processor_config/embodiment_id.json",
+      "type": "file",
+      "size": 22,
+      "mode": 436,
+      "sha256": "20d9c40df4fa3adac1d24fc976fa1814680c3f7fbf64c11fdb2646870084807c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/fixtures/processor_config/processor_config.json",
+      "type": "file",
+      "size": 3676,
+      "mode": 436,
+      "sha256": "c961fecb1416f9cb2d3531778f24f68ae8dcf093bdde7820b39b163ba967046c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/fixtures/processor_config/statistics.json",
+      "type": "file",
+      "size": 5317,
+      "mode": 436,
+      "sha256": "f52d67d82b8b461cb1c189edc9b1ba67b9314fd5a6c4dddce9516b7da21e0fbf"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/getting_started/test_data_config_md.py",
+      "type": "file",
+      "size": 1909,
+      "mode": 436,
+      "sha256": "4e383b0624a29927b3d8389a0939c26c26941639084fd75c0680dd7cd09e8ea4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/getting_started/test_finetune_new_embodiment_md.py",
+      "type": "file",
+      "size": 3694,
+      "mode": 436,
+      "sha256": "2756ba7091330a44eaaeb1fd76141d5a9b0ef1cd39f51626e1257e4f028e3e18"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/getting_started/test_policy_md.py",
+      "type": "file",
+      "size": 8140,
+      "mode": 436,
+      "sha256": "521cee6f368f8c25544b651d9e0c770f862d4eeb856b9739907efc9e45ca8305"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/getting_started/test_real_world_deployment_md.py",
+      "type": "file",
+      "size": 1970,
+      "mode": 436,
+      "sha256": "04baae8df76808bd7d7c6ee906bcf552666cecad8e7df73410043ecd896831b2"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/state_action/test_eef_action_format.py",
+      "type": "file",
+      "size": 8222,
+      "mode": 436,
+      "sha256": "ebd5b71165c098f95c6666f40ca377387a5f89791d70c32202894563a7f2738f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/state_action/test_state_action_processor.py",
+      "type": "file",
+      "size": 11105,
+      "mode": 436,
+      "sha256": "46d3fbc9f05d9cd4d852d4a0e89e4344e20c339100ed7d0e8438902e7905fdc7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/test_data_preparation.py",
+      "type": "file",
+      "size": 6362,
+      "mode": 436,
+      "sha256": "140b75a251436af9a10279a1450ef7ee7da7c4e54f837b10e3e6b3dd5f1d7f9c"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/test_dataset_factory.py",
+      "type": "file",
+      "size": 4612,
+      "mode": 436,
+      "sha256": "4112e532160b0cd4882ac93d2d7ce21daf04a1787a5d716891caa7d8af7dfca5"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/test_embodiment_tags.py",
+      "type": "file",
+      "size": 9217,
+      "mode": 436,
+      "sha256": "cf18d9ee9c418810be382405218ede0a0927a487c0381b97c65df326cfc86d0a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/test_sharded_datasets.py",
+      "type": "file",
+      "size": 10408,
+      "mode": 436,
+      "sha256": "0a496997b290384581c279003ca2c94c96ef8d65508459b9bfaeb0189fa3cc86"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/data/test_stats_pipeline.py",
+      "type": "file",
+      "size": 10039,
+      "mode": 436,
+      "sha256": "554fad11f347c0fc3fac9137ddd23946ea3b1b13c75d8857643edec5bd335e1b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/eval/sim/test_env_utils.py",
+      "type": "file",
+      "size": 4079,
+      "mode": 436,
+      "sha256": "af45e36b1e300e9a88943ebd16e5294ebffb278daec975ba3543a3822bc899b8"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/experiment/test_experiment_run.py",
+      "type": "file",
+      "size": 7189,
+      "mode": 436,
+      "sha256": "9fa0663c6255bac9aeeb5ddf51030976ce9be9fcf446ef1320484534ef139308"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/model/test_action_head.py",
+      "type": "file",
+      "size": 6780,
+      "mode": 436,
+      "sha256": "338877e89ffd99d426c35728aa47b4873356ce0cca9b719e96305defba7cee7a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/model/test_gr00t_processor.py",
+      "type": "file",
+      "size": 8589,
+      "mode": 436,
+      "sha256": "76952cda102c002c1bcb59537e3c449b84e086688ec138ce027313d64cd779e4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/model/test_model_forward.py",
+      "type": "file",
+      "size": 7887,
+      "mode": 436,
+      "sha256": "518452934feba9995d5dcfab2dafebaa194297b105e21aba10a4e56b5dc0f9c4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/model/test_variable_image_size.py",
+      "type": "file",
+      "size": 7853,
+      "mode": 436,
+      "sha256": "851f2c97fba05cbb99cfcf7fc0af58225fdb74cd5ee0862bbdf951207f9f012b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/policy/test_gr00t_policy.py",
+      "type": "file",
+      "size": 6204,
+      "mode": 436,
+      "sha256": "b6ef9f26d0f97482671801ef51d6318016b33bafc520eda44171e5a4121a680a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/policy/test_gr00t_policy_gpu.py",
+      "type": "file",
+      "size": 6875,
+      "mode": 436,
+      "sha256": "411902b1de1cf9a7d75ba3631df140495e00aeb8e89b1c777d63d9ba381fdb8b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/policy/test_policy_service.py",
+      "type": "file",
+      "size": 7498,
+      "mode": 436,
+      "sha256": "78512b5c4c6597141a04f9774c8a65259ded37ebee64a2f4cdca6bcc978ce4f7"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/utils/test_dataset_video_backend.py",
+      "type": "file",
+      "size": 8112,
+      "mode": 436,
+      "sha256": "a6d8ae2abefa1a2666e60639147c167d6e41b9aa4556a58be6d7edf7aadb139a"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/utils/test_pyav_memory_leak.py",
+      "type": "file",
+      "size": 9702,
+      "mode": 436,
+      "sha256": "5d435ad7b484aa84e007f364bc7498f8a4c13f63c13ea6fea93945a8a1991ef4"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/utils/test_pyav_memory_leak_stress.py",
+      "type": "file",
+      "size": 7981,
+      "mode": 436,
+      "sha256": "75b4c260712a8414b7474e9a7760c6126208aa927c86e149d79d66e5efb5fbcf"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/utils/test_torchcodec_import.py",
+      "type": "file",
+      "size": 911,
+      "mode": 436,
+      "sha256": "496fefe6ff4c3c35cd0af1f280224ed88e2351cab32f25460b4c956d75d9caeb"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/gr00t/utils/test_video_backend.py",
+      "type": "file",
+      "size": 5255,
+      "mode": 436,
+      "sha256": "6846e2e01e435c4352c154b805da81401bb97d9a25d84e0c31d68804b67e7642"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/scripts/deployment/test_standalone_inference.py",
+      "type": "file",
+      "size": 7443,
+      "mode": 436,
+      "sha256": "ca60bc0ce6491a0b2b4ee8b3fb63918ef8d7a124b38cf0d6e27d2bf9492b4fc0"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/scripts/deployment/test_trt_pipeline.py",
+      "type": "file",
+      "size": 6740,
+      "mode": 436,
+      "sha256": "0d806ebc89d6bc79a41b77fc8adc9dfd3c45e370b0f45dc0debdbfae45ef684d"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/test_support/__init__.py",
+      "type": "file",
+      "size": 720,
+      "mode": 436,
+      "sha256": "91052451d4ffce9a9223e4818d3cfebaf29fce3b1916200e69d631dd0b089d51"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/test_support/compass.py",
+      "type": "file",
+      "size": 10528,
+      "mode": 436,
+      "sha256": "aed55fc03334e3ee34b6aefd6df5fcac8bfc09894629826f573749d7594815c6"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/test_support/readme.py",
+      "type": "file",
+      "size": 6150,
+      "mode": 436,
+      "sha256": "68a2bf2fe796ada5d8b436d5546a7a5a51351a480ae1b25bcecae9b477438b5f"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/test_support/runtime.py",
+      "type": "file",
+      "size": 26194,
+      "mode": 436,
+      "sha256": "344b5b1c06f7162daf93d5a1bbd34c58f1ba7c41781a222c984d7bc19415c40b"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/tests/test_support/sync.py",
+      "type": "file",
+      "size": 1496,
+      "mode": 436,
+      "sha256": "5e5a4434e5e50b45dc49a82411c80e71c21e49cb53fc968127bd712b847fbec9"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release/uv.lock",
+      "type": "file",
+      "size": 295613,
+      "mode": 436,
+      "sha256": "ad705311ed0a08a74d928cda7e7660315c818c8c3196d24f694f2af480318b48"
+    },
+    {
+      "path": "Isaac-GR00T-n1.7-release.zip",
+      "type": "file",
+      "size": 8774603,
+      "mode": 436,
+      "sha256": "bee284943b06d5bce1c28d415020db007ce031d515867bb1877df785ef8dcc4a"
+    }
+  ]
+}
