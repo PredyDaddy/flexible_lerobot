@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import multiprocessing
 import queue
 import signal
 import threading
@@ -462,6 +463,51 @@ class CameraPublisherWorker:
             )
 
 
+def _run_camera_process(
+    preset: DirectCameraPreset,
+    bind_host: str,
+    jpeg_quality: int,
+    count: int,
+    trace_every_frame: bool,
+    stop_event: Any,
+    ready_queue: Any,
+    error_queue: Any,
+) -> None:
+    context = zmq.Context()
+    worker = CameraPublisherWorker(
+        preset,
+        context,
+        bind_host=bind_host,
+        jpeg_quality=jpeg_quality,
+        count=count,
+        stop_event=stop_event,
+        trace_every_frame=trace_every_frame,
+    )
+    ready_reported = False
+    try:
+        worker.start()
+        while worker.thread.is_alive():
+            if worker.ready.is_set() and not ready_reported:
+                ready_queue.put(preset.camera_id)
+                ready_reported = True
+            if worker.exception is not None:
+                raise worker.exception
+            worker.join(timeout=0.05)
+        if worker.exception is not None:
+            raise worker.exception
+        if not ready_reported:
+            raise RuntimeError(f"{preset.camera_id} exited before readiness")
+    except BaseException as exc:
+        error_queue.put((preset.camera_id, f"{type(exc).__name__}: {exc}"))
+        stop_event.set()
+        raise
+    finally:
+        if worker.exception is not None:
+            stop_event.set()
+        worker.join(timeout=5)
+        context.term()
+
+
 class DirectRealSenseZmqServer:
     def __init__(
         self,
@@ -479,17 +525,25 @@ class DirectRealSenseZmqServer:
         self.count = count
         self.trace_every_frame = trace_every_frame
         self.presets = presets or tuple(CAMERA_PRESETS.values())
-        self.stop_event = threading.Event()
-        self.context = zmq.Context()
-        self.workers = tuple(
-            CameraPublisherWorker(
-                preset,
-                self.context,
-                bind_host=bind_host,
-                jpeg_quality=jpeg_quality,
-                count=count,
-                stop_event=self.stop_event,
-                trace_every_frame=trace_every_frame,
+        self.mp_context = multiprocessing.get_context("spawn")
+        self.stop_event = self.mp_context.Event()
+        self.ready_queue = self.mp_context.Queue()
+        self.error_queue = self.mp_context.Queue()
+        self.processes = tuple(
+            self.mp_context.Process(
+                target=_run_camera_process,
+                args=(
+                    preset,
+                    bind_host,
+                    jpeg_quality,
+                    count,
+                    trace_every_frame,
+                    self.stop_event,
+                    self.ready_queue,
+                    self.error_queue,
+                ),
+                name=f"jz-realsense-process-{preset.camera_id}",
+                daemon=False,
             )
             for preset in self.presets
         )
@@ -498,35 +552,51 @@ class DirectRealSenseZmqServer:
         self.stop_event.set()
 
     def run(self) -> int:
-        for worker in self.workers:
-            worker.start()
+        for process in self.processes:
+            process.start()
         try:
             deadline = time.monotonic() + 20
-            while not all(worker.ready.is_set() for worker in self.workers):
+            ready_cameras: set[str] = set()
+            while len(ready_cameras) < len(self.processes):
                 self._raise_if_failed()
                 if time.monotonic() >= deadline:
                     raise TimeoutError("timed out opening all RealSense cameras")
-                time.sleep(0.05)
+                try:
+                    ready_cameras.add(self.ready_queue.get(timeout=0.05))
+                except queue.Empty:
+                    pass
             print("[direct realsense zmq] all cameras ready", flush=True)
             while not self.stop_event.is_set():
                 self._raise_if_failed()
-                if self.count > 0 and all(
-                    worker.frames_sent >= self.count for worker in self.workers
-                ):
+                if self.count > 0 and all(not process.is_alive() for process in self.processes):
                     break
                 time.sleep(0.05)
             self._raise_if_failed()
             return 0
         finally:
             self.stop_event.set()
-            for worker in self.workers:
-                worker.join(timeout=5)
-            self.context.term()
+            for process in self.processes:
+                process.join(timeout=5)
+            for process in self.processes:
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=2)
+            self.ready_queue.close()
+            self.error_queue.close()
 
     def _raise_if_failed(self) -> None:
-        for worker in self.workers:
-            if worker.exception is not None:
-                raise RuntimeError(f"camera worker failed: {worker.preset.camera_id}") from worker.exception
+        try:
+            camera_id, error = self.error_queue.get_nowait()
+        except queue.Empty:
+            camera_id = None
+            error = None
+        if camera_id is not None:
+            raise RuntimeError(f"camera process failed: {camera_id}: {error}")
+        for process in self.processes:
+            if process.exitcode not in (None, 0):
+                raise RuntimeError(
+                    f"camera process failed: name={process.name} exitcode={process.exitcode}"
+                )
 
 
 def parse_args() -> argparse.Namespace:

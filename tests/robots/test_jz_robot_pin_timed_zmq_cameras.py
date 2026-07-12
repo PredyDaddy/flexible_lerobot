@@ -165,6 +165,24 @@ def test_server_rejects_invalid_jpeg_quality(quality: int) -> None:
         DirectRealSenseZmqServer(jpeg_quality=quality, presets=())
 
 
+def test_server_uses_one_non_daemon_process_per_camera() -> None:
+    presets = (
+        DirectCameraPreset("camera_a", "1", 8, 8, 30, 6001),
+        DirectCameraPreset("camera_b", "2", 8, 8, 30, 6002),
+    )
+    server = DirectRealSenseZmqServer(presets=presets)
+    try:
+        assert server.mp_context.get_start_method() == "spawn"
+        assert [process.name for process in server.processes] == [
+            "jz-realsense-process-camera_a",
+            "jz-realsense-process-camera_b",
+        ]
+        assert all(not process.daemon for process in server.processes)
+    finally:
+        server.ready_queue.close()
+        server.error_queue.close()
+
+
 @pytest.mark.parametrize(
     "relative_path",
     [
