@@ -6,6 +6,16 @@ RUNTIME_DIR="${JZ_DIRECT_CAMERA_RUNTIME_DIR:-/tmp/jz_pin_timed_direct_cameras}"
 LOG_FILE="$RUNTIME_DIR/orin_realsense_zmq.log"
 PID_FILE="$RUNTIME_DIR/orin_realsense_zmq.pid"
 JPEG_QUALITY="${JZ_DIRECT_CAMERA_JPEG_QUALITY:-95}"
+TRACE_EVERY_FRAME="${JZ_DIRECT_CAMERA_TRACE_EVERY_FRAME:-0}"
+
+case "${TRACE_EVERY_FRAME,,}" in
+  1|true|yes|on) TRACE_ARGS=(--trace-every-frame) ;;
+  0|false|no|off) TRACE_ARGS=() ;;
+  *)
+    echo "[direct cameras] invalid JZ_DIRECT_CAMERA_TRACE_EVERY_FRAME=$TRACE_EVERY_FRAME" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$RUNTIME_DIR"
 
@@ -27,7 +37,7 @@ mkdir -p "$RUNTIME_DIR"
 setsid env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$ROOT_DIR/src:$ROOT_DIR" \
   conda run --no-capture-output -n lerobot python \
   -m lerobot.robots.jz_robot_pin_timed.orin_realsense_zmq \
-  --jpeg-quality "$JPEG_QUALITY" >"$LOG_FILE" 2>&1 &
+  --jpeg-quality "$JPEG_QUALITY" "${TRACE_ARGS[@]}" >"$LOG_FILE" 2>&1 &
 pid=$!
 echo "$pid" >"$PID_FILE"
 echo "[direct cameras] starting pid=$pid log=$LOG_FILE"

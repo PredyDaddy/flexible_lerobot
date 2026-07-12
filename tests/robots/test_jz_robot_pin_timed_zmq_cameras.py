@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import base64
 import json
+import socket
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
+import zmq
 
 from lerobot.robots.jz_robot_pin_timed.orin_realsense_zmq import (
     CAMERA_PRESETS,
+    CameraPublisherWorker,
     DirectCameraPreset,
     DirectRealSenseZmqServer,
     build_message,
@@ -72,6 +77,86 @@ def test_message_keeps_legacy_zmq_fields_and_adds_timing() -> None:
         "jpeg_quality": 95,
         "payload_bytes": 4,
     }
+
+
+def test_message_accepts_optional_capture_stage_diagnostics() -> None:
+    preset = DirectCameraPreset("camera_test", "123", 640, 480, 30, 6000)
+    message = build_message(
+        preset,
+        sequence=8,
+        capture_wall_ns=1_700_000_000_000_000_000,
+        capture_monotonic_ns=200_000_000,
+        encode_completed_monotonic_ns=203_000_000,
+        jpeg=b"jpeg",
+        jpeg_quality=75,
+        image_b64=base64.b64encode(b"jpeg").decode("ascii"),
+        extra_timing={
+            "read_enter_monotonic_ns": 190_000_000,
+            "read_return_monotonic_ns": 200_000_000,
+            "realsense_frame_number": 42,
+            "realsense_device_timestamp_ms": 1234.5,
+        },
+    )
+
+    timing = json.loads(message)["camera_timing"]["camera_test"]
+    assert timing["read_enter_monotonic_ns"] == 190_000_000
+    assert timing["read_return_monotonic_ns"] == 200_000_000
+    assert timing["realsense_frame_number"] == 42
+    assert timing["realsense_device_timestamp_ms"] == 1234.5
+
+
+def test_capture_continues_while_publisher_encoding_is_slow(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeCamera:
+        def __init__(self, _config: object) -> None:
+            self.is_connected = False
+
+        def connect(self) -> None:
+            self.is_connected = True
+
+        def read(self, timeout_ms: int) -> np.ndarray:
+            assert timeout_ms == 500
+            time.sleep(0.001)
+            return np.zeros((8, 8, 3), dtype=np.uint8)
+
+        def disconnect(self) -> None:
+            self.is_connected = False
+
+    def slow_encode(_image: np.ndarray, _quality: int) -> bytes:
+        time.sleep(0.02)
+        return b"jpeg"
+
+    monkeypatch.setattr(
+        "lerobot.robots.jz_robot_pin_timed.orin_realsense_zmq.encode_rgb_jpeg",
+        slow_encode,
+    )
+    with socket.socket() as port_socket:
+        port_socket.bind(("127.0.0.1", 0))
+        port = port_socket.getsockname()[1]
+
+    context = zmq.Context()
+    stop_event = threading.Event()
+    worker = CameraPublisherWorker(
+        DirectCameraPreset("camera_test", "123", 8, 8, 30, port),
+        context,
+        bind_host="127.0.0.1",
+        jpeg_quality=75,
+        count=5,
+        stop_event=stop_event,
+        camera_factory=FakeCamera,
+    )
+    try:
+        worker.start()
+        worker.join(timeout=5)
+        assert not worker.thread.is_alive()
+        assert worker.exception is None
+        assert worker.frames_captured == 5
+        assert worker.frames_sent == 5
+        assert len(worker.capture_intervals_ms) == 5 - 1
+        assert max(worker.capture_intervals_ms) < 10
+    finally:
+        stop_event.set()
+        worker.join(timeout=1)
+        context.term()
 
 
 @pytest.mark.parametrize("quality", [0, 101])
