@@ -517,7 +517,7 @@ def state_subscription_qos() -> QoSProfile:
     return QoSProfile(
         history=HistoryPolicy.KEEP_LAST,
         depth=1,
-        reliability=ReliabilityPolicy.RELIABLE,
+        reliability=ReliabilityPolicy.BEST_EFFORT,
         durability=DurabilityPolicy.VOLATILE,
     )
 
@@ -774,7 +774,7 @@ def main() -> int:
             f"executor=per_source_process_single_threaded:{len(source_processes.processes)} "
             f"contexts={len(source_processes.processes)} "
             f"callback_groups=mutually_exclusive:{len(source_processes.processes)} "
-            "qos=keep_last:1,reliable,volatile",
+            "qos=keep_last:1,best_effort,volatile",
             flush=True,
         )
 

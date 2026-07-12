@@ -62,7 +62,7 @@ def _load_bridge_module(monkeypatch):
 
     qos.QoSProfile = QoSProfile
     qos.HistoryPolicy = SimpleNamespace(KEEP_LAST="keep_last")
-    qos.ReliabilityPolicy = SimpleNamespace(RELIABLE="reliable")
+    qos.ReliabilityPolicy = SimpleNamespace(RELIABLE="reliable", BEST_EFFORT="best_effort")
     qos.DurabilityPolicy = SimpleNamespace(VOLATILE="volatile")
     sensor_msgs = types.ModuleType("sensor_msgs")
     sensor_msgs_msg = types.ModuleType("sensor_msgs.msg")
@@ -682,14 +682,14 @@ def test_source_process_manager_shutdown_joins_workers_and_collector_thread(monk
     assert all(thread.ident != thread_ident for thread in threading.enumerate())
 
 
-def test_state_subscription_qos_is_explicit_latest_reliable_volatile(monkeypatch) -> None:
+def test_state_subscription_qos_is_explicit_latest_best_effort_volatile(monkeypatch) -> None:
     bridge = _load_bridge_module(monkeypatch)
 
     qos = bridge.state_subscription_qos()
 
     assert qos.history == "keep_last"
     assert qos.depth == 1
-    assert qos.reliability == "reliable"
+    assert qos.reliability == "best_effort"
     assert qos.durability == "volatile"
 
 
