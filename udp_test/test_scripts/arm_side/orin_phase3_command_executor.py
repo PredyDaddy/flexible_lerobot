@@ -8,6 +8,7 @@ import os
 import signal
 import socket
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +27,13 @@ from lerobot.robots.jz_robot_udp.protocol import (  # noqa: E402
     ProtocolError,
     decode_jz_robot_udp_command_packet,
     validate_jz_robot_udp_command_packet,
+)
+from udp_test.test_scripts.arm_side.jz_pin_reset_control import (  # noqa: E402
+    DEFAULT_ACTIONS_PATH,
+    ResetControlConfig,
+    ResetControlServer,
+    ResetCoordinator,
+    RosChoreographyAdapter,
 )
 
 DEFAULT_CONFIG = REPO_ROOT / "udp_test/test_scripts/arm_side/orin_phase3_executor_config.yaml"
@@ -133,6 +141,9 @@ class ExecutorCounters:
     dry_run: int = 0
     rate_limited: int = 0
     timeout: int = 0
+    command_inhibited_drops: int = 0
+    inhibit_transitions: int = 0
+    resume_transitions: int = 0
     seq_gap_count: int = 0
     last_seq: int | None = None
     last_published_seq: int | None = None
@@ -490,8 +501,26 @@ class Phase3CommandExecutor:
         self.last_publish_monotonic_s: float | None = None
         self.last_valid_command_monotonic_s: float | None = None
         self.latest_target: ValidatedCommand | None = None
+        self.commands_inhibited = False
+        self._control_lock = threading.RLock()
 
     def process_packet(
+        self,
+        packet: dict[str, Any],
+        *,
+        sender: tuple[str, int],
+        now_ns: int | None = None,
+        monotonic_s: float | None = None,
+    ) -> GateDecision:
+        with self._control_lock:
+            return self._process_packet_locked(
+                packet,
+                sender=sender,
+                now_ns=now_ns,
+                monotonic_s=monotonic_s,
+            )
+
+    def _process_packet_locked(
         self,
         packet: dict[str, Any],
         *,
@@ -507,6 +536,10 @@ class Phase3CommandExecutor:
         if self.cfg.allowed_sender_ip and sender_ip != self.cfg.allowed_sender_ip:
             self.counters.unexpected_sender += 1
             return self._reject("unexpected_sender", packet.get("seq"))
+
+        if self.commands_inhibited:
+            self.counters.command_inhibited_drops += 1
+            return self._reject("command_inhibited", packet.get("seq"))
 
         try:
             validate_jz_robot_udp_command_packet(packet)
@@ -730,6 +763,10 @@ class Phase3CommandExecutor:
         )
 
     def check_command_timeout(self, *, monotonic_s: float | None = None) -> bool:
+        with self._control_lock:
+            return self._check_command_timeout_locked(monotonic_s=monotonic_s)
+
+    def _check_command_timeout_locked(self, *, monotonic_s: float | None = None) -> bool:
         if not self.active or self.last_valid_command_monotonic_s is None:
             return False
         monotonic_s = time.monotonic() if monotonic_s is None else monotonic_s
@@ -746,10 +783,16 @@ class Phase3CommandExecutor:
         return True
 
     def publish_latest_target(self, *, monotonic_s: float | None = None) -> GateDecision:
+        with self._control_lock:
+            return self._publish_latest_target_locked(monotonic_s=monotonic_s)
+
+    def _publish_latest_target_locked(self, *, monotonic_s: float | None = None) -> GateDecision:
         monotonic_s = time.monotonic() if monotonic_s is None else monotonic_s
+        if self.commands_inhibited:
+            return GateDecision(accepted=False, publish=False, reason="command_inhibited")
         if not self.active or self.latest_target is None:
             return GateDecision(accepted=False, publish=False, reason="inactive")
-        if self.check_command_timeout(monotonic_s=monotonic_s):
+        if self._check_command_timeout_locked(monotonic_s=monotonic_s):
             return GateDecision(accepted=False, publish=False, reason="hold_timeout")
         if self.cfg.execution != COMMAND_MODE_ARMED:
             return GateDecision(
@@ -780,11 +823,37 @@ class Phase3CommandExecutor:
         return decision
 
     def _publish_command(self, command: ValidatedCommand, *, monotonic_s: float, reason: str) -> GateDecision:
+        if self.commands_inhibited:
+            self.counters.command_inhibited_drops += 1
+            return self._reject("command_inhibited", command.seq)
         self.publisher_adapter.publish_command(command)
         self.counters.published += 1
         self.counters.last_published_seq = command.seq
         self.last_publish_monotonic_s = monotonic_s
         return GateDecision(accepted=True, publish=True, reason=reason, seq=command.seq, command=command)
+
+    def _clear_command_state(self) -> None:
+        self.active = False
+        self.counters.last_seq = None
+        self.last_joint_positions = None
+        self.last_gripper_state = None
+        self.last_publish_monotonic_s = None
+        self.last_valid_command_monotonic_s = None
+        self.latest_target = None
+
+    def inhibit_commands(self) -> None:
+        with self._control_lock:
+            if not self.commands_inhibited:
+                self.counters.inhibit_transitions += 1
+            self.commands_inhibited = True
+            self._clear_command_state()
+
+    def resume_commands(self) -> None:
+        with self._control_lock:
+            self._clear_command_state()
+            if self.commands_inhibited:
+                self.counters.resume_transitions += 1
+            self.commands_inhibited = False
 
     def request_shutdown(self) -> None:
         self.shutdown_requested = True
@@ -801,6 +870,9 @@ class Phase3CommandExecutor:
             f"published={self.counters.published} hold_published={self.counters.hold_published} "
             f"dry_run={self.counters.dry_run} "
             f"rate_limited={self.counters.rate_limited} timeout={self.counters.timeout} "
+            f"command_inhibited_drops={self.counters.command_inhibited_drops} "
+            f"inhibit_transitions={self.counters.inhibit_transitions} "
+            f"resume_transitions={self.counters.resume_transitions} "
             f"seq_gap_count={self.counters.seq_gap_count} last_seq={self.counters.last_seq} "
             f"last_published_seq={self.counters.last_published_seq} reject_reasons={self.counters.reject_reasons}"
         )
@@ -817,6 +889,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--print-every", type=int, default=1)
     parser.add_argument("--buffer-size", type=int, default=None)
     parser.add_argument("--socket-timeout-s", type=float, default=None)
+    parser.add_argument("--reset-control-enabled", action="store_true")
+    parser.add_argument("--reset-control-port", type=int, default=39040)
+    parser.add_argument("--reset-control-allowed-sender-ip", default=None)
+    parser.add_argument("--reset-actions-path", default=str(DEFAULT_ACTIONS_PATH))
     parser.add_argument("--i-understand-this-publishes-robot-commands", action="store_true")
     return parser.parse_args()
 
@@ -858,6 +934,26 @@ def main() -> int:
     install_signal_handlers()
     publisher = RosPublisherAdapter(cfg) if publish_enabled else None
     executor = Phase3CommandExecutor(cfg, publisher_adapter=publisher)
+    reset_server = None
+    if args.reset_control_enabled:
+        if not publish_enabled:
+            raise RuntimeError("reset control endpoint requires armed execution")
+        reset_cfg = ResetControlConfig(
+            bind_ip=cfg.bind_ip,
+            port=args.reset_control_port,
+            allowed_sender_ip=args.reset_control_allowed_sender_ip or str(cfg.allowed_sender_ip),
+            actions_path=Path(args.reset_actions_path),
+        )
+        reset_adapter = RosChoreographyAdapter(reset_cfg)
+        reset_coordinator = ResetCoordinator(reset_cfg, executor, reset_adapter)
+        reset_server = ResetControlServer(reset_cfg, reset_coordinator)
+        reset_server.start()
+        print(
+            "[orin phase3 executor] reset_control "
+            f"bind={reset_cfg.bind_ip}:{reset_cfg.port} allowed={reset_cfg.allowed_sender_ip} "
+            f"allowlist={reset_cfg.allowed_choreographies} state=ACTIVE",
+            flush=True,
+        )
     accepted_count = 0
 
     try:
@@ -865,6 +961,9 @@ def main() -> int:
             sock.bind((cfg.bind_ip, cfg.command_port))
             sock.settimeout(min(float(cfg.socket_timeout_s), 1.0 / float(cfg.max_publish_hz)))
             while not _SHUTDOWN_REQUESTED and not executor.shutdown_requested:
+                if reset_server is not None and not reset_server.healthy:
+                    executor.inhibit_commands()
+                    raise RuntimeError(f"reset control server failed: {reset_server.error}")
                 if args.count and accepted_count >= args.count:
                     break
                 try:
@@ -903,6 +1002,8 @@ def main() -> int:
                 if accepted_count == 1 or (args.print_every > 0 and accepted_count % args.print_every == 0):
                     _print_decision(accepted_count, decision)
     finally:
+        if reset_server is not None:
+            reset_server.close()
         executor.close()
         print(executor.summary(), flush=True)
 
