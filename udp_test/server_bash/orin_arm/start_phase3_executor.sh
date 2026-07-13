@@ -12,9 +12,6 @@ COMMAND_PORT="${COMMAND_PORT:-39020}"
 COMMAND_COUNT="${COMMAND_COUNT:-0}"
 PRINT_EVERY="${PRINT_EVERY:-1}"
 EXECUTION="${EXECUTION:-dry_run}"
-RESET_CONTROL_PORT="${RESET_CONTROL_PORT:-39040}"
-RESET_CONTROL_ENABLED="${RESET_CONTROL_ENABLED:-1}"
-RESET_ACTIONS_PATH="${RESET_ACTIONS_PATH:-/home/data/test/workspace/teleop_ws/install/multi_robot_choreographer/share/multi_robot_choreographer/config/actions/actions.yaml}"
 CONFIG="${CONFIG:-$ROOT_DIR/udp_test/test_scripts/arm_side/orin_phase3_executor_config.yaml}"
 PYTHON_CMD="${PYTHON_CMD:-conda run --no-capture-output -n lerobot python}"
 AUTO_TAIL="${AUTO_TAIL:-1}"
@@ -46,18 +43,6 @@ if [[ "$EXECUTION" == "armed" ]]; then
   echo "WILL publish ROS command topics"
   echo "emergency stop is physical fallback, not a replacement for software limits"
   COMMON_ARGS+=(--i-understand-this-publishes-robot-commands)
-  if [[ "$RESET_CONTROL_ENABLED" != "1" ]]; then
-    echo "[orin_arm/start_phase3_executor] refusing armed start: RESET_CONTROL_ENABLED=1 is required"
-    exit 2
-  fi
-  COMMON_ARGS+=(
-    --reset-control-enabled
-    --reset-control-port "$RESET_CONTROL_PORT"
-    --reset-control-allowed-sender-ip "$X86_IP"
-    --reset-actions-path "$RESET_ACTIONS_PATH"
-  )
-  echo "[orin_arm/start_phase3_executor] reset_control=$ORIN_IP:$RESET_CONTROL_PORT allowed=$X86_IP"
-  echo "[orin_arm/start_phase3_executor] reset allowlist=VR_inital_no_waist"
 elif [[ "$EXECUTION" == "dry_run" ]]; then
   echo "PHASE3 COMMAND EXECUTOR DRY-RUN"
   echo "NOT publishing ROS command topics"
