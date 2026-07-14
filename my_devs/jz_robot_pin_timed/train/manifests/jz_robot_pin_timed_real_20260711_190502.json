@@ -1,0 +1,158 @@
+{
+  "format": "jz_pin_training_projection",
+  "grippers": {
+    "left": {
+      "action": {
+        "raw_closed": 100.0,
+        "raw_field": "left_gripper.width",
+        "raw_open": 0.0,
+        "source": "commanded_opening",
+        "training_field": "left_gripper.target_opening"
+      },
+      "observation": {
+        "raw_closed": 0.0,
+        "raw_field": "left_gripper.width",
+        "raw_open": 100.0,
+        "source": "measured_opening",
+        "training_field": "left_gripper.opening"
+      },
+      "wire_force": {
+        "raw_field": "left_gripper.force",
+        "source": "explicit_x86_boundary_config",
+        "value": 80.0
+      }
+    },
+    "right": {
+      "action": {
+        "raw_closed": 100.0,
+        "raw_field": "right_gripper.width",
+        "raw_open": 0.0,
+        "source": "commanded_opening",
+        "training_field": "right_gripper.target_opening"
+      },
+      "observation": {
+        "raw_closed": 100.0,
+        "raw_field": "right_gripper.width",
+        "raw_open": 0.0,
+        "source": "commanded_opening",
+        "training_field": "right_gripper.opening"
+      },
+      "wire_force": {
+        "raw_field": "right_gripper.force",
+        "source": "explicit_x86_boundary_config",
+        "value": 80.0
+      }
+    }
+  },
+  "provenance": {
+    "dataset_name": "jz_robot_pin_timed_real_20260711_190502",
+    "evidence": "offline deployment-source audit; see docs/jz_robot_action_state_link_report.md",
+    "known_freshness_issue": "6 left and 6 right gripper generation reuses across 894 frames",
+    "legacy_dataset": true,
+    "raw_dataset_modified": false,
+    "risk": "direction endpoints require physical calibration before any armed evaluation",
+    "training_approval": "rejected_by_strict_gripper_generation_check"
+  },
+  "raw_schema": {
+    "dimension": 18,
+    "features": {
+      "action": {
+        "names": [
+          "left_left_joint1.pos",
+          "left_left_joint2.pos",
+          "left_left_joint3.pos",
+          "left_left_joint4.pos",
+          "left_left_joint5.pos",
+          "left_left_joint6.pos",
+          "left_left_joint7.pos",
+          "right_right_joint1.pos",
+          "right_right_joint2.pos",
+          "right_right_joint3.pos",
+          "right_right_joint4.pos",
+          "right_right_joint5.pos",
+          "right_right_joint6.pos",
+          "right_right_joint7.pos",
+          "left_gripper.width",
+          "left_gripper.force",
+          "right_gripper.width",
+          "right_gripper.force"
+        ]
+      },
+      "observation.state": {
+        "names": [
+          "left_left_joint1.pos",
+          "left_left_joint2.pos",
+          "left_left_joint3.pos",
+          "left_left_joint4.pos",
+          "left_left_joint5.pos",
+          "left_left_joint6.pos",
+          "left_left_joint7.pos",
+          "right_right_joint1.pos",
+          "right_right_joint2.pos",
+          "right_right_joint3.pos",
+          "right_right_joint4.pos",
+          "right_right_joint5.pos",
+          "right_right_joint6.pos",
+          "right_right_joint7.pos",
+          "left_gripper.width",
+          "left_gripper.force",
+          "right_gripper.width",
+          "right_gripper.force"
+        ]
+      }
+    },
+    "id": "jz_pin_raw18_v1"
+  },
+  "schema_version": 1,
+  "training_schema": {
+    "canonical_opening": {
+      "closed": 0.0,
+      "definition": "0=closed,100=open",
+      "open": 100.0
+    },
+    "dimension": 16,
+    "features": {
+      "action": {
+        "names": [
+          "left_left_joint1.pos",
+          "left_left_joint2.pos",
+          "left_left_joint3.pos",
+          "left_left_joint4.pos",
+          "left_left_joint5.pos",
+          "left_left_joint6.pos",
+          "left_left_joint7.pos",
+          "right_right_joint1.pos",
+          "right_right_joint2.pos",
+          "right_right_joint3.pos",
+          "right_right_joint4.pos",
+          "right_right_joint5.pos",
+          "right_right_joint6.pos",
+          "right_right_joint7.pos",
+          "left_gripper.target_opening",
+          "right_gripper.target_opening"
+        ]
+      },
+      "observation.state": {
+        "names": [
+          "left_left_joint1.pos",
+          "left_left_joint2.pos",
+          "left_left_joint3.pos",
+          "left_left_joint4.pos",
+          "left_left_joint5.pos",
+          "left_left_joint6.pos",
+          "left_left_joint7.pos",
+          "right_right_joint1.pos",
+          "right_right_joint2.pos",
+          "right_right_joint3.pos",
+          "right_right_joint4.pos",
+          "right_right_joint5.pos",
+          "right_right_joint6.pos",
+          "right_right_joint7.pos",
+          "left_gripper.opening",
+          "right_gripper.opening"
+        ]
+      }
+    },
+    "id": "jz_pin_opening16_v1"
+  }
+}

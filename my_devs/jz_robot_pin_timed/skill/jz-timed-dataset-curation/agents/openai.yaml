@@ -1,0 +1,4 @@
+interface:
+  display_name: "JZ Timed Dataset Curation"
+  short_description: "Audit and merge valid JZ timed episodes safely"
+  default_prompt: "Use $jz-timed-dataset-curation to audit these JZ Pin timed datasets, preserve the sources, merge only validated episodes, and verify the curated output."

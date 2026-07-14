@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from my_devs.jz_robot_pin_timed.data_check.check_timing import run_check
 
@@ -168,6 +169,45 @@ def add_valid_source_timing(root: Path) -> None:
         write_episode_records(path, records)
 
 
+def replace_rtsp_with_zmq_timing(root: Path) -> None:
+    for episode_index in range(2):
+        path, records = read_episode_records(root, episode_index)
+        for record in records:
+            for camera_index, camera_name in enumerate(CAMERAS):
+                old = record["cameras"][camera_name]
+                sequence = old["decoder_sequence"]
+                capture_ns = 9_000_000_000 + sequence * 33_333_333 + camera_index * 1_000
+                record["cameras"][camera_name] = {
+                    "protocol": "jz_realsense_zmq",
+                    "protocol_version": 1,
+                    "timestamp_stage": "x86_after_zmq_receive_before_json_decode",
+                    "sequence": sequence,
+                    "sequence_gap": 0,
+                    "receive_wall_ns": old["receive_wall_ns"],
+                    "receive_monotonic_ns": old["receive_monotonic_ns"],
+                    "decode_completed_monotonic_ns": old["receive_monotonic_ns"] + 1_000_000,
+                    "age_ms": old["age_ms"],
+                    "reused_by_observation_loop": old["reused_by_observation_loop"],
+                    "state_receive_delta_ms": old["state_receive_delta_ms"],
+                    "state_receive_skew_ms": old["state_receive_skew_ms"],
+                    "camera_timing": {
+                        "sequence": sequence,
+                        "timestamp_stage": "after_realsense_read_before_jpeg",
+                        "capture_wall_ns": 10_000_000_000 + sequence * 33_333_333,
+                        "capture_monotonic_ns": capture_ns,
+                        "encode_completed_monotonic_ns": capture_ns + 2_000_000,
+                        "width": 1280 if camera_name == "camera_head" else 640,
+                        "height": 720 if camera_name == "camera_head" else 480,
+                        "channels": 3,
+                        "pixel_format": "RGB8",
+                        "encoding": "jpeg",
+                        "jpeg_quality": 95,
+                        "payload_bytes": 100_000,
+                    },
+                }
+        write_episode_records(path, records)
+
+
 def test_timing_checker_accepts_current_schema_and_numpy_parquet_indices(tmp_path: Path) -> None:
     root = tmp_path / "timed_dataset"
     write_synthetic_timed_dataset(root)
@@ -230,6 +270,45 @@ def test_timing_checker_accepts_current_schema_and_numpy_parquet_indices(tmp_pat
         generation = camera["decoder_pts"]["by_reconnect_generation"]["1"]
         assert generation["episode_segments"] == 2
         assert generation["interval_ms"]["count"] == 2
+
+
+def test_timing_checker_accepts_zmq_schema_and_reports_source_fps(tmp_path: Path) -> None:
+    root = tmp_path / "zmq_timed_dataset"
+    write_synthetic_timed_dataset(root)
+    replace_rtsp_with_zmq_timing(root)
+    args = make_args(root)
+    args.expected_camera_protocol = "jz_realsense_zmq"
+    args.expected_camera_source_fps = 30.0
+    args.min_camera_source_fps_ratio = 0.9
+
+    report = run_check(args)
+
+    assert report["status"] == "PASS", report["errors"]
+    for camera in report["cameras"].values():
+        assert camera["protocol_counts"] == {"jz_realsense_zmq": 4}
+        assert camera["sequence_gap_total"] == 0
+        assert camera["source_fps_from_orin_capture"]["mean"] == pytest.approx(30.0, rel=1e-6)
+        assert camera["orin_jpeg_encode_ms"]["mean"] == 2.0
+        assert camera["x86_jpeg_decode_ms"]["mean"] == 1.0
+
+
+def test_timing_checker_accepts_policy_output_action_timing(tmp_path: Path) -> None:
+    root = tmp_path / "policy_timing_dataset"
+    write_synthetic_timed_dataset(root)
+    path, records = read_episode_records(root, 0)
+    records[0]["action"].update(
+        {
+            "source": "policy_output",
+            "packet_seq": None,
+            "packet_stamp_ns": None,
+            "age_ms": None,
+        }
+    )
+    write_episode_records(path, records)
+
+    report = run_check(make_args(root))
+
+    assert report["status"] == "PASS", report["errors"]
 
 
 def test_timing_checker_rejects_command_from_another_observation(tmp_path: Path) -> None:

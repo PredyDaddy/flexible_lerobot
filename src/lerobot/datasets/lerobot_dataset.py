@@ -572,12 +572,14 @@ def _encode_video_worker(
     fps: int,
     vcodec: str = "libsvtav1",
     video_crf: int = DEFAULT_VIDEO_CRF,
+    keep_image_files: bool = False,
 ) -> Path:
     temp_path = Path(tempfile.mkdtemp(dir=root)) / f"{video_key}_{episode_index:03d}.mp4"
     fpath = DEFAULT_IMAGE_PATH.format(image_key=video_key, episode_index=episode_index, frame_index=0)
     img_dir = (root / fpath).parent
     encode_video_frames(img_dir, temp_path, fps, vcodec=vcodec, crf=video_crf, overwrite=True)
-    shutil.rmtree(img_dir)
+    if not keep_image_files:
+        shutil.rmtree(img_dir)
     return temp_path
 
 
@@ -598,6 +600,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         vcodec: str = "libsvtav1",
         video_crf: int | None = None,
         validate_video_encoding: bool = False,
+        keep_image_files: bool = False,
     ):
         """
         2 modes are available for instantiating this class, depending on 2 different use cases:
@@ -724,6 +727,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
             raise ValueError(f"Invalid vcodec '{vcodec}'. Must be one of: {sorted(VALID_VIDEO_CODECS)}")
         if not isinstance(validate_video_encoding, bool):
             raise TypeError("validate_video_encoding must be a boolean")
+        if not isinstance(keep_image_files, bool):
+            raise TypeError("keep_image_files must be a boolean")
         if video_crf is not None:
             _validate_video_crf(video_crf, vcodec)
         self.repo_id = repo_id
@@ -737,6 +742,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.delta_indices = None
         self.batch_encoding_size = batch_encoding_size
         self.episodes_since_last_encoding = 0
+        self.keep_image_files = keep_image_files
         self.vcodec = vcodec
 
         # Unused attributes
@@ -1337,6 +1343,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
                             self.fps,
                             vcodec=self.vcodec,
                             video_crf=self.video_crf,
+                            keep_image_files=self.keep_image_files,
                         ): video_key
                         for video_key in self.meta.video_keys
                     }
@@ -1374,7 +1381,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
         if not episode_data:
             # Reset episode buffer and clean up temporary images (if not already deleted during video encoding)
-            self.clear_episode_buffer(delete_images=len(self.meta.image_keys) > 0)
+            self.clear_episode_buffer(
+                delete_images=len(self.meta.image_keys) > 0 and not self.keep_image_files
+            )
 
     def _batch_save_episode_video(self, start_episode: int, end_episode: int | None = None) -> None:
         """
@@ -1687,6 +1696,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             self.fps,
             vcodec=self.vcodec,
             video_crf=self.video_crf,
+            keep_image_files=self.keep_image_files,
         )
 
     @classmethod
@@ -1705,6 +1715,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         batch_encoding_size: int = 1,
         vcodec: str = "libsvtav1",
         video_crf: int = DEFAULT_VIDEO_CRF,
+        keep_image_files: bool = False,
     ) -> "LeRobotDataset":
         """Create a LeRobot Dataset from scratch in order to record data."""
         if vcodec not in VALID_VIDEO_CODECS:
@@ -1729,6 +1740,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
         obj.image_writer = None
         obj.batch_encoding_size = batch_encoding_size
         obj.episodes_since_last_encoding = 0
+        if not isinstance(keep_image_files, bool):
+            raise TypeError("keep_image_files must be a boolean")
+        obj.keep_image_files = keep_image_files
         obj.vcodec = vcodec
         obj.video_crf = video_crf
 

@@ -35,7 +35,9 @@ RESUME="${RESUME:-true}"
 VIDEO="${VIDEO:-true}"
 VCODEC="${VCODEC:-h264}"
 VIDEO_CRF="${VIDEO_CRF:-18}"
+KEEP_IMAGE_FILES="${KEEP_IMAGE_FILES:-false}"
 VIDEO_ENCODING_BATCH_SIZE="${VIDEO_ENCODING_BATCH_SIZE:-${NUM_EPISODES}}"
+ZMQ_PRESET="${ZMQ_PRESET:-jz_three_zmq}"
 RTSP_PRESET="${RTSP_PRESET:-jz_three_rtsp}"
 RTSP_WARMUP_FRAMES="${RTSP_WARMUP_FRAMES:-1}"
 RTSP_STALE_FRAME_TIMEOUT_MS="${RTSP_STALE_FRAME_TIMEOUT_MS:-1000}"
@@ -48,6 +50,20 @@ REJECT_REUSED_CAMERA_FRAMES="${REJECT_REUSED_CAMERA_FRAMES:-false}"
 TIMING_LOG_EVERY_N="${TIMING_LOG_EVERY_N:-30}"
 TIMING_SIDECAR="${TIMING_SIDECAR:-true}"
 REQUIRE_STATE_SOURCE_TIMING="${REQUIRE_STATE_SOURCE_TIMING:-false}"
+REQUIRE_STATE_ADVANCE_PER_OBSERVATION="${REQUIRE_STATE_ADVANCE_PER_OBSERVATION:-true}"
+STATE_ADVANCE_TIMEOUT_S="${STATE_ADVANCE_TIMEOUT_S:-0.1}"
+LEFT_GRIPPER_OBSERVATION_SOURCE="${LEFT_GRIPPER_OBSERVATION_SOURCE:-unavailable}"
+RIGHT_GRIPPER_OBSERVATION_SOURCE="${RIGHT_GRIPPER_OBSERVATION_SOURCE:-unavailable}"
+LEFT_GRIPPER_OBSERVATION_RAW_CLOSED="${LEFT_GRIPPER_OBSERVATION_RAW_CLOSED:-0.0}"
+LEFT_GRIPPER_OBSERVATION_RAW_OPEN="${LEFT_GRIPPER_OBSERVATION_RAW_OPEN:-100.0}"
+RIGHT_GRIPPER_OBSERVATION_RAW_CLOSED="${RIGHT_GRIPPER_OBSERVATION_RAW_CLOSED:-100.0}"
+RIGHT_GRIPPER_OBSERVATION_RAW_OPEN="${RIGHT_GRIPPER_OBSERVATION_RAW_OPEN:-0.0}"
+LEFT_GRIPPER_ACTION_RAW_CLOSED="${LEFT_GRIPPER_ACTION_RAW_CLOSED:-100.0}"
+LEFT_GRIPPER_ACTION_RAW_OPEN="${LEFT_GRIPPER_ACTION_RAW_OPEN:-0.0}"
+RIGHT_GRIPPER_ACTION_RAW_CLOSED="${RIGHT_GRIPPER_ACTION_RAW_CLOSED:-100.0}"
+RIGHT_GRIPPER_ACTION_RAW_OPEN="${RIGHT_GRIPPER_ACTION_RAW_OPEN:-0.0}"
+LEFT_GRIPPER_TRAINING_COMMAND_FORCE="${LEFT_GRIPPER_TRAINING_COMMAND_FORCE:-80.0}"
+RIGHT_GRIPPER_TRAINING_COMMAND_FORCE="${RIGHT_GRIPPER_TRAINING_COMMAND_FORCE:-80.0}"
 MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-0.02}"
 MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-0.02}"
 GRIPPER_WIDTH_MIN="${GRIPPER_WIDTH_MIN:-0.0}"
@@ -64,11 +80,46 @@ case "${EXECUTION}" in
 esac
 
 timed_require_armed_confirmation "${EXECUTION}" "record"
+automatic_episode_reset_value="${AUTOMATIC_EPISODE_RESET:-false}"
+case "${automatic_episode_reset_value,,}" in
+  0|false|no|off) ;;
+  1|true|yes|on)
+    echo "[timed/record] AUTOMATIC_EPISODE_RESET has been retired;" \
+      "X86 must not call jz_pin_reset_control/39040 or trigger choreography" >&2
+    exit 2
+    ;;
+  *)
+    echo "[timed/record] unsupported retired AUTOMATIC_EPISODE_RESET=" \
+      "${automatic_episode_reset_value}" >&2
+    exit 2
+    ;;
+esac
 timed_make_python_cmd "${CONDA_ENV}"
 
-if [[ "${RTSP_PRESET}" == "none" ]]; then
+if [[ "${ZMQ_PRESET}" == "jz_three_zmq" ]]; then
+  ZMQ_CAMERAS='{
+    "camera_head": {
+      "server_address": "'"${ORIN_IP}"'", "port": 5555, "camera_name": "camera_head",
+      "fps": 30, "width": 1280, "height": 720, "color_mode": "rgb", "timeout_ms": 5000
+    },
+    "camera_left": {
+      "server_address": "'"${ORIN_IP}"'", "port": 5556, "camera_name": "camera_left",
+      "fps": 30, "width": 640, "height": 480, "color_mode": "rgb", "timeout_ms": 5000
+    },
+    "camera_right": {
+      "server_address": "'"${ORIN_IP}"'", "port": 5557, "camera_name": "camera_right",
+      "fps": 30, "width": 640, "height": 480, "color_mode": "rgb", "timeout_ms": 5000
+    }
+  }'
+  RTSP_CAMERAS="{}"
+elif [[ "${ZMQ_PRESET}" != "none" ]]; then
+  echo "[timed/record] unsupported ZMQ_PRESET=${ZMQ_PRESET}; use jz_three_zmq or none" >&2
+  exit 2
+elif [[ "${RTSP_PRESET}" == "none" ]]; then
+  ZMQ_CAMERAS="{}"
   RTSP_CAMERAS="{}"
 elif [[ "${RTSP_PRESET}" == "jz_three_rtsp" ]]; then
+  ZMQ_CAMERAS="{}"
   RTSP_CAMERAS='{
     "camera_head": {
       "url": "rtsp://'"${ORIN_IP}"':8554/robot_camera/camera_head",
@@ -121,16 +172,23 @@ export PYTHONPATH="${REPO_ROOT}/src:${PYTHONPATH:-}"
 echo "[timed/record] dataset=${DATASET_ROOT}"
 echo "[timed/record] repo_id=${DATASET_REPO_ID} episodes=${NUM_EPISODES} fps=${RECORD_FPS}"
 echo "[timed/record] video codec=${VCODEC} crf=${VIDEO_CRF} pix_fmt=yuv420p gop=2"
+echo "[timed/record] keep_image_files=${KEEP_IMAGE_FILES} image_format=png"
 echo "[timed/record] robot state: udp://${STATE_BIND_IP}:${STATE_PORT} expected=${ORIN_IP}"
 echo "[timed/record] robot command: udp://${ORIN_IP}:${COMMAND_PORT} execution=${EXECUTION}"
 echo "[timed/record] target_action: udp://${TARGET_ACTION_BIND_IP}:${TARGET_ACTION_PORT}" \
   "expected=${TARGET_ACTION_ALLOWED_SENDER_IP} stale_policy=${TARGET_ACTION_STALE_POLICY}"
-echo "[timed/record] receiver=pyav buffer=${CAMERA_BUFFER_SIZE}" \
-  "reconnect_ms=${CAMERA_RECONNECT_DELAY_MS} max_receive_skew_ms=${MAX_CAMERA_STATE_RECEIVE_SKEW_MS}"
+echo "[timed/record] camera_receiver zmq_preset=${ZMQ_PRESET} rtsp_fallback=${RTSP_PRESET}" \
+  "buffer=${CAMERA_BUFFER_SIZE} max_receive_skew_ms=${MAX_CAMERA_STATE_RECEIVE_SKEW_MS}"
 echo "[timed/record] timing_sidecar=${TIMING_SIDECAR}" \
   "require_state_source_timing=${REQUIRE_STATE_SOURCE_TIMING}" \
+  "require_state_advance_per_observation=${REQUIRE_STATE_ADVANCE_PER_OBSERVATION}" \
+  "state_advance_timeout_s=${STATE_ADVANCE_TIMEOUT_S}" \
   "dataset_path=meta/timing/episode-*.jsonl"
-echo "[timed/record] conda_env=${CONDA_ENV} rtsp_preset=${RTSP_PRESET}"
+echo "[timed/record] training_schema_sidecar=required" \
+  "left_source=${LEFT_GRIPPER_OBSERVATION_SOURCE}" \
+  "right_source=${RIGHT_GRIPPER_OBSERVATION_SOURCE}" \
+  "canonical_direction=0_closed_100_open"
+echo "[timed/record] conda_env=${CONDA_ENV} zmq_preset=${ZMQ_PRESET} rtsp_fallback=${RTSP_PRESET}"
 
 cd "${REPO_ROOT}"
 exec "${PYTHON_CMD[@]}" -m lerobot.scripts.lerobot_record \
@@ -159,6 +217,21 @@ exec "${PYTHON_CMD[@]}" -m lerobot.scripts.lerobot_record \
   --robot.timing_log_every_n="${TIMING_LOG_EVERY_N}" \
   --robot.timing_sidecar="${TIMING_SIDECAR}" \
   --robot.require_state_source_timing="${REQUIRE_STATE_SOURCE_TIMING}" \
+  --robot.require_state_advance_per_observation="${REQUIRE_STATE_ADVANCE_PER_OBSERVATION}" \
+  --robot.state_advance_timeout_s="${STATE_ADVANCE_TIMEOUT_S}" \
+  --robot.left_gripper_observation_source="${LEFT_GRIPPER_OBSERVATION_SOURCE}" \
+  --robot.right_gripper_observation_source="${RIGHT_GRIPPER_OBSERVATION_SOURCE}" \
+  --robot.left_gripper_observation_raw_closed="${LEFT_GRIPPER_OBSERVATION_RAW_CLOSED}" \
+  --robot.left_gripper_observation_raw_open="${LEFT_GRIPPER_OBSERVATION_RAW_OPEN}" \
+  --robot.right_gripper_observation_raw_closed="${RIGHT_GRIPPER_OBSERVATION_RAW_CLOSED}" \
+  --robot.right_gripper_observation_raw_open="${RIGHT_GRIPPER_OBSERVATION_RAW_OPEN}" \
+  --robot.left_gripper_action_raw_closed="${LEFT_GRIPPER_ACTION_RAW_CLOSED}" \
+  --robot.left_gripper_action_raw_open="${LEFT_GRIPPER_ACTION_RAW_OPEN}" \
+  --robot.right_gripper_action_raw_closed="${RIGHT_GRIPPER_ACTION_RAW_CLOSED}" \
+  --robot.right_gripper_action_raw_open="${RIGHT_GRIPPER_ACTION_RAW_OPEN}" \
+  --robot.left_gripper_training_command_force="${LEFT_GRIPPER_TRAINING_COMMAND_FORCE}" \
+  --robot.right_gripper_training_command_force="${RIGHT_GRIPPER_TRAINING_COMMAND_FORCE}" \
+  --robot.zmq_cameras="${ZMQ_CAMERAS}" \
   --robot.rtsp_cameras="${RTSP_CAMERAS}" \
   --teleop.type=jz_robot_pin_target_action \
   --teleop.id=jz_robot_pin_timed_target_action_record \
@@ -179,6 +252,7 @@ exec "${PYTHON_CMD[@]}" -m lerobot.scripts.lerobot_record \
   --dataset.video="${VIDEO}" \
   --dataset.vcodec="${VCODEC}" \
   --dataset.video_crf="${VIDEO_CRF}" \
+  --dataset.keep_image_files="${KEEP_IMAGE_FILES}" \
   --dataset.video_encoding_batch_size="${VIDEO_ENCODING_BATCH_SIZE}" \
   --display_data="${DISPLAY_DATA}" \
   --display_compressed_images="${DISPLAY_COMPRESSED_IMAGES}" \

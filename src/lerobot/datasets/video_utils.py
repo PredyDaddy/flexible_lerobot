@@ -673,7 +673,7 @@ class VideoEncodingManager:
         self.dataset.finalize()
 
         # Clean up episode images if recording was interrupted
-        if exc_type is not None:
+        if exc_type is not None and not getattr(self.dataset, "keep_image_files", False):
             interrupted_episode_index = self.dataset.num_episodes
             for key in self.dataset.meta.video_keys:
                 img_dir = self.dataset._get_image_file_path(

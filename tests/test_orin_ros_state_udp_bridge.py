@@ -316,6 +316,22 @@ def test_worker_updates_preserve_callback_timing_and_atomic_metadata(monkeypatch
     }
 
 
+def test_worker_update_reports_parent_ipc_delay_and_worker_pid(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    clock = FakeClock(monotonic_ns=100_000_000)
+    collector = bridge.ReadonlyStateCollector(
+        _robot_config(), monotonic_ns=clock.monotonic_ns, wall_time_ns=clock.wall_time_ns
+    )
+
+    collector.apply_worker_update(
+        ("left_gripper", (5.0, 6.0), 91_000_000, 191, None, 4321)
+    )
+    snapshot = _snapshot(collector)
+
+    assert snapshot.source_worker_pids["left_gripper"] == 4321
+    assert snapshot.source_ipc_delay_ms["left_gripper"] == 9.0
+
+
 def test_concurrent_four_source_snapshot_keeps_data_and_metadata_atomic(monkeypatch) -> None:
     bridge = _load_bridge_module(monkeypatch)
     clock = FakeClock()
@@ -419,6 +435,49 @@ def test_sender_skips_stale_skew_and_not_advanced_with_explicit_counters(monkeyp
     assert sender.counters.sent == 2
     assert sender.last_sent_generations == dict.fromkeys(bridge.SOURCE_NAMES, 4)
     assert len(sock.sent) == 2
+
+
+def test_sender_logs_gripper_stall_sources_and_recovery_without_relaxing_gate(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    clock = FakeClock()
+    collector = bridge.ReadonlyStateCollector(
+        _robot_config(), monotonic_ns=clock.monotonic_ns, wall_time_ns=clock.wall_time_ns
+    )
+    sock = FakeSocket(clock)
+    log_lines = []
+    sender = _make_sender(
+        bridge,
+        collector,
+        sock,
+        monotonic_ns=clock.monotonic_ns,
+        wall_time_ns=clock.wall_time_ns,
+        printer=lambda message, **_kwargs: log_lines.append(message),
+    )
+
+    _update_all_sources(collector, generation=1)
+    assert sender.attempt_send()
+    clock.set_ms(250)
+    collector.update_joints("left", _joint_message("left", 2))
+    collector.update_joints("right", _joint_message("right", 2))
+
+    assert not sender.attempt_send()
+    assert len(sock.sent) == 1
+    assert sender.counters.consecutive_skips == 1
+    assert any(
+        'stale_sources=["left_gripper","right_gripper"]' in line
+        and 'not_advanced_sources=["left_gripper","right_gripper"]' in line
+        for line in log_lines
+    )
+
+    clock.set_ms(260)
+    collector.update_gripper("left", _gripper_message(2))
+    collector.update_gripper("right", _gripper_message(2))
+
+    assert sender.attempt_send()
+    assert len(sock.sent) == 2
+    assert sender.counters.consecutive_skips == 0
+    assert sender.counters.max_consecutive_skips == 1
+    assert any("recovered_after_skips=1" in line for line in log_lines)
 
 
 def test_sender_runs_at_30_hz_with_fake_clock_and_fresh_sources(monkeypatch) -> None:

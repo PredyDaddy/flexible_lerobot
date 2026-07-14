@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
 import time
 from functools import cached_property
 from numbers import Real
@@ -50,6 +51,8 @@ class JZRobotUDP(Robot):
         )
         self._command_sender: UDPCommandSender | None = None
         self._command_seq = 0
+        self._command_lock = threading.RLock()
+        self._commands_inhibited = False
         self._is_connected = False
 
     def _make_camera(self, key: str, config: RTSPCameraConfig) -> RTSPCamera:
@@ -62,6 +65,9 @@ class JZRobotUDP(Robot):
 
     def _after_observation(self, state: CachedState, observation: RobotObservation) -> None:
         """Hook for diagnostics that must not change the public observation schema."""
+
+    def _after_control_observation(self, state: CachedState, observation: RobotObservation) -> None:
+        """Hook for state validation in control-only loops."""
 
     def _after_action_sent(
         self,
@@ -169,8 +175,7 @@ class JZRobotUDP(Robot):
             self._is_connected = False
             raise
 
-    @check_if_not_connected
-    def get_observation(self) -> RobotObservation:
+    def _get_proprioceptive_observation(self) -> tuple[CachedState, RobotObservation]:
         state = self._state_cache.latest()
         if state is None:
             raise TimeoutError("No JZRobot UDP state packet has been received")
@@ -191,6 +196,18 @@ class JZRobotUDP(Robot):
             obs.update(self._gripper_observation(packet, LEFT))
             obs.update(self._gripper_observation(packet, RIGHT))
 
+        return state, obs
+
+    @check_if_not_connected
+    def get_control_observation(self) -> RobotObservation:
+        state, obs = self._get_proprioceptive_observation()
+        self._after_control_observation(state, obs)
+        return obs
+
+    @check_if_not_connected
+    def get_observation(self) -> RobotObservation:
+        state, obs = self._get_proprioceptive_observation()
+
         for key, camera in self.cameras.items():
             obs[key] = self._read_camera(key, camera, state)
 
@@ -206,7 +223,9 @@ class JZRobotUDP(Robot):
                 f"expected {self.config.allowed_sender_ip}"
             )
 
-    def _joint_observation(self, packet: dict[str, Any], side: str, joint_names: list[str]) -> RobotObservation:
+    def _joint_observation(
+        self, packet: dict[str, Any], side: str, joint_names: list[str]
+    ) -> RobotObservation:
         joint_values = packet["joints"][side]
         missing = [joint for joint in joint_names if joint not in joint_values]
         if missing:
@@ -226,6 +245,14 @@ class JZRobotUDP(Robot):
 
     @check_if_not_connected
     def send_action(self, action: RobotAction) -> RobotAction:
+        with self._command_lock:
+            if self._commands_inhibited:
+                raise RuntimeError(
+                    "JZRobotUDP command sending is inhibited during episode reset; no action was sent"
+                )
+            return self._send_action_locked(action)
+
+    def _send_action_locked(self, action: RobotAction) -> RobotAction:
         float_action = self._validate_and_float_action(action)
         self._command_seq += 1
         packet = make_jz_robot_udp_command_packet(
@@ -280,6 +307,22 @@ class JZRobotUDP(Robot):
             send_completed_monotonic_ns=send_completed_monotonic_ns,
         )
         return float_action
+
+    @property
+    def commands_inhibited(self) -> bool:
+        with self._command_lock:
+            return self._commands_inhibited
+
+    def inhibit_command_sending(self) -> None:
+        with self._command_lock:
+            self._commands_inhibited = True
+            if self._command_sender is not None:
+                self._command_sender.close()
+                self._command_sender = None
+
+    def resume_command_sending(self) -> None:
+        with self._command_lock:
+            self._commands_inhibited = False
 
     def _validate_and_float_action(self, action: RobotAction) -> RobotAction:
         expected_keys = set(self.action_features)
@@ -343,7 +386,9 @@ class JZRobotUDP(Robot):
         for camera in self.cameras.values():
             camera.disconnect()
         self._receiver.stop()
-        if self._command_sender is not None:
-            self._command_sender.close()
-            self._command_sender = None
+        with self._command_lock:
+            if self._command_sender is not None:
+                self._command_sender.close()
+                self._command_sender = None
+            self._commands_inhibited = False
         self._is_connected = False

@@ -23,7 +23,10 @@ from lerobot.robots.jz_robot_udp.protocol import (
 EXPECTED_CAMERAS = ("camera_head", "camera_left", "camera_right")
 TIMING_FILE_RE = re.compile(r"episode-(\d{6})\.jsonl")
 SESSION_ID_RE = re.compile(r"[0-9a-f]{32}")
-CAMERA_TIMESTAMP_STAGE = "decoder_output_before_pixel_conversion"
+RTSP_CAMERA_TIMESTAMP_STAGE = "decoder_output_before_pixel_conversion"
+ZMQ_CAMERA_PROTOCOL = "jz_realsense_zmq"
+ZMQ_CAMERA_PROTOCOL_VERSION = 1
+ZMQ_CAMERA_TIMESTAMP_STAGE = "x86_after_zmq_receive_before_json_decode"
 SOURCE_SNAPSHOT_TOLERANCE_NS = 1.0
 
 
@@ -40,6 +43,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-crf", type=int, default=18)
     parser.add_argument("--expected-cameras", nargs="+", default=list(EXPECTED_CAMERAS))
     parser.add_argument("--expected-camera-fps", type=float, default=30.0)
+    parser.add_argument("--expected-camera-source-fps", type=float, default=30.0)
+    parser.add_argument("--min-camera-source-fps-ratio", type=float, default=0.9)
+    parser.add_argument(
+        "--expected-camera-protocol",
+        choices=("jz_realsense_zmq", "rtsp", "any"),
+        default="jz_realsense_zmq",
+    )
     parser.add_argument("--expected-command-mode", choices=("dry_run", "armed"), default="armed")
     parser.add_argument("--expected-command-transport", choices=("local", "udp"), default="udp")
     parser.add_argument("--expected-action-key-count", type=int, default=18)
@@ -351,21 +361,64 @@ def read_timing_records(root: Path, report: dict[str, Any]) -> dict[tuple[int, i
 def validate_camera_timing(
     camera: dict[str, Any], location: str, state_receive_ns: int | None, report: dict[str, Any]
 ) -> None:
-    if camera.get("timestamp_stage") != CAMERA_TIMESTAMP_STAGE:
+    is_zmq = camera.get("protocol") == ZMQ_CAMERA_PROTOCOL
+    expected_stage = ZMQ_CAMERA_TIMESTAMP_STAGE if is_zmq else RTSP_CAMERA_TIMESTAMP_STAGE
+    if camera.get("timestamp_stage") != expected_stage:
         add_error(
             report,
-            f"{location}.timestamp_stage must be {CAMERA_TIMESTAMP_STAGE!r}, "
-            f"got {camera.get('timestamp_stage')!r}",
+            f"{location}.timestamp_stage must be {expected_stage!r}, got {camera.get('timestamp_stage')!r}",
         )
-    if "decoder_pts_ns" not in camera:
-        add_error(report, f"{location}.decoder_pts_ns is missing")
-    decoder_pts_ns = camera.get("decoder_pts_ns")
-    if "decoder_pts_ns" in camera and decoder_pts_ns is not None and not is_integer(decoder_pts_ns):
-        add_error(report, f"{location}.decoder_pts_ns must be an integer or null")
+    if is_zmq:
+        if camera.get("protocol_version") != ZMQ_CAMERA_PROTOCOL_VERSION:
+            add_error(report, f"{location}.protocol_version must be {ZMQ_CAMERA_PROTOCOL_VERSION}")
+        require_nonnegative_integer(camera, "sequence", location, report)
+        require_nonnegative_integer(camera, "sequence_gap", location, report)
+        decode_completed_ns = require_nonnegative_integer(
+            camera, "decode_completed_monotonic_ns", location, report
+        )
+        camera_timing = camera.get("camera_timing")
+        if not isinstance(camera_timing, dict):
+            add_error(report, f"{location}.camera_timing must be an object")
+        else:
+            sequence = require_nonnegative_integer(
+                camera_timing, "sequence", f"{location}.camera_timing", report
+            )
+            capture_ns = require_nonnegative_integer(
+                camera_timing, "capture_monotonic_ns", f"{location}.camera_timing", report
+            )
+            encode_ns = require_nonnegative_integer(
+                camera_timing,
+                "encode_completed_monotonic_ns",
+                f"{location}.camera_timing",
+                report,
+            )
+            require_nonnegative_integer(camera_timing, "capture_wall_ns", f"{location}.camera_timing", report)
+            for field in ("width", "height", "channels", "jpeg_quality", "payload_bytes"):
+                require_nonnegative_integer(camera_timing, field, f"{location}.camera_timing", report)
+            if sequence is not None and is_integer(camera.get("sequence")) and sequence != camera["sequence"]:
+                add_error(report, f"{location}.camera_timing.sequence does not match receiver sequence")
+            if camera_timing.get("timestamp_stage") != "after_realsense_read_before_jpeg":
+                add_error(report, f"{location}.camera_timing.timestamp_stage is invalid")
+            if camera_timing.get("pixel_format") != "RGB8" or camera_timing.get("encoding") != "jpeg":
+                add_error(report, f"{location}.camera_timing must describe RGB8/JPEG")
+            if capture_ns is not None and encode_ns is not None and encode_ns < capture_ns:
+                add_error(report, f"{location}.camera_timing encode time precedes capture time")
+        if (
+            decode_completed_ns is not None
+            and is_integer(camera.get("receive_monotonic_ns"))
+            and decode_completed_ns < camera["receive_monotonic_ns"]
+        ):
+            add_error(report, f"{location} decode completion precedes X86 receive time")
+    else:
+        if "decoder_pts_ns" not in camera:
+            add_error(report, f"{location}.decoder_pts_ns is missing")
+        decoder_pts_ns = camera.get("decoder_pts_ns")
+        if "decoder_pts_ns" in camera and decoder_pts_ns is not None and not is_integer(decoder_pts_ns):
+            add_error(report, f"{location}.decoder_pts_ns must be an integer or null")
+        require_nonnegative_integer(camera, "decoder_sequence", location, report)
+        require_nonnegative_integer(camera, "reconnect_generation", location, report)
     require_nonnegative_integer(camera, "receive_wall_ns", location, report)
     camera_receive_ns = require_nonnegative_integer(camera, "receive_monotonic_ns", location, report)
-    require_nonnegative_integer(camera, "decoder_sequence", location, report)
-    require_nonnegative_integer(camera, "reconnect_generation", location, report)
     require_nonnegative_number(camera, "age_ms", location, report)
     recorded_delta_ms = require_finite_number(camera, "state_receive_delta_ms", location, report)
     recorded_skew_ms = require_nonnegative_number(camera, "state_receive_skew_ms", location, report)
@@ -399,17 +452,17 @@ def validate_action_timing(
         add_error(report, f"{location}.action must be an object, got {action!r}")
         return
     source = action.get("source")
-    if source not in {"target_action_packet", "hold_current"}:
+    if source not in {"target_action_packet", "hold_current", "policy_output"}:
         add_error(report, f"{location}.action.source is invalid: {source!r}")
         return
     require_nonnegative_integer(action, "receive_wall_ns", f"{location}.action", report)
     require_nonnegative_integer(action, "receive_monotonic_ns", f"{location}.action", report)
-    if source == "hold_current":
-        if not allow_hold_current:
+    if source in {"hold_current", "policy_output"}:
+        if source == "hold_current" and not allow_hold_current:
             add_error(report, f"{location} used hold_current instead of a target-action packet")
         for key in ("packet_seq", "packet_stamp_ns", "age_ms"):
             if action.get(key) is not None:
-                add_error(report, f"{location}.action.{key} must be null for hold_current")
+                add_error(report, f"{location}.action.{key} must be null for {source}")
         return
     require_nonnegative_integer(action, "packet_seq", f"{location}.action", report)
     require_nonnegative_integer(action, "packet_stamp_ns", f"{location}.action", report)
@@ -537,6 +590,14 @@ def validate_record(
             if not isinstance(camera, dict):
                 add_error(report, f"{location}.cameras.{camera_key} must be an object")
                 continue
+            expected_protocol = getattr(args, "expected_camera_protocol", "any")
+            actual_protocol = ZMQ_CAMERA_PROTOCOL if camera.get("protocol") == ZMQ_CAMERA_PROTOCOL else "rtsp"
+            if expected_protocol != "any" and actual_protocol != expected_protocol:
+                add_error(
+                    report,
+                    f"{location}.cameras.{camera_key} protocol={actual_protocol!r}, "
+                    f"expected {expected_protocol!r}",
+                )
             validate_camera_timing(
                 camera,
                 f"{location}.cameras.{camera_key}",
@@ -803,6 +864,12 @@ def summarize_records(
         receive_deltas: list[float] = []
         skews: list[float] = []
         sequences: list[int] = []
+        protocols: Counter[str] = Counter()
+        sequence_gaps: list[int] = []
+        receive_samples: list[tuple[int, int, int]] = []
+        capture_samples: list[tuple[int, int, int]] = []
+        orin_encode_ms: list[float] = []
+        x86_decode_ms: list[float] = []
         reconnect_generations: list[int] = []
         pts_samples: list[tuple[int, int, int | None]] = []
         camera_record_count = 0
@@ -814,14 +881,35 @@ def summarize_records(
             if not isinstance(camera, dict):
                 continue
             camera_record_count += 1
+            protocol = ZMQ_CAMERA_PROTOCOL if camera.get("protocol") == ZMQ_CAMERA_PROTOCOL else "rtsp"
+            protocols[protocol] += 1
             if is_finite_number(camera.get("age_ms")):
                 ages.append(float(camera["age_ms"]))
             if is_finite_number(camera.get("state_receive_delta_ms")):
                 receive_deltas.append(float(camera["state_receive_delta_ms"]))
             if is_finite_number(camera.get("state_receive_skew_ms")):
                 skews.append(float(camera["state_receive_skew_ms"]))
-            if is_integer(camera.get("decoder_sequence")):
-                sequences.append(int(camera["decoder_sequence"]))
+            sequence_value = camera.get("sequence", camera.get("decoder_sequence"))
+            if is_integer(sequence_value):
+                sequence = int(sequence_value)
+                sequences.append(sequence)
+                episode_index = record.get("episode_index")
+                receive_ns = camera.get("receive_monotonic_ns")
+                if is_integer(episode_index) and is_integer(receive_ns):
+                    receive_samples.append((int(episode_index), sequence, int(receive_ns)))
+                camera_timing = camera.get("camera_timing")
+                if isinstance(camera_timing, dict):
+                    capture_ns = camera_timing.get("capture_monotonic_ns")
+                    encode_ns = camera_timing.get("encode_completed_monotonic_ns")
+                    if is_integer(episode_index) and is_integer(capture_ns):
+                        capture_samples.append((int(episode_index), sequence, int(capture_ns)))
+                    if is_integer(capture_ns) and is_integer(encode_ns) and encode_ns >= capture_ns:
+                        orin_encode_ms.append((int(encode_ns) - int(capture_ns)) / 1_000_000)
+                decode_ns = camera.get("decode_completed_monotonic_ns")
+                if is_integer(receive_ns) and is_integer(decode_ns) and decode_ns >= receive_ns:
+                    x86_decode_ms.append((int(decode_ns) - int(receive_ns)) / 1_000_000)
+            if is_integer(camera.get("sequence_gap")):
+                sequence_gaps.append(int(camera["sequence_gap"]))
             if is_integer(camera.get("reconnect_generation")):
                 reconnect_generations.append(int(camera["reconnect_generation"]))
                 decoder_pts_ns = camera.get("decoder_pts_ns")
@@ -835,7 +923,8 @@ def summarize_records(
                         )
                     )
             reused_count += camera.get("reused_by_observation_loop") is True
-            missing_pts_count += camera.get("decoder_pts_ns") is None
+            if protocol == "rtsp":
+                missing_pts_count += camera.get("decoder_pts_ns") is None
 
         sample_count = camera_record_count
         reuse_fraction = reused_count / sample_count if sample_count else None
@@ -866,11 +955,43 @@ def summarize_records(
                     interval > pts_forward_jump_threshold_ms for interval in intervals_ms
                 ),
             }
+
+        def sequence_rate_stats(samples: list[tuple[int, int, int]]) -> dict[str, Any]:
+            rates = [
+                (current_sequence - previous_sequence) * 1_000_000_000 / (current_ns - previous_ns)
+                for (previous_episode, previous_sequence, previous_ns), (
+                    current_episode,
+                    current_sequence,
+                    current_ns,
+                ) in zip(samples[:-1], samples[1:], strict=True)
+                if current_episode == previous_episode
+                and current_sequence > previous_sequence
+                and current_ns > previous_ns
+            ]
+            return number_stats(rates)
+
+        receive_intervals_hz = [
+            1_000_000_000 / (current_ns - previous_ns)
+            for (previous_episode, _, previous_ns), (current_episode, _, current_ns) in zip(
+                receive_samples[:-1], receive_samples[1:], strict=True
+            )
+            if current_episode == previous_episode and current_ns > previous_ns
+        ]
+        source_capture_fps = sequence_rate_stats(capture_samples)
         camera_report[camera_key] = {
+            "protocol_counts": dict(sorted(protocols.items())),
             "age_ms": number_stats(ages),
             "state_receive_delta_ms": number_stats(receive_deltas),
             "state_receive_skew_ms": number_stats(skews),
             "decoder_sequence": sequence_stats(sequences),
+            "sequence": sequence_stats(sequences),
+            "sequence_gap_total": sum(sequence_gaps),
+            "sequence_gap_frames": sum(gap > 0 for gap in sequence_gaps),
+            "x86_selected_receive_fps": number_stats(receive_intervals_hz),
+            "source_fps_from_x86_receive": sequence_rate_stats(receive_samples),
+            "source_fps_from_orin_capture": source_capture_fps,
+            "orin_jpeg_encode_ms": number_stats(orin_encode_ms),
+            "x86_jpeg_decode_ms": number_stats(x86_decode_ms),
             "reused_frames": reused_count,
             "reuse_fraction": reuse_fraction,
             "missing_decoder_pts_frames": missing_pts_count,
@@ -892,6 +1013,16 @@ def summarize_records(
                 f"{camera_key} max state receive skew {max(skews):.3f}ms exceeds "
                 f"{args.max_camera_state_skew_ms:.3f}ms",
             )
+        expected_source_fps = getattr(args, "expected_camera_source_fps", 30.0)
+        min_source_fps_ratio = getattr(args, "min_camera_source_fps_ratio", 0.9)
+        if protocols[ZMQ_CAMERA_PROTOCOL] and source_capture_fps["mean"] is not None:
+            minimum_source_fps = expected_source_fps * min_source_fps_ratio
+            if source_capture_fps["mean"] < minimum_source_fps:
+                add_error(
+                    report,
+                    f"{camera_key} Orin capture FPS {source_capture_fps['mean']:.3f} is below "
+                    f"{minimum_source_fps:.3f}",
+                )
         if reused_count:
             add_warning(
                 report,
@@ -1011,6 +1142,9 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
             "expected_crf": args.expected_crf,
             "expected_cameras": args.expected_cameras,
             "expected_camera_fps": args.expected_camera_fps,
+            "expected_camera_source_fps": getattr(args, "expected_camera_source_fps", 30.0),
+            "min_camera_source_fps_ratio": getattr(args, "min_camera_source_fps_ratio", 0.9),
+            "expected_camera_protocol": getattr(args, "expected_camera_protocol", "any"),
             "expected_command_mode": args.expected_command_mode,
             "expected_command_transport": args.expected_command_transport,
             "expected_action_key_count": args.expected_action_key_count,
@@ -1033,6 +1167,12 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         add_error(report, "camera age/skew thresholds must be non-negative")
     if not math.isfinite(args.expected_camera_fps) or args.expected_camera_fps <= 0:
         add_error(report, "expected_camera_fps must be a finite positive number")
+    expected_camera_source_fps = getattr(args, "expected_camera_source_fps", 30.0)
+    min_camera_source_fps_ratio = getattr(args, "min_camera_source_fps_ratio", 0.9)
+    if not math.isfinite(expected_camera_source_fps) or expected_camera_source_fps <= 0:
+        add_error(report, "expected_camera_source_fps must be a finite positive number")
+    if not math.isfinite(min_camera_source_fps_ratio) or not 0 < min_camera_source_fps_ratio <= 1:
+        add_error(report, "min_camera_source_fps_ratio must be in (0, 1]")
     if not 0 <= args.expected_crf <= 51:
         add_error(report, "expected_crf must be between 0 and 51")
     if args.expected_action_key_count <= 0:
@@ -1175,7 +1315,10 @@ def main() -> int:
             f"delta_p50_ms={delta['p50']} delta_p95_ms={delta['p95']} "
             f"skew_p95_ms={skew['p95']} skew_max_ms={skew['max']} "
             f"reuse_fraction={camera['reuse_fraction']} pts_non_advancing={pts_non_advancing} "
-            f"pts_forward_jumps={pts_forward_jumps}"
+            f"pts_forward_jumps={pts_forward_jumps} protocols={camera['protocol_counts']} "
+            f"sequence_gaps={camera['sequence_gap_total']} "
+            f"source_fps={camera['source_fps_from_orin_capture']['mean']} "
+            f"x86_receive_fps={camera['x86_selected_receive_fps']['mean']}"
         )
     action_packets = report.get("action_packets", {})
     if action_packets:

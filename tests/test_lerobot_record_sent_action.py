@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+import torch
+
 from lerobot.scripts import lerobot_record
 from lerobot.teleoperators.teleoperator import Teleoperator
 
@@ -46,11 +49,19 @@ class FailingDataset(FakeDataset):
 
 class FakeRobot:
     cameras = {}
+    robot_type = "fake_robot"
 
     def __init__(self) -> None:
         self.sent_actions = []
+        self.full_observation_calls = 0
+        self.control_observation_calls = 0
 
     def get_observation(self) -> dict[str, float]:
+        self.full_observation_calls += 1
+        return {"joint.pos": 0.0}
+
+    def get_control_observation(self) -> dict[str, float]:
+        self.control_observation_calls += 1
         return {"joint.pos": 0.0}
 
     def send_action(self, action: dict[str, float]) -> dict[str, float]:
@@ -66,6 +77,12 @@ class TimedFakeRobot(FakeRobot):
 
     def save_frame_timing(self, **kwargs) -> None:
         self.saved_timing.append(kwargs)
+
+
+class FullObservationFailingRobot(FakeRobot):
+    def get_observation(self) -> dict[str, float]:
+        self.full_observation_calls += 1
+        raise TimeoutError("camera/state receive skew exceeds limit")
 
 
 def test_record_loop_saves_and_displays_action_returned_by_robot(monkeypatch) -> None:
@@ -136,6 +153,42 @@ def test_record_loop_persists_optional_robot_and_action_timing(monkeypatch) -> N
     ]
 
 
+def test_record_loop_persists_policy_output_timing_without_a_teleoperator(monkeypatch) -> None:
+    dataset = FakeDataset()
+    robot = TimedFakeRobot()
+    policy = Mock()
+    policy.config.device = "cpu"
+    policy.config.use_amp = False
+    preprocessor = Mock()
+    postprocessor = Mock()
+    monkeypatch.setattr(lerobot_record, "predict_action", lambda **_kwargs: torch.tensor([[9.0]]))
+    monkeypatch.setattr(lerobot_record, "log_say", lambda *_args: None)
+
+    lerobot_record.record_loop(
+        robot=robot,
+        events={"exit_early": False},
+        fps=dataset.fps,
+        teleop_action_processor=lambda value: value[0],
+        robot_action_processor=lambda value: value[0],
+        robot_observation_processor=lambda value: value,
+        dataset=dataset,
+        policy=policy,
+        preprocessor=preprocessor,
+        postprocessor=postprocessor,
+        control_time_s=0.0001,
+        single_task="test",
+        episode_index=4,
+    )
+
+    timing = robot.saved_timing[0]["action_timing"]
+    assert timing["source"] == "policy_output"
+    assert timing["packet_seq"] is None
+    assert timing["packet_stamp_ns"] is None
+    assert timing["age_ms"] is None
+    assert isinstance(timing["receive_wall_ns"], int)
+    assert isinstance(timing["receive_monotonic_ns"], int)
+
+
 def test_record_loop_announces_only_after_first_frame_is_buffered(monkeypatch) -> None:
     event_log = []
     dataset = FakeDataset(event_log)
@@ -177,8 +230,8 @@ def test_record_loop_announces_only_after_first_frame_is_buffered(monkeypatch) -
     assert event_log == ["add_frame", "announce:Start recording episode 2:True", "add_frame"]
 
 
-def test_reset_loop_keeps_sending_teleop_actions_without_saving_frames(monkeypatch) -> None:
-    robot = FakeRobot()
+def test_reset_loop_uses_control_observation_and_keeps_sending_without_saving(monkeypatch) -> None:
+    robot = FullObservationFailingRobot()
     teleop = Mock(spec=Teleoperator)
     teleop.get_action.return_value = {"joint.pos": 9.0}
     spoken_events = []
@@ -199,10 +252,40 @@ def test_reset_loop_keeps_sending_teleop_actions_without_saving_frames(monkeypat
         teleop=teleop,
         control_time_s=0.0001,
         single_task="test",
+        control_only=True,
     )
 
     assert robot.sent_actions == [{"joint.pos": 9.0}]
+    assert robot.control_observation_calls == 1
+    assert robot.full_observation_calls == 0
     assert spoken_events == []
+
+
+def test_record_loop_keeps_full_observation_fail_close_for_dataset_frames(monkeypatch) -> None:
+    dataset = FakeDataset()
+    robot = FullObservationFailingRobot()
+    teleop = Mock(spec=Teleoperator)
+    teleop.get_action.return_value = {"joint.pos": 9.0}
+    monkeypatch.setattr(lerobot_record, "log_say", lambda *_args: None)
+
+    with pytest.raises(TimeoutError, match="camera/state receive skew"):
+        lerobot_record.record_loop(
+            robot=robot,
+            events={"exit_early": False},
+            fps=dataset.fps,
+            teleop_action_processor=lambda value: value[0],
+            robot_action_processor=lambda value: value[0],
+            robot_observation_processor=lambda value: value,
+            dataset=dataset,
+            teleop=teleop,
+            control_time_s=0.0001,
+            single_task="test",
+        )
+
+    assert robot.full_observation_calls == 1
+    assert robot.control_observation_calls == 0
+    assert robot.sent_actions == []
+    assert dataset.frames == []
 
 
 def test_record_loop_does_not_announce_when_first_frame_write_fails(monkeypatch) -> None:

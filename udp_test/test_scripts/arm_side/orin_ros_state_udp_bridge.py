@@ -87,6 +87,8 @@ class SourceState:
     receive_monotonic_ns: int | None = None
     receive_wall_ns: int | None = None
     header_stamp_ns: int | None = None
+    worker_pid: int | None = None
+    ipc_delay_ms: float | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,11 @@ class StateSnapshot:
     progress_modes: dict[str, str]
     joint_header_stamps: dict[str, int | None]
     skip_reasons: tuple[str, ...]
+    stale_sources: tuple[str, ...]
+    not_advanced_sources: tuple[str, ...]
+    skew_sources: tuple[str, ...]
+    source_worker_pids: dict[str, int | None]
+    source_ipc_delay_ms: dict[str, float | None]
 
 
 class ReadonlyStateCollector:
@@ -129,14 +136,22 @@ class ReadonlyStateCollector:
         header_stamp_ns: int | None,
         receive_monotonic_ns: int | None = None,
         receive_wall_ns: int | None = None,
+        worker_pid: int | None = None,
+        ipc_apply_monotonic_ns: int | None = None,
     ) -> None:
         source = self._sources[source_name]
-        source.generation += 1
-        source.receive_monotonic_ns = (
+        callback_monotonic_ns = (
             self._monotonic_ns() if receive_monotonic_ns is None else receive_monotonic_ns
         )
+        apply_monotonic_ns = (
+            self._monotonic_ns() if ipc_apply_monotonic_ns is None else ipc_apply_monotonic_ns
+        )
+        source.generation += 1
+        source.receive_monotonic_ns = callback_monotonic_ns
         source.receive_wall_ns = self._wall_time_ns() if receive_wall_ns is None else receive_wall_ns
         source.header_stamp_ns = header_stamp_ns
+        source.worker_pid = worker_pid
+        source.ipc_delay_ms = max(0.0, (apply_monotonic_ns - callback_monotonic_ns) / 1_000_000)
 
     def update_joints(self, side: str, msg: JointState) -> None:
         state = {
@@ -157,7 +172,11 @@ class ReadonlyStateCollector:
             self._record_source_update(f"{side}_gripper", header_stamp_ns=None)
 
     def apply_worker_update(self, update: tuple[Any, ...]) -> None:
-        source_name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns = update
+        if len(update) == 5:
+            source_name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns = update
+            worker_pid = None
+        else:
+            source_name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns, worker_pid = update
         side, source_kind = source_name.split("_", maxsplit=1)
         with self._lock:
             if source_kind == "joints":
@@ -181,6 +200,8 @@ class ReadonlyStateCollector:
                 header_stamp_ns=header_stamp_ns,
                 receive_monotonic_ns=receive_monotonic_ns,
                 receive_wall_ns=receive_wall_ns,
+                worker_pid=worker_pid,
+                ipc_apply_monotonic_ns=self._monotonic_ns(),
             )
 
     def _missing_inputs_unlocked(self) -> dict[str, list[str]]:
@@ -235,6 +256,9 @@ class ReadonlyStateCollector:
             timing_sources: dict[str, dict[str, Any]] = {}
             progress_modes: dict[str, str] = {}
             joint_header_stamps: dict[str, int | None] = {}
+            source_worker_pids: dict[str, int | None] = {}
+            source_ipc_delay_ms: dict[str, float | None] = {}
+            receive_monotonic_by_source: dict[str, int] = {}
 
             for name, source in self._sources.items():
                 if source.receive_monotonic_ns is None or source.receive_wall_ns is None:
@@ -243,6 +267,9 @@ class ReadonlyStateCollector:
                 age_ms = (snapshot_monotonic_ns - source.receive_monotonic_ns) / 1_000_000
                 source_age_ms[name] = age_ms
                 receive_monotonic_values.append(source.receive_monotonic_ns)
+                receive_monotonic_by_source[name] = source.receive_monotonic_ns
+                source_worker_pids[name] = source.worker_pid
+                source_ipc_delay_ms[name] = source.ipc_delay_ms
                 timing_sources[name] = {
                     "generation": source.generation,
                     "recv_wall_ns": source.receive_wall_ns,
@@ -262,21 +289,30 @@ class ReadonlyStateCollector:
                     progress_modes[name] = "generation"
 
             source_skew_ms = None
+            skew_sources: tuple[str, ...] = ()
             if len(receive_monotonic_values) == len(SOURCE_NAMES):
                 source_skew_ms = (max(receive_monotonic_values) - min(receive_monotonic_values)) / 1_000_000
+                oldest_source = min(receive_monotonic_by_source, key=receive_monotonic_by_source.get)
+                newest_source = max(receive_monotonic_by_source, key=receive_monotonic_by_source.get)
+                skew_sources = (oldest_source, newest_source)
 
             skip_reasons = []
+            stale_sources = tuple(
+                name
+                for name in SOURCE_NAMES
+                if source_age_ms.get(name) is not None and source_age_ms[name] > max_source_age_ms
+            )
+            sources_not_advanced: list[str] = []
             if any(missing_fields for missing_fields in missing.values()) or len(timing_sources) != len(
                 SOURCE_NAMES
             ):
                 skip_reasons.append("not_ready")
-            if any(age_ms is not None and age_ms > max_source_age_ms for age_ms in source_age_ms.values()):
+            if stale_sources:
                 skip_reasons.append("stale")
             if source_skew_ms is not None and source_skew_ms > max_source_skew_ms:
                 skip_reasons.append("skew")
             if require_all_sources_advanced:
                 last_headers = last_sent_joint_header_stamps or {}
-                sources_not_advanced = []
                 for name in SOURCE_NAMES:
                     if progress_modes.get(name) == "header_stamp":
                         current_header = joint_header_stamps[name]
@@ -302,6 +338,11 @@ class ReadonlyStateCollector:
                     progress_modes=progress_modes,
                     joint_header_stamps=joint_header_stamps,
                     skip_reasons=tuple(skip_reasons),
+                    stale_sources=stale_sources,
+                    not_advanced_sources=tuple(sources_not_advanced),
+                    skew_sources=skew_sources,
+                    source_worker_pids=source_worker_pids,
+                    source_ipc_delay_ms=source_ipc_delay_ms,
                 )
 
             source_timing = {
@@ -334,6 +375,11 @@ class ReadonlyStateCollector:
                 progress_modes=progress_modes,
                 joint_header_stamps=joint_header_stamps,
                 skip_reasons=(),
+                stale_sources=(),
+                not_advanced_sources=(),
+                skew_sources=skew_sources,
+                source_worker_pids=source_worker_pids,
+                source_ipc_delay_ms=source_ipc_delay_ms,
             )
 
 
@@ -346,6 +392,8 @@ class SenderCounters:
     skipped_stale: int = 0
     skipped_skew: int = 0
     skipped_not_advanced: int = 0
+    consecutive_skips: int = 0
+    max_consecutive_skips: int = 0
 
     def skipped_packets(self) -> dict[str, int]:
         return {
@@ -372,6 +420,7 @@ class StateUdpSender:
         print_every: int,
         printer: Callable[..., None] = print,
         monotonic_ns: Callable[[], int] = time.monotonic_ns,
+        wall_time_ns: Callable[[], int] = time.time_ns,
         process_id: int | None = None,
     ):
         self.collector = collector
@@ -385,11 +434,13 @@ class StateUdpSender:
         self.print_every = print_every
         self.printer = printer
         self._monotonic_ns = monotonic_ns
+        self._wall_time_ns = wall_time_ns
         self.process_id = os.getpid() if process_id is None else process_id
         self.counters = SenderCounters()
         self.last_sent_generations = dict.fromkeys(SOURCE_NAMES, 0)
         self.last_sent_joint_header_stamps: dict[str, int] = {}
         self._successful_send_times_ns: deque[int] = deque(maxlen=MEASURED_RATE_WINDOW_PACKETS)
+        self._last_skip_signature: tuple[Any, ...] | None = None
 
     @property
     def formatted_hz(self) -> str:
@@ -412,6 +463,8 @@ class StateUdpSender:
         skew = "null" if snapshot.source_skew_ms is None else f"{snapshot.source_skew_ms:.3f}"
         measured_hz = self.measured_send_hz
         measured_text = "unavailable" if measured_hz is None else f"{measured_hz:.6f}"
+        worker_pids = json.dumps(snapshot.source_worker_pids, sort_keys=True, separators=(",", ":"))
+        ipc_delays = json.dumps(snapshot.source_ipc_delay_ms, sort_keys=True, separators=(",", ":"))
         return (
             f"configured_hz={self.formatted_hz} measured_send_hz={measured_text} "
             f"rate_window_packets={len(self._successful_send_times_ns)} "
@@ -419,11 +472,23 @@ class StateUdpSender:
             f"progress_modes={json.dumps(snapshot.progress_modes, sort_keys=True, separators=(',', ':'))} "
             f"source_age_ms={json.dumps(ages, sort_keys=True, separators=(',', ':'))} "
             f"source_skew_ms={skew} "
+            f"stale_sources={json.dumps(snapshot.stale_sources, separators=(',', ':'))} "
+            f"not_advanced_sources={json.dumps(snapshot.not_advanced_sources, separators=(',', ':'))} "
+            f"skew_sources={json.dumps(snapshot.skew_sources, separators=(',', ':'))} "
+            f"source_worker_pids={worker_pids} "
+            f"source_ipc_delay_ms={ipc_delays} "
+            f"event_wall_ns={self._wall_time_ns()} "
+            f"consecutive_skips={self.counters.consecutive_skips} "
+            f"max_consecutive_skips={self.counters.max_consecutive_skips} "
             f"skipped={json.dumps(self.counters.skipped_packets(), sort_keys=True, separators=(',', ':'))}"
         )
 
     def _record_skip(self, reasons: tuple[str, ...]) -> None:
         self.counters.skipped_total += 1
+        self.counters.consecutive_skips += 1
+        self.counters.max_consecutive_skips = max(
+            self.counters.max_consecutive_skips, self.counters.consecutive_skips
+        )
         for reason in reasons:
             setattr(self.counters, f"skipped_{reason}", getattr(self.counters, f"skipped_{reason}") + 1)
 
@@ -441,7 +506,13 @@ class StateUdpSender:
         )
         if snapshot.skip_reasons:
             self._record_skip(snapshot.skip_reasons)
-            if self.counters.skipped_total == 1 or (
+            skip_signature = (
+                snapshot.skip_reasons,
+                snapshot.stale_sources,
+                snapshot.not_advanced_sources,
+                snapshot.skew_sources,
+            )
+            if self.counters.consecutive_skips == 1 or skip_signature != self._last_skip_signature or (
                 self.print_every > 0 and self.counters.attempted % self.print_every == 0
             ):
                 self.printer(
@@ -449,6 +520,7 @@ class StateUdpSender:
                     f"skip reasons={','.join(snapshot.skip_reasons)} {self._metrics_text(snapshot)}",
                     flush=True,
                 )
+            self._last_skip_signature = skip_signature
             return False
 
         assert snapshot.packet is not None and snapshot.source_timing is not None
@@ -467,10 +539,16 @@ class StateUdpSender:
         for name, stamp in snapshot.joint_header_stamps.items():
             if stamp is not None and stamp > 0:
                 self.last_sent_joint_header_stamps[name] = stamp
-        if self.counters.sent == 1 or (self.print_every > 0 and self.counters.sent % self.print_every == 0):
+        recovered_after_skips = self.counters.consecutive_skips
+        if (
+            self.counters.sent == 1
+            or recovered_after_skips > 0
+            or (self.print_every > 0 and self.counters.sent % self.print_every == 0)
+        ):
             self.printer(
                 "[orin ros state udp bridge] "
-                f"sent seq={self.counters.sent} bytes={len(payload)} {self._metrics_text(snapshot)}",
+                f"sent seq={self.counters.sent} bytes={len(payload)} "
+                f"recovered_after_skips={recovered_after_skips} {self._metrics_text(snapshot)}",
                 flush=True,
             )
         if self.measured_send_hz is not None and (
@@ -484,6 +562,8 @@ class StateUdpSender:
                 f"window_packets={MEASURED_RATE_WINDOW_PACKETS}",
                 flush=True,
             )
+        self.counters.consecutive_skips = 0
+        self._last_skip_signature = None
         return True
 
     def run(
@@ -553,6 +633,7 @@ def create_source_subscription(
     wall_time_ns: Callable[[], int] = time.time_ns,
 ) -> SourceSubscriptionHandle:
     callback_group = MutuallyExclusiveCallbackGroup()
+    worker_pid = os.getpid()
 
     def callback(msg: Any) -> None:
         receive_monotonic_ns = monotonic_ns()
@@ -564,7 +645,7 @@ def create_source_subscription(
             values = tuple(msg.data)
             header_stamp_ns = None
         send_connection.send(
-            (spec.name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns)
+            (spec.name, values, receive_monotonic_ns, receive_wall_ns, header_stamp_ns, worker_pid)
         )
 
     subscription = node.create_subscription(

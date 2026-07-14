@@ -188,6 +188,8 @@ class DatasetRecordConfig:
     vcodec: str = "libsvtav1"
     # Constant Rate Factor for video encoding. Lower values retain more detail and use more storage.
     video_crf: int = DEFAULT_VIDEO_CRF
+    # Keep the lossless PNG frames after video encoding for camera/codec diagnostics.
+    keep_image_files: bool = False
     # Rename map for the observation to override the image and state keys
     rename_map: dict[str, str] = field(default_factory=dict)
 
@@ -306,9 +308,12 @@ def record_loop(
     display_compressed_images: bool = False,
     episode_index: int | None = None,
     play_sounds: bool = False,
+    control_only: bool = False,
 ):
     if dataset is not None and dataset.fps != fps:
         raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
+    if control_only and dataset is not None:
+        raise ValueError("control_only record loops cannot save dataset frames")
 
     teleop_arm = teleop_keyboard = None
     if isinstance(teleop, list):
@@ -351,8 +356,8 @@ def record_loop(
             events["exit_early"] = False
             break
 
-        # Get robot observation
-        obs = robot.get_observation()
+        # Control-only loops let robots omit recording-only sensors such as cameras.
+        obs = robot.get_control_observation() if control_only else robot.get_observation()
 
         # Applies a pipeline to the raw robot observation, default is IdentityProcessor
         obs_processed = robot_observation_processor(obs)
@@ -361,6 +366,7 @@ def record_loop(
             observation_frame = build_dataset_frame(dataset.features, obs_processed, prefix=OBS_STR)
 
         # Get action from either policy or teleop
+        action_timing = None
         if policy is not None and preprocessor is not None and postprocessor is not None:
             action_values = predict_action(
                 observation=observation_frame,
@@ -372,6 +378,14 @@ def record_loop(
                 task=single_task,
                 robot_type=robot.robot_type,
             )
+            action_timing = {
+                "source": "policy_output",
+                "packet_seq": None,
+                "packet_stamp_ns": None,
+                "receive_wall_ns": time.time_ns(),
+                "receive_monotonic_ns": time.monotonic_ns(),
+                "age_ms": None,
+            }
 
             act_processed_policy: RobotAction = make_robot_action(action_values, dataset.features)
 
@@ -421,7 +435,8 @@ def record_loop(
             dataset.add_frame(frame)
             timing_hook = getattr(robot, "save_frame_timing", None)
             if callable(timing_hook):
-                action_timing = getattr(teleop, "last_action_timing", None)
+                if action_timing is None:
+                    action_timing = getattr(teleop, "last_action_timing", None)
                 timing_hook(
                     dataset_root=dataset.root,
                     episode_index=dataset.num_episodes if episode_index is None else episode_index,
@@ -452,6 +467,41 @@ def record_loop(
         precise_sleep(max(1 / fps - dt_s, 0.0))
 
         timestamp = time.perf_counter() - start_episode_t
+
+
+def _reset_environment_between_episodes(
+    *,
+    robot: Robot,
+    events: dict[str, bool],
+    fps: int,
+    teleop_action_processor: RobotProcessorPipeline,
+    robot_action_processor: RobotProcessorPipeline,
+    robot_observation_processor: RobotProcessorPipeline,
+    teleop: Teleoperator | list[Teleoperator] | None,
+    reset_time_s: int | float,
+    single_task: str,
+    display_data: bool,
+) -> None:
+    logging.info(
+        "Reset control active for %.3fs: teleop commands continue; "
+        "dataset frames and camera observations are not collected",
+        reset_time_s,
+    )
+    if robot.name == "unitree_g1":
+        robot.reset()
+    record_loop(
+        robot=robot,
+        events=events,
+        fps=fps,
+        teleop_action_processor=teleop_action_processor,
+        robot_action_processor=robot_action_processor,
+        robot_observation_processor=robot_observation_processor,
+        teleop=teleop,
+        control_time_s=reset_time_s,
+        single_task=single_task,
+        display_data=display_data,
+        control_only=True,
+    )
 
 
 @parser.wrap()
@@ -498,6 +548,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 vcodec=cfg.dataset.vcodec,
                 video_crf=cfg.dataset.video_crf,
                 validate_video_encoding=True,
+                keep_image_files=cfg.dataset.keep_image_files,
             )
 
             if hasattr(robot, "cameras") and len(robot.cameras) > 0:
@@ -521,10 +572,36 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 batch_encoding_size=cfg.dataset.video_encoding_batch_size,
                 vcodec=cfg.dataset.vcodec,
                 video_crf=cfg.dataset.video_crf,
+                keep_image_files=cfg.dataset.keep_image_files,
             )
 
-        # Load pretrained policy
-        policy = None if cfg.policy is None else make_policy(cfg.policy, ds_meta=dataset.meta)
+        training_schema_hook = getattr(robot, "save_training_schema_manifest", None)
+        if callable(training_schema_hook):
+            training_schema_hook(dataset.root)
+
+        # Load pretrained policy. JZ Pin timed model16 checkpoints carry their explicit projection
+        # schema in the preprocessor while the recording dataset intentionally remains raw18.
+        policy_metadata = dataset.meta
+        if cfg.policy is not None and robot.name == "jz_robot_pin_timed":
+            from lerobot.robots.jz_robot_pin_timed.training_schema import (
+                JZPinProjectedMetadata,
+                load_training_schema_from_local_checkpoint,
+            )
+
+            training_schema = load_training_schema_from_local_checkpoint(cfg.policy.pretrained_path)
+            if training_schema is not None:
+                robot_training_schema = robot.training_schema
+                if training_schema.semantic_dict() != robot_training_schema.semantic_dict():
+                    raise ValueError(
+                        "JZ Pin timed checkpoint schema differs from the live robot source/direction config; "
+                        "refusing before robot.connect()"
+                    )
+                policy_metadata = JZPinProjectedMetadata(
+                    dataset.meta,
+                    training_schema,
+                    require_stats=False,
+                )
+        policy = None if cfg.policy is None else make_policy(cfg.policy, ds_meta=policy_metadata)
         preprocessor = None
         postprocessor = None
         if cfg.policy is not None:
@@ -547,7 +624,8 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         with VideoEncodingManager(dataset):
             recorded_episodes = 0
             while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
-                logging.info("Preparing recording episode %s", dataset.num_episodes)
+                current_episode_number = dataset.num_episodes + 1
+                logging.info("Preparing recording episode %s", current_episode_number)
                 record_loop(
                     robot=robot,
                     events=events,
@@ -568,34 +646,49 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     play_sounds=cfg.play_sounds,
                 )
 
-                # Execute a few seconds without recording to give time to manually reset the environment
-                # Skip reset for the last episode to be recorded
+                # Skip reset for the last episode to be recorded.
                 if not events["stop_recording"] and (
                     (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
                 ):
                     log_say("Reset the environment", cfg.play_sounds)
-                    logging.info(
-                        "Reset control active for %.3fs: teleop commands continue; "
-                        "dataset frames are not saved",
-                        cfg.dataset.reset_time_s,
-                    )
-
-                    # reset g1 robot
-                    if robot.name == "unitree_g1":
-                        robot.reset()
-
-                    record_loop(
-                        robot=robot,
-                        events=events,
-                        fps=cfg.dataset.fps,
-                        teleop_action_processor=teleop_action_processor,
-                        robot_action_processor=robot_action_processor,
-                        robot_observation_processor=robot_observation_processor,
-                        teleop=teleop,
-                        control_time_s=cfg.dataset.reset_time_s,
-                        single_task=cfg.dataset.single_task,
-                        display_data=cfg.display_data,
-                    )
+                    try:
+                        _reset_environment_between_episodes(
+                            robot=robot,
+                            events=events,
+                            fps=cfg.dataset.fps,
+                            teleop_action_processor=teleop_action_processor,
+                            robot_action_processor=robot_action_processor,
+                            robot_observation_processor=robot_observation_processor,
+                            teleop=teleop,
+                            reset_time_s=cfg.dataset.reset_time_s,
+                            single_task=cfg.dataset.single_task,
+                            display_data=cfg.display_data,
+                        )
+                    except BaseException:
+                        episode_buffer = dataset.episode_buffer
+                        has_completed_frames = (
+                            isinstance(episode_buffer, dict) and episode_buffer.get("size", 0) > 0
+                        )
+                        if has_completed_frames and not events["rerecord_episode"]:
+                            logging.error(
+                                "Reset control failed after episode %s was recorded; "
+                                "saving the completed episode before exit",
+                                current_episode_number,
+                                exc_info=True,
+                            )
+                            try:
+                                dataset.save_episode()
+                            except Exception:
+                                logging.exception(
+                                    "Failed to save completed episode %s while handling reset failure",
+                                    current_episode_number,
+                                )
+                            else:
+                                logging.info(
+                                    "Saved completed episode %s after reset control failure",
+                                    current_episode_number,
+                                )
+                        raise
 
                 if events["rerecord_episode"]:
                     log_say("Re-record episode", cfg.play_sounds)

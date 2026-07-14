@@ -25,8 +25,11 @@ REQUIRED_ENTRYPOINTS = (
     "check_timed_observation.sh",
     "recv_vr_udp.py",
     "data_check/record_and_check_3.sh",
+    "data_check/record_color_diagnostic.sh",
+    "data_check/compare_preencode_images.py",
     "data_check/check_3_episodes.py",
     "data_check/check_timing.py",
+    "data_check/check_training_projection.py",
     "edge/start_pin_state.sh",
     "edge/start_pin_replay.sh",
     "edge/status_pin_replay.sh",
@@ -39,6 +42,9 @@ REQUIRED_ENTRYPOINTS = (
     "x86/stop_pin_teleop.sh",
     "x86/probe_timed_observation.sh",
     "x86/probe_timed_observation.py",
+    "x86/check_orin_network_link.sh",
+    "x86/probe_direct_zmq_cameras.sh",
+    "x86/probe_direct_zmq_cameras.py",
 )
 
 
@@ -57,6 +63,40 @@ def test_timed_record_uses_new_robot_and_explicit_crf() -> None:
     assert 'VIDEO_CRF="${VIDEO_CRF:-18}"' in script
     assert '--dataset.video_crf="${VIDEO_CRF}"' in script
     assert "--robot.timing_sidecar=" in script
+    assert "training_schema_sidecar=required" in script
+    assert "--robot.left_gripper_observation_source=" in script
+    assert "--robot.right_gripper_observation_source=" in script
+    assert 'ZMQ_PRESET="${ZMQ_PRESET:-jz_three_zmq}"' in script
+    assert '--robot.zmq_cameras="${ZMQ_CAMERAS}"' in script
+    assert "AUTOMATIC_EPISODE_RESET has been retired" in script
+    assert "jz_pin_reset_control/39040" in script
+    assert '--robot.reset_control_port="${RESET_CONTROL_PORT}"' not in script
+    assert '--robot.vr_home_control_socket="${VR_HOME_CONTROL_SOCKET}"' not in script
+
+
+def test_timed_record_rejects_retired_automatic_reset_before_starting_python() -> None:
+    env = os.environ.copy()
+    env.update(
+        {
+            "AUTOMATIC_EPISODE_RESET": "true",
+            "EXECUTION": "dry_run",
+            "SEND_ACTION_TRANSPORT": "local",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(TIMED_ROOT / "record.sh")],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "AUTOMATIC_EPISODE_RESET has been retired" in result.stderr
+    assert "jz_pin_reset_control/39040" in result.stderr
 
 
 def test_three_episode_wrapper_records_timed_data_then_runs_both_checks() -> None:
@@ -71,6 +111,28 @@ def test_three_episode_wrapper_records_timed_data_then_runs_both_checks() -> Non
     assert '--max-lag-p95-rad "${MAX_LAG_P95_RAD}"' in script
     assert '"${SCRIPT_DIR}/check_3_episodes.py"' in script
     assert '"${SCRIPT_DIR}/check_timing.py"' in script
+    assert '"${SCRIPT_DIR}/check_training_projection.py"' in script
+
+
+def test_color_diagnostic_keeps_preencode_png_and_compares_video() -> None:
+    script = (TIMED_ROOT / "data_check/record_color_diagnostic.sh").read_text(encoding="utf-8")
+
+    assert "NUM_EPISODES=1" in script
+    assert "KEEP_IMAGE_FILES=true" in script
+    assert "VIDEO_ENCODING_BATCH_SIZE=1" in script
+    assert 'DISPLAY_DATA="${DISPLAY_DATA:-true}"' in script
+    assert 'MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD:-10.0}"' in script
+    assert 'MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD:-10.0}"' in script
+    assert '"${SCRIPT_DIR}/compare_preencode_images.py"' in script
+
+
+def test_direct_zmq_probe_is_camera_only_and_read_only() -> None:
+    script = (TIMED_ROOT / "x86/probe_direct_zmq_cameras.py").read_text(encoding="utf-8")
+
+    assert "TimestampedZMQCamera" in script
+    assert "send_action" not in script
+    assert "JZRobotPinTimed" not in script
+    assert "target_action" not in script
 
 
 def test_timed_stop_scope_does_not_match_other_timed_workflows() -> None:
@@ -87,6 +149,9 @@ def test_observation_probe_is_explicitly_read_only() -> None:
 
     assert 'send_action_transport="local"' in probe
     assert 'send_action_execution="dry_run"' in probe
+    assert "ZMQCameraConfig" in probe
+    assert "RTSPCameraConfig" not in probe
+    assert '"head": (5555, 1280, 720)' in probe
     assert ".send_action(" not in probe
 
 

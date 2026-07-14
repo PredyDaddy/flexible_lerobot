@@ -44,11 +44,10 @@ if [[ "${OUTPUT_JSONL}" != "none" ]]; then
   ARGS+=(--output-jsonl "${OUTPUT_JSONL}")
 fi
 
-echo "[timed/x86/probe] READ ONLY: receives state and RTSP; never calls send_action"
+echo "[timed/x86/probe] READ ONLY: receives state and direct ZMQ cameras; never calls send_action"
 echo "[timed/x86/probe] state=udp://${STATE_BIND_IP}:${STATE_PORT} expected=${ORIN_IP}"
 echo "[timed/x86/probe] duration_s=${PROBE_DURATION_S} fps=${PROBE_FPS} cameras=${CAMERAS:-all}"
 echo "[timed/x86/probe] output_jsonl=${OUTPUT_JSONL} conda_env=${CONDA_ENV}"
 
 cd "${REPO_ROOT}"
 exec "${PYTHON_CMD[@]}" "${SCRIPT_DIR}/probe_timed_observation.py" "${ARGS[@]}" "$@"
-

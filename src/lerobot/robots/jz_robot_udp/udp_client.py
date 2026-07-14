@@ -44,8 +44,14 @@ class UDPStateReceiver:
         if self.is_running:
             return
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.bind_ip, self.port))
+        try:
+            sock.bind((self.bind_ip, self.port))
+        except OSError as exc:
+            sock.close()
+            raise OSError(
+                f"Cannot bind UDP {self.label} receiver to {self.bind_ip}:{self.port}; "
+                "another recorder, probe, or control process may already own the port"
+            ) from exc
         sock.settimeout(0.2)
         self._socket = sock
         self._stop_event.clear()

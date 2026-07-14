@@ -6,6 +6,7 @@ import json
 import threading
 import time
 from fractions import Fraction
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -17,6 +18,7 @@ from lerobot.robots.jz_robot_pin_timed import (
     JZRobotPinTimedConfig,
     TimestampedRTSPCamera,
 )
+from lerobot.robots.jz_robot_pin_timed.training_schema import TRAINING_SCHEMA_FILENAME
 from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
 from lerobot.robots.jz_robot_udp.protocol import (
     PROTOCOL_VERSION,
@@ -174,6 +176,13 @@ def test_jz_robot_pin_timed_is_registered_and_reuses_pin_behavior() -> None:
         ("reject_reused_camera_frames", 1),
         ("timing_sidecar", None),
         ("require_state_source_timing", None),
+        ("require_state_advance_per_observation", None),
+        ("state_advance_timeout_s", 0),
+        ("state_advance_timeout_s", float("nan")),
+        ("left_gripper_observation_source", "measured"),
+        ("right_gripper_observation_raw_open", 100.0),
+        ("left_gripper_action_raw_closed", float("nan")),
+        ("right_gripper_training_command_force", float("inf")),
     ],
 )
 def test_jz_robot_pin_timed_rejects_invalid_timing_config(field: str, value) -> None:
@@ -384,6 +393,105 @@ def test_jz_robot_pin_timed_aligns_camera_to_state_receive_time() -> None:
     assert timing["cameras"]["camera_test"]["state_receive_skew_ms"] == 10.0
 
 
+def test_control_observation_skips_camera_skew_but_keeps_required_source_timing() -> None:
+    camera_config = make_camera_config()
+    robot = JZRobotPinTimed(
+        make_robot_config(
+            rtsp_cameras={"camera_test": camera_config},
+            max_camera_state_receive_skew_ms=100,
+            require_state_source_timing=True,
+            timing_log_every_n=0,
+        )
+    )
+    packet = sample_state_packet()
+    packet["source_timing"] = sample_source_timing()
+    robot._state_cache.update(packet, sender=("192.168.1.81", 39010))
+    state = robot._state_cache.latest()
+    state_receive_monotonic_ns = int(state.received_monotonic_s * 1_000_000_000)
+    camera = robot.cameras["camera_test"]
+    camera._thread = DummyThread()
+    camera._stop_event.clear()
+    camera._monotonic_ns = lambda: state_receive_monotonic_ns + 200_000_000
+    camera._store_decoded_frame(
+        FakeVideoFrame(np.zeros((camera_config.height, camera_config.width, 3), dtype=np.uint8)),
+        generation=1,
+    )
+    robot._is_connected = True
+
+    try:
+        control_observation = robot.get_control_observation()
+
+        assert len(control_observation) == 18
+        assert "camera_test" not in control_observation
+        assert robot.last_observation_timing is None
+
+        next_packet = sample_state_packet(seq=8)
+        next_packet["source_timing"] = sample_source_timing(generation=20)
+        robot._state_cache.update(next_packet, sender=("192.168.1.81", 39010))
+        with pytest.raises(TimeoutError, match="receive skew"):
+            robot.get_observation()
+    finally:
+        robot.disconnect()
+
+
+def test_timed_observation_waits_for_new_local_state_revision() -> None:
+    robot = JZRobotPinTimed(make_robot_config(state_advance_timeout_s=0.2))
+    robot._state_cache.update(sample_state_packet(seq=99), sender=("192.168.1.81", 39010))
+    robot._is_connected = True
+    first = robot.get_control_observation()
+    timer = threading.Timer(
+        0.01,
+        lambda: robot._state_cache.update(sample_state_packet(seq=1), sender=("192.168.1.81", 39010)),
+    )
+    timer.start()
+
+    try:
+        second = robot.get_control_observation()
+        second_revision = robot._last_observation_state_revision
+    finally:
+        timer.join(timeout=1.0)
+        robot.disconnect()
+
+    assert len(first) == len(second) == 18
+    assert second_revision == 2
+    assert robot._last_observation_state_revision is None
+
+
+def test_state_stall_fails_before_timed_camera_read() -> None:
+    robot = JZRobotPinTimed(
+        make_robot_config(
+            rtsp_cameras={"camera_test": make_camera_config()},
+            state_advance_timeout_s=0.01,
+            timing_log_every_n=0,
+        )
+    )
+    camera = robot.cameras["camera_test"]
+    camera.read_timed_nearest = Mock()
+    robot._state_cache.update(sample_state_packet(), sender=("192.168.1.81", 39010))
+    robot._is_connected = True
+
+    try:
+        robot.get_control_observation()
+        with pytest.raises(TimeoutError, match="state did not advance"):
+            robot.get_observation()
+    finally:
+        robot.disconnect()
+
+    camera.read_timed_nearest.assert_not_called()
+
+
+def test_control_observation_rejects_missing_required_source_timing() -> None:
+    robot = JZRobotPinTimed(make_robot_config(require_state_source_timing=True))
+    robot._state_cache.update(sample_state_packet(), sender=("192.168.1.81", 39010))
+    robot._is_connected = True
+
+    try:
+        with pytest.raises(RuntimeError, match="valid source_timing v1"):
+            robot.get_control_observation()
+    finally:
+        robot.disconnect()
+
+
 def test_rejected_timing_does_not_mark_camera_frame_as_accepted() -> None:
     camera_config = make_camera_config()
     robot = JZRobotPinTimed(
@@ -507,6 +615,34 @@ def test_timing_sidecar_deep_copies_optional_state_source_timing(tmp_path) -> No
     assert robot.last_observation_timing["state"]["source_timing"] == saved["state"]["source_timing"]
 
 
+def test_training_schema_manifest_is_required_even_when_timing_sidecar_is_disabled(tmp_path) -> None:
+    robot = JZRobotPinTimed(make_robot_config(timing_sidecar=False))
+
+    robot.save_frame_timing(
+        dataset_root=tmp_path,
+        episode_index=0,
+        frame_index=0,
+        action_timing=None,
+    )
+
+    schema = json.loads((tmp_path / "meta" / TRAINING_SCHEMA_FILENAME).read_text(encoding="utf-8"))
+    assert schema["grippers"]["left"]["observation"]["source"] == "unavailable"
+    assert schema["grippers"]["right"]["observation"]["source"] == "unavailable"
+    assert not (tmp_path / "meta/timing/episode-000000.jsonl").exists()
+
+
+def test_training_schema_preflight_rejects_resume_semantic_change_before_connect(tmp_path) -> None:
+    original = JZRobotPinTimed(make_robot_config())
+    changed = JZRobotPinTimed(make_robot_config(left_gripper_observation_source="measured_opening"))
+
+    original.save_training_schema_manifest(tmp_path)
+    with pytest.raises(ValueError, match="Refusing to change existing training semantics"):
+        changed.save_training_schema_manifest(tmp_path)
+
+    assert not original.is_connected
+    assert not changed.is_connected
+
+
 @pytest.mark.parametrize("source_timing", [None, {}, []])
 def test_timed_observation_can_require_valid_state_source_timing_v1(source_timing) -> None:
     robot = JZRobotPinTimed(make_robot_config(require_state_source_timing=True))
@@ -519,8 +655,51 @@ def test_timed_observation_can_require_valid_state_source_timing_v1(source_timin
         robot._after_observation(state, {})
 
 
+def test_configured_gripper_sources_require_fresh_generation_without_cached_substitution() -> None:
+    robot = JZRobotPinTimed(
+        make_robot_config(
+            left_gripper_observation_source="measured_opening",
+            right_gripper_observation_source="commanded_opening",
+            require_state_source_timing=False,
+        )
+    )
+    first_packet = sample_state_packet(seq=1)
+    first_packet["source_timing"] = sample_source_timing(generation=20)
+    robot._after_control_observation(CachedState(first_packet, ("192.168.1.81", 39010), 1.0), {})
+
+    reused_packet = sample_state_packet(seq=2)
+    reused_packet["source_timing"] = sample_source_timing(generation=20)
+    with pytest.raises(TimeoutError, match="gripper source did not advance.*cached opening"):
+        robot._after_control_observation(CachedState(reused_packet, ("192.168.1.81", 39010), 2.0), {})
+
+    advanced_packet = sample_state_packet(seq=3)
+    advanced_packet["source_timing"] = sample_source_timing(generation=21)
+    robot._after_control_observation(CachedState(advanced_packet, ("192.168.1.81", 39010), 3.0), {})
+
+
+def test_configured_gripper_sources_require_source_timing_even_when_global_flag_is_false() -> None:
+    robot = JZRobotPinTimed(
+        make_robot_config(
+            left_gripper_observation_source="measured_opening",
+            right_gripper_observation_source="commanded_opening",
+            require_state_source_timing=False,
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="cached value"):
+        robot._after_control_observation(
+            CachedState(sample_state_packet(seq=1), ("192.168.1.81", 39010), 1.0), {}
+        )
+
+
 def test_timing_sidecar_restarts_episode_without_duplicate_frames(tmp_path) -> None:
-    robot = JZRobotPinTimed(make_robot_config(timing_log_every_n=0))
+    robot = JZRobotPinTimed(
+        make_robot_config(
+            timing_log_every_n=0,
+            left_gripper_observation_source="measured_opening",
+            right_gripper_observation_source="commanded_opening",
+        )
+    )
     robot._last_observation_timing = {
         "session_id": robot._timing_session_id,
         "observation_sequence": 1,
@@ -552,6 +731,12 @@ def test_timing_sidecar_restarts_episode_without_duplicate_frames(tmp_path) -> N
     lines = (tmp_path / "meta/timing/episode-000000.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
     assert json.loads(lines[0])["action"]["packet_seq"] == 3
+    schema = json.loads((tmp_path / "meta" / TRAINING_SCHEMA_FILENAME).read_text(encoding="utf-8"))
+    assert schema["schema_version"] == 1
+    assert schema["raw_schema"]["dimension"] == 18
+    assert schema["training_schema"]["dimension"] == 16
+    assert schema["grippers"]["left"]["observation"]["source"] == "measured_opening"
+    assert schema["grippers"]["right"]["observation"]["source"] == "commanded_opening"
 
 
 def test_timing_sidecar_requires_command_from_matching_observation(tmp_path) -> None:
@@ -634,3 +819,31 @@ def test_state_and_action_timing_include_backward_compatible_receive_wall_time()
 
     assert isinstance(cached_receive_wall_ns, int)
     assert teleop.last_action_timing["receive_wall_ns"] == cached_receive_wall_ns
+
+
+def test_target_action_inhibit_is_local_and_drops_cached_actions() -> None:
+    teleop = JZRobotPinTargetActionTeleop(JZRobotPinTargetActionTeleopConfig(target_action_port=39030))
+    teleop._is_connected = True
+    packet = sample_state_packet()
+    target_packet = make_jz_robot_udp_target_action_packet(
+        robot=packet["robot"],
+        seq=packet["seq"],
+        stamp_ns=time.time_ns(),
+        actions={
+            "left": packet["joints"]["left"],
+            "right": packet["joints"]["right"],
+            "grippers": packet["grippers"],
+        },
+    )
+    teleop._target_action_cache.update(target_packet, sender=("127.0.0.1", 39030))
+
+    teleop.inhibit_target_actions()
+
+    assert teleop.target_actions_inhibited
+    assert teleop._target_action_cache.latest() is None
+    with pytest.raises(RuntimeError, match="inhibited"):
+        teleop.get_action()
+
+    teleop.resume_target_actions()
+    assert not teleop.target_actions_inhibited
+    assert teleop._target_action_cache.latest() is None

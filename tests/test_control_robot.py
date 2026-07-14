@@ -14,8 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from unittest.mock import patch
 
+import pytest
+
+from lerobot.scripts import lerobot_record
 from lerobot.scripts.lerobot_calibrate import CalibrateConfig, calibrate
 from lerobot.scripts.lerobot_record import DatasetRecordConfig, RecordConfig, record
 from lerobot.scripts.lerobot_replay import DatasetReplayConfig, ReplayConfig, replay
@@ -62,8 +66,16 @@ def test_record_and_resume(tmp_path):
         play_sounds=False,
     )
 
-    dataset = record(cfg)
+    info_messages = []
 
+    def capture_info(message, *args, **kwargs) -> None:
+        del kwargs
+        info_messages.append(message % args if args else str(message))
+
+    with patch.object(lerobot_record.logging, "info", side_effect=capture_info):
+        dataset = record(cfg)
+
+    assert "Preparing recording episode 1" in info_messages
     assert dataset.fps == 30
     assert dataset.meta.total_episodes == dataset.num_episodes == 1
     assert dataset.meta.total_frames == dataset.num_frames == 3
@@ -72,8 +84,10 @@ def test_record_and_resume(tmp_path):
     assert dataset.meta.info["video_encoding"]["crf"] == 18
 
     cfg.resume = True
+    info_messages.clear()
     # Mock the revision to prevent Hub calls during resume
     with (
+        patch.object(lerobot_record.logging, "info", side_effect=capture_info),
         patch("lerobot.datasets.lerobot_dataset.get_safe_version") as mock_get_safe_version,
         patch("lerobot.datasets.lerobot_dataset.snapshot_download") as mock_snapshot_download,
     ):
@@ -81,10 +95,56 @@ def test_record_and_resume(tmp_path):
         mock_snapshot_download.return_value = str(tmp_path / "record")
         dataset = record(cfg)
 
+    assert "Preparing recording episode 2" in info_messages
     assert dataset.meta.total_episodes == dataset.num_episodes == 2
     assert dataset.meta.total_frames == dataset.num_frames == 6
     assert dataset.meta.total_tasks == 1
     assert dataset.video_crf == 18
+
+
+@pytest.mark.parametrize(("request_rerecord", "expected_episodes"), [(False, 1), (True, 0)])
+def test_record_preserves_completed_episode_on_reset_failure(
+    tmp_path, request_rerecord: bool, expected_episodes: int
+) -> None:
+    robot_cfg = MockRobotConfig()
+    teleop_cfg = MockTeleopConfig()
+    dataset_root = tmp_path / f"reset_failure_{request_rerecord}"
+    dataset_cfg = DatasetRecordConfig(
+        repo_id=DUMMY_REPO_ID,
+        single_task="Dummy task",
+        root=dataset_root,
+        num_episodes=2,
+        episode_time_s=0.001,
+        reset_time_s=0.1,
+        push_to_hub=False,
+        video=False,
+    )
+    cfg = RecordConfig(
+        robot=robot_cfg,
+        dataset=dataset_cfg,
+        teleop=teleop_cfg,
+        play_sounds=False,
+    )
+    real_record_loop = lerobot_record.record_loop
+
+    def fail_reset_loop(*args, **kwargs):
+        if kwargs.get("control_only"):
+            kwargs["events"]["rerecord_episode"] = request_rerecord
+            raise TimeoutError("simulated reset control failure")
+        return real_record_loop(*args, **kwargs)
+
+    with (
+        patch.object(lerobot_record, "record_loop", side_effect=fail_reset_loop),
+        pytest.raises(TimeoutError, match="simulated reset control failure"),
+    ):
+        lerobot_record.record(cfg)
+
+    info = json.loads((dataset_root / "meta" / "info.json").read_text(encoding="utf-8"))
+    assert info["total_episodes"] == expected_episodes
+    if request_rerecord:
+        assert info["total_frames"] == 0
+    else:
+        assert info["total_frames"] > 0
 
 
 def test_record_and_replay(tmp_path):

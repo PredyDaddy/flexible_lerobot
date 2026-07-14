@@ -9,20 +9,21 @@ import time
 from pathlib import Path
 from typing import Any, TextIO
 
+from lerobot.cameras.configs import ColorMode
+from lerobot.cameras.zmq.configuration_zmq import ZMQCameraConfig
 from lerobot.robots.jz_robot_pin_timed import JZRobotPinTimed, JZRobotPinTimedConfig
-from lerobot.robots.jz_robot_udp.config_jz_robot_udp import RTSPCameraConfig
 
 CAMERA_SPECS = {
-    "head": (1280, 720),
-    "left": (640, 480),
-    "right": (640, 480),
+    "head": (5555, 1280, 720),
+    "left": (5556, 640, 480),
+    "right": (5557, 640, 480),
 }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Read JZ Pin UDP state and timestamped RTSP observations without creating or sending actions."
+            "Read JZ Pin UDP state and direct timestamped ZMQ observations without sending actions."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -36,12 +37,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--camera", action="append", choices=sorted(CAMERA_SPECS))
     parser.add_argument("--state-only", action="store_true")
     parser.add_argument("--camera-buffer-size", type=int, default=8)
-    parser.add_argument("--camera-reconnect-delay-ms", type=int, default=250)
     parser.add_argument("--camera-timeout-ms", type=int, default=5000)
-    parser.add_argument("--camera-warmup-frames", type=int, default=1)
     parser.add_argument("--camera-stale-frame-timeout-ms", type=int, default=1000)
     parser.add_argument("--max-camera-state-receive-skew-ms", type=float, default=100.0)
-    parser.add_argument("--ffmpeg-capture-options", default="")
     parser.add_argument("--output-jsonl", type=Path)
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default="INFO")
     return parser
@@ -59,22 +57,19 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
     return [] if args.state_only else (args.camera or list(CAMERA_SPECS))
 
 
-def make_camera_configs(args: argparse.Namespace, camera_names: list[str]) -> dict[str, RTSPCameraConfig]:
+def make_camera_configs(args: argparse.Namespace, camera_names: list[str]) -> dict[str, ZMQCameraConfig]:
     configs = {}
     for name in camera_names:
-        width, height = CAMERA_SPECS[name]
-        configs[f"camera_{name}"] = RTSPCameraConfig(
-            url=f"rtsp://{args.orin_ip}:8554/robot_camera/camera_{name}",
+        port, width, height = CAMERA_SPECS[name]
+        configs[f"camera_{name}"] = ZMQCameraConfig(
+            server_address=args.orin_ip,
+            port=port,
+            camera_name=f"camera_{name}",
             fps=30,
             width=width,
             height=height,
             timeout_ms=args.camera_timeout_ms,
-            warmup_frames=args.camera_warmup_frames,
-            color_mode="rgb",
-            transport="tcp",
-            threaded_reader=True,
-            stale_frame_timeout_ms=args.camera_stale_frame_timeout_ms,
-            ffmpeg_capture_options=args.ffmpeg_capture_options,
+            color_mode=ColorMode.RGB,
         )
     return configs
 
@@ -104,12 +99,13 @@ def empty_camera_stats() -> dict[str, int | float]:
 def update_camera_stats(
     stats: dict[str, int | float], timing: dict[str, Any], previous_sequence: int | None, skew_limit_ms: float
 ) -> int:
-    sequence = int(timing["decoder_sequence"])
+    is_zmq = timing.get("protocol") == "jz_realsense_zmq"
+    sequence = int(timing["sequence"] if is_zmq else timing["decoder_sequence"])
     age_ms = float(timing["age_ms"])
     skew_ms = float(timing["state_receive_skew_ms"])
     stats["samples"] += 1
     stats["reused_samples"] += int(bool(timing["reused_by_observation_loop"]))
-    stats["missing_pts_samples"] += int(timing["decoder_pts_ns"] is None)
+    stats["missing_pts_samples"] += int(not is_zmq and timing["decoder_pts_ns"] is None)
     stats["over_skew_limit_samples"] += int(skew_ms > skew_limit_ms)
     stats["age_ms_total"] += age_ms
     stats["age_ms_max"] = max(float(stats["age_ms_max"]), age_ms)
@@ -151,9 +147,10 @@ def run(args: argparse.Namespace, camera_names: list[str]) -> int:
         state_timeout_s=args.state_timeout_s,
         send_action_transport="local",
         send_action_execution="dry_run",
-        rtsp_cameras=make_camera_configs(args, camera_names),
+        zmq_cameras=make_camera_configs(args, camera_names),
+        rtsp_cameras={},
         camera_buffer_size=args.camera_buffer_size,
-        camera_reconnect_delay_ms=args.camera_reconnect_delay_ms,
+        camera_stale_frame_timeout_ms=args.camera_stale_frame_timeout_ms,
         max_camera_state_receive_skew_ms=args.max_camera_state_receive_skew_ms,
         enforce_camera_state_receive_skew=False,
         reject_reused_camera_frames=False,
@@ -172,6 +169,7 @@ def run(args: argparse.Namespace, camera_names: list[str]) -> int:
             "read_only": True,
             "send_action_transport": "local",
             "send_action_execution": "dry_run",
+            "camera_protocol": "jz_realsense_zmq",
             "camera_frame_selection": "buffered_frame_nearest_state_receive_time",
             "state": f"udp://{args.bind_ip}:{args.state_port}",
             "allowed_state_sender_ip": args.orin_ip,

@@ -190,6 +190,15 @@ class Robot(abc.ABC):
 
         pass
 
+    def get_control_observation(self) -> RobotObservation:
+        """Return the observation needed for control-only loops.
+
+        The default keeps the full observation behavior. Robots with expensive or
+        recording-only sensors may override this to return only the state required
+        by their teleoperator and action pipeline.
+        """
+        return self.get_observation()
+
     @abc.abstractmethod
     def send_action(self, action: RobotAction) -> RobotAction:
         """

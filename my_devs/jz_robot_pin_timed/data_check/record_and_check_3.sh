@@ -25,6 +25,9 @@ DEFAULT_TIMING_CAMERA_STATE_SKEW_MS="${MAX_CAMERA_STATE_RECEIVE_SKEW_MS:-100.0}"
 MAX_TIMING_CAMERA_STATE_SKEW_MS="${MAX_TIMING_CAMERA_STATE_SKEW_MS:-${DEFAULT_TIMING_CAMERA_STATE_SKEW_MS}}"
 MAX_TIMING_SOURCE_AGE_MS="${MAX_TIMING_SOURCE_AGE_MS:-50.0}"
 MAX_TIMING_SOURCE_SKEW_MS="${MAX_TIMING_SOURCE_SKEW_MS:-20.0}"
+STATE_ADVANCE_TIMEOUT_S="${STATE_ADVANCE_TIMEOUT_S:-0.1}"
+LEFT_GRIPPER_OBSERVATION_SOURCE="${LEFT_GRIPPER_OBSERVATION_SOURCE:-unavailable}"
+RIGHT_GRIPPER_OBSERVATION_SOURCE="${RIGHT_GRIPPER_OBSERVATION_SOURCE:-unavailable}"
 
 if [[ -e "${DATASET_ROOT}" ]]; then
   echo "[timed/record_and_check_3] refusing to reuse existing dataset root: ${DATASET_ROOT}" >&2
@@ -41,6 +44,10 @@ echo "[timed/record_and_check_3] joint delta guards: initial=${MAX_INITIAL_JOINT
 echo "[timed/record_and_check_3] action follow threshold: best_lag_p95=${MAX_LAG_P95_RAD}rad"
 echo "[timed/record_and_check_3] source timing: required on every recorded frame" \
   "max_age=${MAX_TIMING_SOURCE_AGE_MS}ms max_skew=${MAX_TIMING_SOURCE_SKEW_MS}ms"
+echo "[timed/record_and_check_3] state advance: required per observation" \
+  "timeout_s=${STATE_ADVANCE_TIMEOUT_S}"
+echo "[timed/record_and_check_3] gripper observation sources:" \
+  "left=${LEFT_GRIPPER_OBSERVATION_SOURCE} right=${RIGHT_GRIPPER_OBSERVATION_SOURCE}"
 echo "[timed/record_and_check_3] start the pin joystick publisher before this command" \
   "and keep it publishing"
 
@@ -50,9 +57,14 @@ VIDEO=true \
 VCODEC="${VCODEC}" \
 VIDEO_CRF="${VIDEO_CRF}" \
 VIDEO_ENCODING_BATCH_SIZE=3 \
-RTSP_PRESET=jz_three_rtsp \
+ZMQ_PRESET=jz_three_zmq \
+RTSP_PRESET=none \
 TIMING_SIDECAR=true \
 REQUIRE_STATE_SOURCE_TIMING=true \
+REQUIRE_STATE_ADVANCE_PER_OBSERVATION=true \
+STATE_ADVANCE_TIMEOUT_S="${STATE_ADVANCE_TIMEOUT_S}" \
+LEFT_GRIPPER_OBSERVATION_SOURCE="${LEFT_GRIPPER_OBSERVATION_SOURCE}" \
+RIGHT_GRIPPER_OBSERVATION_SOURCE="${RIGHT_GRIPPER_OBSERVATION_SOURCE}" \
 MAX_INITIAL_JOINT_DELTA_RAD="${MAX_INITIAL_JOINT_DELTA_RAD}" \
 MAX_JOINT_STEP_RAD="${MAX_JOINT_STEP_RAD}" \
 TARGET_ACTION_CONNECT_TIMEOUT_S="${TARGET_ACTION_CONNECT_TIMEOUT_S:-5.0}" \
@@ -74,6 +86,7 @@ export PYTHONPATH="${REPO_ROOT}/src:${PYTHONPATH:-}"
 
 DATA_REPORT_JSON="${DATA_REPORT_JSON:-${DATASET_ROOT}/data_check_report.json}"
 TIMING_REPORT_JSON="${TIMING_REPORT_JSON:-${DATASET_ROOT}/timing_check_report.json}"
+PROJECTION_REPORT_JSON="${PROJECTION_REPORT_JSON:-${DATASET_ROOT}/training_projection_report.json}"
 
 echo "[timed/record_and_check_3] recording completed; validating data and timing sidecars"
 "${PYTHON_CMD[@]}" "${SCRIPT_DIR}/check_3_episodes.py" \
@@ -90,6 +103,9 @@ TIMING_CHECK_ARGS=(
   --expected-codec "${VCODEC}"
   --expected-crf "${VIDEO_CRF}"
   --expected-camera-fps "${RECORD_FPS}"
+  --expected-camera-source-fps 30
+  --min-camera-source-fps-ratio 0.9
+  --expected-camera-protocol jz_realsense_zmq
   --expected-command-mode "${EXECUTION}"
   --expected-command-transport "${SEND_ACTION_TRANSPORT}"
   --expected-action-key-count 18
@@ -108,5 +124,17 @@ if [[ -n "${MAX_TIMING_STATE_REUSE_FRACTION:-}" ]]; then
 fi
 "${PYTHON_CMD[@]}" "${SCRIPT_DIR}/check_timing.py" "${TIMING_CHECK_ARGS[@]}"
 
+PROJECTION_CHECK_ARGS=(
+  --dataset-root "${DATASET_ROOT}"
+  --manifest "${DATASET_ROOT}/meta/jz_pin_training_schema.json"
+  --report-json "${PROJECTION_REPORT_JSON}"
+)
+if [[ "${LEFT_GRIPPER_OBSERVATION_SOURCE}" == "unavailable" \
+  || "${RIGHT_GRIPPER_OBSERVATION_SOURCE}" == "unavailable" ]]; then
+  PROJECTION_CHECK_ARGS+=(--allow-unavailable)
+fi
+"${PYTHON_CMD[@]}" "${SCRIPT_DIR}/check_training_projection.py" "${PROJECTION_CHECK_ARGS[@]}"
+
 echo "[timed/record_and_check_3] PASS data_report=${DATA_REPORT_JSON}"
 echo "[timed/record_and_check_3] PASS timing_report=${TIMING_REPORT_JSON}"
+echo "[timed/record_and_check_3] projection_report=${PROJECTION_REPORT_JSON}"

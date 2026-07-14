@@ -38,6 +38,7 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         self._last_accepted_stamp_ns: int | None = None
         self._last_accepted_received_monotonic_s: float | None = None
         self._last_action_timing: dict[str, Any] | None = None
+        self._target_actions_inhibited = False
 
     @property
     def last_action_timing(self) -> dict[str, Any] | None:
@@ -45,6 +46,10 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
 
     @check_if_not_connected
     def get_action(self) -> RobotAction:
+        if self._target_actions_inhibited:
+            raise RuntimeError(
+                "JZRobot pin target actions are inhibited during episode reset; no cached action is returned"
+            )
         state = self._target_action_cache.latest()
         if state is None:
             raise TimeoutError("No JZRobot pin target action packet has been received")
@@ -73,6 +78,27 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
             **self._gripper_action(packet, LEFT),
             **self._gripper_action(packet, RIGHT),
         }
+
+    @property
+    def target_actions_inhibited(self) -> bool:
+        return self._target_actions_inhibited
+
+    def clear_target_action_queue(self) -> None:
+        self._target_action_cache.clear()
+        self._last_accepted_seq = None
+        self._last_accepted_stamp_ns = None
+        self._last_accepted_received_monotonic_s = None
+        self._last_action_timing = None
+
+    @check_if_not_connected
+    def inhibit_target_actions(self) -> None:
+        self._target_actions_inhibited = True
+        self.clear_target_action_queue()
+
+    @check_if_not_connected
+    def resume_target_actions(self) -> None:
+        self.clear_target_action_queue()
+        self._target_actions_inhibited = False
 
     def _validate_packet_freshness_and_order(self, state: CachedState) -> None:
         packet = state.packet
@@ -158,3 +184,4 @@ class JZRobotPinTargetActionTeleop(JZRobotUDPTargetActionTeleop):
         self._last_accepted_stamp_ns = None
         self._last_accepted_received_monotonic_s = None
         self._last_action_timing = None
+        self._target_actions_inhibited = False

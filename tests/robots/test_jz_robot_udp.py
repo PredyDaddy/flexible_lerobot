@@ -8,6 +8,7 @@ import math
 import os
 import socket
 import sys
+import threading
 import time
 import types
 from argparse import Namespace
@@ -37,6 +38,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
 )
 from lerobot.robots.jz_robot_udp.rtsp_camera import RTSPCamera, configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
+from lerobot.robots.jz_robot_udp.udp_client import UDPStateReceiver
 from lerobot.scripts.lerobot_record import _get_teleop_action
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
@@ -481,6 +483,45 @@ def test_state_cache_waits_for_latest_state() -> None:
     assert latest is not None
     assert latest.packet["seq"] == 1
     assert latest.sender == ("192.168.1.81", 39010)
+
+
+def test_state_cache_waits_for_strictly_newer_local_revision_across_packet_seq_reset() -> None:
+    cache = StateCache()
+    cache.update(sample_state_packet(seq=99), sender=("192.168.1.81", 39010))
+    first = cache.latest()
+    assert first is not None
+
+    timer = threading.Timer(
+        0.01,
+        lambda: cache.update(sample_state_packet(seq=1), sender=("192.168.1.81", 39010)),
+    )
+    timer.start()
+    try:
+        second = cache.wait_after_revision(timeout_s=0.2, after_revision=first.revision)
+    finally:
+        timer.join(timeout=1.0)
+
+    assert second is not None
+    assert second.revision == first.revision + 1
+    assert second.packet["seq"] == 1
+
+
+def test_udp_state_receiver_fails_fast_when_port_is_already_owned() -> None:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    first = UDPStateReceiver("127.0.0.1", port, StateCache())
+    second = UDPStateReceiver("127.0.0.1", port, StateCache())
+
+    first.start()
+    try:
+        with pytest.raises(OSError, match="another recorder, probe, or control process"):
+            second.start()
+        assert second._socket is None
+        assert first.is_running
+    finally:
+        first.stop()
 
 
 def test_jz_robot_udp_observation_features_match_jz_robot_style() -> None:
