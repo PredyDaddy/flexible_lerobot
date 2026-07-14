@@ -132,6 +132,11 @@ class FakeSocket:
         return len(payload)
 
 
+class FailingSocket:
+    def sendto(self, _payload: bytes, _target: tuple[str, int]) -> int:
+        raise OSError("simulated route failure")
+
+
 def _robot_config() -> SimpleNamespace:
     return SimpleNamespace(
         left_joint_names=["left_joint1", "left_joint2"],
@@ -637,6 +642,67 @@ def test_oversize_udp_payload_warns_but_is_still_sent(monkeypatch) -> None:
     assert any(
         "WARNING payload_bytes=1473 exceeds_common_ipv4_udp_payload=1472" in line for line in log_lines
     )
+
+
+def test_successful_state_send_emits_canonical_audit_event(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    clock = FakeClock()
+    collector = bridge.ReadonlyStateCollector(
+        _robot_config(), monotonic_ns=clock.monotonic_ns, wall_time_ns=clock.wall_time_ns
+    )
+    sock = FakeSocket(clock)
+    events = []
+    sender = _make_sender(
+        bridge,
+        collector,
+        sock,
+        monotonic_ns=clock.monotonic_ns,
+        audit_sink=lambda event_type, payload: events.append((event_type, payload)) or True,
+    )
+    _update_all_sources(collector, 1)
+
+    assert sender.attempt_send()
+
+    assert len(events) == 1
+    event_type, payload = events[0]
+    assert event_type == "state"
+    assert payload["packet"]["seq"] == 1
+    assert payload["packet"]["source_timing"]["schema_version"] == 1
+    assert payload["udp_target_ip"] == "127.0.0.1"
+    assert payload["udp_target_port"] == 39010
+    assert payload["encoded_bytes"] == len(sock.sent[0][1])
+    assert payload["local_record_monotonic_ns"] == clock.monotonic_ns()
+    assert "send_completed_monotonic_ns" not in payload
+
+
+def test_local_state_audit_commits_before_optional_x86_udp_delivery(monkeypatch) -> None:
+    bridge = _load_bridge_module(monkeypatch)
+    clock = FakeClock()
+    collector = bridge.ReadonlyStateCollector(
+        _robot_config(), monotonic_ns=clock.monotonic_ns, wall_time_ns=clock.wall_time_ns
+    )
+    events = []
+    logs = []
+    sender = _make_sender(
+        bridge,
+        collector,
+        FailingSocket(),
+        monotonic_ns=clock.monotonic_ns,
+        audit_sink=lambda event_type, payload: events.append((event_type, payload)) or True,
+        printer=lambda message, **_kwargs: logs.append(message),
+    )
+    _update_all_sources(collector, 1)
+
+    assert sender.attempt_send()
+
+    assert len(events) == 1
+    assert events[0][0] == "state"
+    assert events[0][1]["packet"]["seq"] == 1
+    assert sender.counters.recorded == 1
+    assert sender.counters.sent == 0
+    assert sender.counters.network_errors == 1
+    assert sender.last_sent_generations == dict.fromkeys(bridge.SOURCE_NAMES, 1)
+    assert any("local_recorded seq=1 udp_delivery_failed=OSError" in line for line in logs)
 
 
 def test_source_process_manager_shutdown_joins_workers_and_collector_thread(monkeypatch) -> None:

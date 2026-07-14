@@ -24,6 +24,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
     COMMAND_MODE_ARMED,
     COMMAND_MODE_DRY_RUN,
     PROTOCOL_VERSION,
+    ProtocolError,
     STATE_MESSAGE_TYPE,
     TARGET_ACTION_MESSAGE_TYPE,
     decode_jz_robot_udp_command_packet,
@@ -38,7 +39,7 @@ from lerobot.robots.jz_robot_udp.protocol import (
 )
 from lerobot.robots.jz_robot_udp.rtsp_camera import RTSPCamera, configure_opencv_rtsp_environment
 from lerobot.robots.jz_robot_udp.state_cache import StateCache
-from lerobot.robots.jz_robot_udp.udp_client import UDPStateReceiver
+from lerobot.robots.jz_robot_udp.udp_client import UDPStateReceiver, UDPTargetActionReceiver
 from lerobot.scripts.lerobot_record import _get_teleop_action
 from lerobot.teleoperators.config import TeleoperatorConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
@@ -123,6 +124,23 @@ def sample_target_action_packet(seq: int = 8) -> dict:
         stamp_ns=987654321,
         actions=sample_command_actions(),
     )
+
+
+def sample_command_packet(seq: int = 1) -> dict:
+    return make_jz_robot_udp_command_packet(
+        robot="robot1",
+        seq=seq,
+        stamp_ns=123,
+        mode=COMMAND_MODE_DRY_RUN,
+        actions=sample_command_actions(),
+    )
+
+
+STRICT_DECODER_CASES = (
+    ("state", decode_state_packet, sample_state_packet),
+    ("command", decode_jz_robot_udp_command_packet, sample_command_packet),
+    ("target_action", decode_target_action_packet, sample_target_action_packet),
+)
 
 
 def make_config(**overrides) -> JZRobotUDPConfig:
@@ -261,6 +279,166 @@ def test_state_packet_round_trip_validates_schema() -> None:
     assert decoded["joints"]["left"]["left_joint1"] == 1.0
     assert decoded["grippers"]["right"]["force"] == 2.0
     assert "source_timing" not in decoded
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+@pytest.mark.parametrize("version", [True, False, 1.0])
+def test_external_packet_decoders_require_integer_protocol_version(
+    _name: str, decoder, packet_factory, version
+) -> None:
+    packet = packet_factory()
+    packet["version"] = version
+
+    with pytest.raises(ProtocolError, match="version must be integer 1"):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+@pytest.mark.parametrize("field", ["seq", "stamp_ns"])
+def test_external_packet_decoders_reject_bool_integer_fields(
+    _name: str, decoder, packet_factory, field: str
+) -> None:
+    packet = packet_factory()
+    packet[field] = True
+
+    with pytest.raises(ProtocolError, match=field):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+@pytest.mark.parametrize("field", ["seq", "stamp_ns"])
+def test_external_packet_decoders_reject_negative_sequence_and_time_fields(
+    _name: str, decoder, packet_factory, field: str
+) -> None:
+    packet = packet_factory()
+    packet[field] = -1
+
+    with pytest.raises(ProtocolError, match=f"{field} must be a non-negative integer"):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+@pytest.mark.parametrize("constant", [math.nan, math.inf, -math.inf])
+def test_external_packet_decoders_reject_nonstandard_nonfinite_json_constants(
+    _name: str, decoder, packet_factory, constant: float
+) -> None:
+    packet = packet_factory()
+    packet["seq"] = constant
+
+    with pytest.raises(ProtocolError, match="non-standard JSON constant is forbidden"):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+def test_external_packet_decoders_reject_duplicate_root_keys(
+    _name: str, decoder, packet_factory
+) -> None:
+    payload = json.dumps(packet_factory(), separators=(",", ":"))
+    payload = payload.replace('"version":1', '"version":1,"version":1', 1)
+
+    with pytest.raises(ProtocolError, match="duplicate key: 'version'"):
+        decoder(payload.encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+def test_external_packet_decoders_reject_duplicate_nested_keys(
+    _name: str, decoder, packet_factory
+) -> None:
+    payload = json.dumps(packet_factory(), separators=(",", ":"))
+    payload = payload.replace('"width":0.01', '"width":0.01,"width":0.02', 1)
+
+    with pytest.raises(ProtocolError, match="duplicate key: 'width'"):
+        decoder(payload.encode("utf-8"))
+
+
+@pytest.mark.parametrize(("_name", "decoder", "packet_factory"), STRICT_DECODER_CASES)
+def test_external_packet_decoders_reject_extra_top_level_fields(
+    _name: str, decoder, packet_factory
+) -> None:
+    packet = packet_factory()
+    packet["unexpected"] = 1
+
+    with pytest.raises(ProtocolError, match="extra=.*unexpected"):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (lambda packet: packet["joints"].__setitem__("middle", {}), "state packet joints.*extra=.*middle"),
+        (
+            lambda packet: packet["grippers"].__setitem__(
+                "middle", {"width": 0.0, "force": 0.0}
+            ),
+            "state packet grippers.*extra=.*middle",
+        ),
+        (
+            lambda packet: packet["grippers"]["left"].__setitem__("temperature", 20.0),
+            "state packet grippers.left.*extra=.*temperature",
+        ),
+    ],
+)
+def test_external_state_decoder_rejects_extra_structural_fields(mutation, match: str) -> None:
+    packet = sample_state_packet()
+    mutation(packet)
+
+    with pytest.raises(ProtocolError, match=match):
+        decode_state_packet(json.dumps(packet).encode("utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("decoder", "packet_factory"),
+    [
+        (decode_jz_robot_udp_command_packet, sample_command_packet),
+        (decode_target_action_packet, sample_target_action_packet),
+    ],
+)
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (lambda packet: packet["actions"].__setitem__("middle", {}), "extra=.*middle"),
+        (
+            lambda packet: packet["actions"]["grippers"]["left"].__setitem__("velocity", 0.1),
+            "extra=.*velocity",
+        ),
+    ],
+)
+def test_external_action_decoders_reject_extra_structural_fields(
+    decoder, packet_factory, mutation, match: str
+) -> None:
+    packet = packet_factory()
+    mutation(packet)
+
+    with pytest.raises(ProtocolError, match=match):
+        decoder(json.dumps(packet).encode("utf-8"))
+
+
+class _OneShotPacketSocket:
+    def __init__(self, receiver: UDPStateReceiver, payload: bytes):
+        self.receiver = receiver
+        self.payload = payload
+
+    def recvfrom(self, _buffer_size: int) -> tuple[bytes, tuple[str, int]]:
+        self.receiver._stop_event.set()
+        return self.payload, ("127.0.0.1", 39010)
+
+
+@pytest.mark.parametrize("target_action", [False, True])
+def test_udp_receivers_do_not_cache_packets_rejected_by_strict_decoder(target_action: bool) -> None:
+    cache = StateCache()
+    receiver = (
+        UDPTargetActionReceiver("127.0.0.1", 0, cache)
+        if target_action
+        else UDPStateReceiver("127.0.0.1", 0, cache)
+    )
+    packet = sample_target_action_packet() if target_action else sample_state_packet()
+    payload = json.dumps(packet, separators=(",", ":"))
+    payload = payload.replace('"version":1', '"version":1,"version":1', 1).encode("utf-8")
+    receiver._socket = _OneShotPacketSocket(receiver, payload)
+
+    receiver._run()
+
+    assert cache.latest() is None
 
 
 def test_state_packet_source_timing_round_trip_is_additive() -> None:

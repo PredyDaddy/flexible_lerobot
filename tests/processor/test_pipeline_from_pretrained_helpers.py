@@ -257,3 +257,46 @@ def test_simplified_three_way_loading():
         )
         assert loaded_config["name"] == "DirectoryTest"
         assert base_path == tmp_path
+
+
+def test_missing_local_processor_state_never_falls_back_to_hub(tmp_path, monkeypatch):
+    class StatefulStep:
+        def load_state_dict(self, _state):
+            raise AssertionError("missing local state must fail before loading")
+
+    monkeypatch.setattr(
+        "lerobot.processor.pipeline.hf_hub_download",
+        lambda **_kwargs: pytest.fail("local checkpoint attempted a Hub download"),
+    )
+    with pytest.raises(FileNotFoundError, match="missing from local checkpoint"):
+        DataProcessorPipeline._load_step_state(
+            StatefulStep(),
+            {"state_file": "normalize.safetensors"},
+            str(tmp_path),
+            tmp_path,
+            {"local_files_only": False},
+        )
+
+
+def test_hub_processor_state_can_download_after_config_cache_hit(tmp_path, monkeypatch):
+    state_path = tmp_path / "downloaded.safetensors"
+    state_path.write_bytes(b"placeholder")
+    loaded = []
+
+    class StatefulStep:
+        def load_state_dict(self, state):
+            loaded.append(state)
+
+    monkeypatch.setattr(
+        "lerobot.processor.pipeline.hf_hub_download",
+        lambda **_kwargs: str(state_path),
+    )
+    monkeypatch.setattr("lerobot.processor.pipeline.load_file", lambda _path: {"mean": 1})
+    DataProcessorPipeline._load_step_state(
+        StatefulStep(),
+        {"state_file": "normalize.safetensors"},
+        "organization/model",
+        tmp_path,
+        {"local_files_only": False},
+    )
+    assert loaded == [{"mean": 1}]

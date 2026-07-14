@@ -19,9 +19,56 @@ COMMAND_GRIPPER_FIELDS = ("width", "force")
 STATE_SOURCE_NAMES = ("left_joints", "right_joints", "left_gripper", "right_gripper")
 SOURCE_TIMING_SCHEMA_VERSION = 1
 
+_STATE_REQUIRED_KEYS = {"version", "type", "robot", "seq", "stamp_ns", "joints", "grippers"}
+_STATE_OPTIONAL_KEYS = {"source_timing"}
+_COMMAND_KEYS = {"version", "type", "robot", "seq", "stamp_ns", "mode", "actions"}
+_TARGET_ACTION_KEYS = {"version", "type", "robot", "seq", "stamp_ns", "actions"}
+_SIDES = {"left", "right"}
+_GRIPPER_FIELDS = {"width", "force"}
+
 
 class ProtocolError(ValueError):
-    """Raised when a UDP packet does not match the readonly JZRobot state schema."""
+    """Raised when a UDP packet does not match a JZRobot UDP schema."""
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ProtocolError(f"JSON object contains duplicate key: {key!r}")
+        value[key] = item
+    return value
+
+
+def _reject_nonfinite_json_constant(value: str) -> Any:
+    raise ProtocolError(f"non-standard JSON constant is forbidden: {value}")
+
+
+def _decode_json_packet(data: bytes, packet_name: str) -> Any:
+    if not isinstance(data, bytes):
+        raise ProtocolError(f"{packet_name} packet data must be bytes")
+    try:
+        return json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_nonfinite_json_constant,
+        )
+    except ProtocolError:
+        raise
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
+        raise ProtocolError(f"failed to decode {packet_name} packet as strict JSON: {exc}") from exc
+
+
+def _validate_exact_keys(value: dict[str, Any], expected: set[str], name: str) -> None:
+    if set(value) != expected:
+        extra = sorted(set(value) - expected)
+        missing = sorted(expected - set(value))
+        raise ProtocolError(f"{name} keys mismatch: missing={missing}, extra={extra}")
+
+
+def _validate_protocol_version(value: Any, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value != PROTOCOL_VERSION:
+        raise ProtocolError(f"{name} version must be integer {PROTOCOL_VERSION}")
 
 
 def encode_state_packet(packet: dict[str, Any]) -> bytes:
@@ -30,10 +77,7 @@ def encode_state_packet(packet: dict[str, Any]) -> bytes:
 
 
 def decode_state_packet(data: bytes) -> dict[str, Any]:
-    try:
-        packet = json.loads(data.decode("utf-8"))
-    except Exception as exc:
-        raise ProtocolError(f"failed to decode state packet as JSON: {exc}") from exc
+    packet = _decode_json_packet(data, "state")
     validate_state_packet(packet)
     return packet
 
@@ -84,10 +128,7 @@ def encode_jz_robot_udp_command_packet(packet: dict[str, Any]) -> bytes:
 
 
 def decode_jz_robot_udp_command_packet(data: bytes) -> dict[str, Any]:
-    try:
-        packet = json.loads(data.decode("utf-8"))
-    except Exception as exc:
-        raise ProtocolError(f"failed to decode command packet as JSON: {exc}") from exc
+    packet = _decode_json_packet(data, "command")
     validate_jz_robot_udp_command_packet(packet)
     return packet
 
@@ -98,10 +139,7 @@ def encode_target_action_packet(packet: dict[str, Any]) -> bytes:
 
 
 def decode_target_action_packet(data: bytes) -> dict[str, Any]:
-    try:
-        packet = json.loads(data.decode("utf-8"))
-    except Exception as exc:
-        raise ProtocolError(f"failed to decode target action packet as JSON: {exc}") from exc
+    packet = _decode_json_packet(data, "target action")
     validate_target_action_packet(packet)
     return packet
 
@@ -109,37 +147,37 @@ def decode_target_action_packet(data: bytes) -> dict[str, Any]:
 def validate_state_packet(packet: Any) -> None:
     if not isinstance(packet, dict):
         raise ProtocolError("state packet must be a JSON object")
-    if packet.get("version") != PROTOCOL_VERSION:
-        raise ProtocolError(f"unsupported protocol version: {packet.get('version')}")
+    keys = set(packet)
+    missing = sorted(_STATE_REQUIRED_KEYS - keys)
+    extra = sorted(keys - (_STATE_REQUIRED_KEYS | _STATE_OPTIONAL_KEYS))
+    if missing or extra:
+        raise ProtocolError(f"state packet keys mismatch: missing={missing}, extra={extra}")
+    _validate_protocol_version(packet.get("version"), "state packet")
     if packet.get("type") != STATE_MESSAGE_TYPE:
         raise ProtocolError(f"unsupported message type: {packet.get('type')}")
     if not isinstance(packet.get("robot"), str) or not packet["robot"]:
         raise ProtocolError("state packet robot must be a non-empty string")
-    if isinstance(packet.get("seq"), bool) or not isinstance(packet.get("seq"), int):
-        raise ProtocolError("state packet seq must be an integer")
-    if isinstance(packet.get("stamp_ns"), bool) or not isinstance(packet.get("stamp_ns"), int):
-        raise ProtocolError("state packet stamp_ns must be an integer")
+    _validate_nonnegative_integer(packet.get("seq"), "state packet seq")
+    _validate_nonnegative_integer(packet.get("stamp_ns"), "state packet stamp_ns")
 
     joints = packet.get("joints")
     if not isinstance(joints, dict):
         raise ProtocolError("state packet joints must be an object")
+    _validate_exact_keys(joints, _SIDES, "state packet joints")
     for side in ("left", "right"):
         if not isinstance(joints.get(side), dict):
             raise ProtocolError(f"state packet joints.{side} must be an object")
         _validate_number_map(joints[side], f"joints.{side}")
 
-    grippers = packet.get("grippers", {})
-    if grippers is None:
-        raise ProtocolError("state packet grippers must be an object")
+    grippers = packet.get("grippers")
     if not isinstance(grippers, dict):
         raise ProtocolError("state packet grippers must be an object")
+    _validate_exact_keys(grippers, _SIDES, "state packet grippers")
     for side in ("left", "right"):
         if not isinstance(grippers.get(side), dict):
             raise ProtocolError(f"state packet grippers.{side} must be an object")
+        _validate_exact_keys(grippers[side], _GRIPPER_FIELDS, f"state packet grippers.{side}")
         _validate_number_map(grippers[side], f"grippers.{side}")
-        for field in ("width", "force"):
-            if field not in grippers[side]:
-                raise ProtocolError(f"state packet grippers.{side}.{field} is required")
 
     if "source_timing" in packet:
         validate_source_timing(packet["source_timing"])
@@ -148,20 +186,14 @@ def validate_state_packet(packet: Any) -> None:
 def validate_jz_robot_udp_command_packet(packet: Any) -> None:
     if not isinstance(packet, dict):
         raise ProtocolError("command packet must be a JSON object")
-    if set(packet) != {"version", "type", "robot", "seq", "stamp_ns", "mode", "actions"}:
-        extra = sorted(set(packet) - {"version", "type", "robot", "seq", "stamp_ns", "mode", "actions"})
-        missing = sorted({"version", "type", "robot", "seq", "stamp_ns", "mode", "actions"} - set(packet))
-        raise ProtocolError(f"command packet keys mismatch: missing={missing}, extra={extra}")
-    if packet.get("version") != PROTOCOL_VERSION:
-        raise ProtocolError(f"unsupported command protocol version: {packet.get('version')}")
+    _validate_exact_keys(packet, _COMMAND_KEYS, "command packet")
+    _validate_protocol_version(packet.get("version"), "command packet")
     if packet.get("type") != COMMAND_MESSAGE_TYPE:
         raise ProtocolError(f"unsupported command message type: {packet.get('type')}")
     if not isinstance(packet.get("robot"), str) or not packet["robot"]:
         raise ProtocolError("command packet robot must be a non-empty string")
-    if isinstance(packet.get("seq"), bool) or not isinstance(packet.get("seq"), int):
-        raise ProtocolError("command packet seq must be an integer")
-    if isinstance(packet.get("stamp_ns"), bool) or not isinstance(packet.get("stamp_ns"), int):
-        raise ProtocolError("command packet stamp_ns must be an integer")
+    _validate_nonnegative_integer(packet.get("seq"), "command packet seq")
+    _validate_nonnegative_integer(packet.get("stamp_ns"), "command packet stamp_ns")
     if packet.get("mode") not in COMMAND_MODES:
         raise ProtocolError(f"command packet mode must be one of {COMMAND_MODES}")
 
@@ -171,20 +203,14 @@ def validate_jz_robot_udp_command_packet(packet: Any) -> None:
 def validate_target_action_packet(packet: Any) -> None:
     if not isinstance(packet, dict):
         raise ProtocolError("target action packet must be a JSON object")
-    if set(packet) != {"version", "type", "robot", "seq", "stamp_ns", "actions"}:
-        extra = sorted(set(packet) - {"version", "type", "robot", "seq", "stamp_ns", "actions"})
-        missing = sorted({"version", "type", "robot", "seq", "stamp_ns", "actions"} - set(packet))
-        raise ProtocolError(f"target action packet keys mismatch: missing={missing}, extra={extra}")
-    if packet.get("version") != PROTOCOL_VERSION:
-        raise ProtocolError(f"unsupported target action protocol version: {packet.get('version')}")
+    _validate_exact_keys(packet, _TARGET_ACTION_KEYS, "target action packet")
+    _validate_protocol_version(packet.get("version"), "target action packet")
     if packet.get("type") != TARGET_ACTION_MESSAGE_TYPE:
         raise ProtocolError(f"unsupported target action message type: {packet.get('type')}")
     if not isinstance(packet.get("robot"), str) or not packet["robot"]:
         raise ProtocolError("target action packet robot must be a non-empty string")
-    if isinstance(packet.get("seq"), bool) or not isinstance(packet.get("seq"), int):
-        raise ProtocolError("target action packet seq must be an integer")
-    if isinstance(packet.get("stamp_ns"), bool) or not isinstance(packet.get("stamp_ns"), int):
-        raise ProtocolError("target action packet stamp_ns must be an integer")
+    _validate_nonnegative_integer(packet.get("seq"), "target action packet seq")
+    _validate_nonnegative_integer(packet.get("stamp_ns"), "target action packet stamp_ns")
 
     _validate_actions_object(packet.get("actions"), "target action packet actions")
 
@@ -227,7 +253,11 @@ def _validate_number_map(values: dict[str, Any], name: str) -> None:
             raise ProtocolError(f"{name} keys must be non-empty strings")
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise ProtocolError(f"{name}.{key} must be numeric")
-        if not math.isfinite(float(value)):
+        try:
+            finite = math.isfinite(float(value))
+        except OverflowError:
+            finite = False
+        if not finite:
             raise ProtocolError(f"{name}.{key} must be finite")
 
 
@@ -306,5 +336,9 @@ def _validate_nonnegative_integer(value: Any, name: str) -> None:
 def _validate_nonnegative_number(value: Any, name: str) -> None:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ProtocolError(f"{name} must be numeric")
-    if not math.isfinite(float(value)) or value < 0:
+    try:
+        finite = math.isfinite(float(value))
+    except OverflowError:
+        finite = False
+    if not finite or value < 0:
         raise ProtocolError(f"{name} must be finite and non-negative")

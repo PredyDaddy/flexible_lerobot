@@ -212,3 +212,8 @@ tests/cqy/*
 my_devs/my_var_tp
 
 my_devs/train
+
+# Local runtime identities created by the legacy Orin arm wrappers.
+udp_test/server_bash/orin_arm/pids/
+
+my_devs/orin_session

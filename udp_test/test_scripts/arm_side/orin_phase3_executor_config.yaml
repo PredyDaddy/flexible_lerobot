@@ -12,6 +12,20 @@ topics:
   right_arm_command_topic: "/robot1/telecon/arm_right/joint_commands_input"
   left_gripper_command_topic: "/robot1/left_gripper/gripper_commands"
   right_gripper_command_topic: "/robot1/right_gripper/gripper_commands"
+  left_joint_state_topic: "/robot1/arm_left/joint_states"
+  right_joint_state_topic: "/robot1/arm_right/joint_states"
+  left_gripper_state_topic: "/robot1/left_gripper/gripper_status"
+  right_gripper_state_topic: "/robot1/right_gripper/gripper_status"
+
+# Armed startup waits for all four sources. Every publish then rechecks freshness,
+# cross-source skew, current-vs-approved tracking error, and command-vs-live delta.
+live_state:
+  startup_timeout_s: 15.0
+  max_age_s: TODO_MAX_STATE_AGE_S
+  max_skew_s: TODO_MAX_STATE_SKEW_S
+  max_joint_tracking_error_rad: TODO_TRACKING_ERROR_RAD
+  max_gripper_width_tracking_error: TODO_TRACKING_ERROR
+  max_gripper_force_tracking_error: TODO_TRACKING_ERROR
 
 left_joint_names:
   - "left_joint1"

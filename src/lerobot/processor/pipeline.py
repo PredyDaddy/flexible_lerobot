@@ -969,8 +969,14 @@ class DataProcessorPipeline(HubMixin, Generic[TInput, TOutput]):
         state_filename = step_entry["state_file"]
 
         # Try local file first
-        if base_path and (base_path / state_filename).exists():
+        if base_path and (base_path / state_filename).is_file():
             state_path = str(base_path / state_filename)
+        elif Path(model_id).is_dir() or Path(model_id).is_file() or hub_download_kwargs.get(
+            "local_files_only"
+        ) is True:
+            raise FileNotFoundError(
+                f"Processor state file '{state_filename}' is missing from local checkpoint '{model_id}'"
+            )
         else:
             # Download from Hub
             state_path = hf_hub_download(

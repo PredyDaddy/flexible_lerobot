@@ -272,6 +272,7 @@ def make_pre_post_processors(
                 overrides=kwargs.get("preprocessor_overrides", {}),
                 to_transition=batch_to_transition,
                 to_output=transition_to_batch,
+                local_files_only=kwargs.get("local_files_only", False),
             ),
             PolicyProcessorPipeline.from_pretrained(
                 pretrained_model_name_or_path=pretrained_path,
@@ -281,6 +282,7 @@ def make_pre_post_processors(
                 overrides=kwargs.get("postprocessor_overrides", {}),
                 to_transition=policy_action_to_transition,
                 to_output=transition_to_policy_action,
+                local_files_only=kwargs.get("local_files_only", False),
             ),
         )
 

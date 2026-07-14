@@ -15,6 +15,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from multiprocessing.connection import wait as wait_for_connections
 from pathlib import Path
@@ -37,6 +38,8 @@ from std_msgs.msg import Float64MultiArray
 
 from lerobot.robots.jz_robot_udp.protocol import PROTOCOL_VERSION, STATE_MESSAGE_TYPE, encode_state_packet
 from my_devs.jz_robot.common import DEFAULT_ROBOT_CONFIG, load_robot_config
+from my_devs.orin_session.orin.event_transport import UnixEventClient, runtime_event_gate
+from my_devs.orin_session.orin.readiness import publish_ready, remove_ready
 
 LEFT = "left"
 RIGHT = "right"
@@ -386,7 +389,9 @@ class ReadonlyStateCollector:
 @dataclass
 class SenderCounters:
     attempted: int = 0
+    recorded: int = 0
     sent: int = 0
+    network_errors: int = 0
     skipped_total: int = 0
     skipped_not_ready: int = 0
     skipped_stale: int = 0
@@ -422,6 +427,8 @@ class StateUdpSender:
         monotonic_ns: Callable[[], int] = time.monotonic_ns,
         wall_time_ns: Callable[[], int] = time.time_ns,
         process_id: int | None = None,
+        audit_sink: Callable[[str, dict[str, Any]], bool] | None = None,
+        event_gate_path: str | Path | None = None,
     ):
         self.collector = collector
         self.sock = sock
@@ -436,6 +443,8 @@ class StateUdpSender:
         self._monotonic_ns = monotonic_ns
         self._wall_time_ns = wall_time_ns
         self.process_id = os.getpid() if process_id is None else process_id
+        self.audit_sink = audit_sink
+        self.event_gate_path = Path(event_gate_path) if event_gate_path is not None else None
         self.counters = SenderCounters()
         self.last_sent_generations = dict.fromkeys(SOURCE_NAMES, 0)
         self.last_sent_joint_header_stamps: dict[str, int] = {}
@@ -468,6 +477,8 @@ class StateUdpSender:
         return (
             f"configured_hz={self.formatted_hz} measured_send_hz={measured_text} "
             f"rate_window_packets={len(self._successful_send_times_ns)} "
+            f"local_recorded={self.counters.recorded} udp_sent={self.counters.sent} "
+            f"udp_network_errors={self.counters.network_errors} "
             f"update_counts={json.dumps(snapshot.generations, sort_keys=True, separators=(',', ':'))} "
             f"progress_modes={json.dumps(snapshot.progress_modes, sort_keys=True, separators=(',', ':'))} "
             f"source_age_ms={json.dumps(ages, sort_keys=True, separators=(',', ':'))} "
@@ -494,51 +505,84 @@ class StateUdpSender:
 
     def attempt_send(self) -> bool:
         self.counters.attempted += 1
-        next_seq = self.counters.sent + 1
-        snapshot = self.collector.snapshot(
-            seq=next_seq,
-            robot_name=self.robot_name,
-            max_source_age_ms=self.max_source_age_ms,
-            max_source_skew_ms=self.max_source_skew_ms,
-            require_all_sources_advanced=self.require_all_sources_advanced,
-            last_sent_generations=self.last_sent_generations,
-            last_sent_joint_header_stamps=self.last_sent_joint_header_stamps,
+        next_seq = self.counters.recorded + 1
+        gate = (
+            runtime_event_gate(self.event_gate_path)
+            if self.event_gate_path is not None
+            else nullcontext()
         )
-        if snapshot.skip_reasons:
-            self._record_skip(snapshot.skip_reasons)
-            skip_signature = (
-                snapshot.skip_reasons,
-                snapshot.stale_sources,
-                snapshot.not_advanced_sources,
-                snapshot.skew_sources,
+        with gate:
+            snapshot = self.collector.snapshot(
+                seq=next_seq,
+                robot_name=self.robot_name,
+                max_source_age_ms=self.max_source_age_ms,
+                max_source_skew_ms=self.max_source_skew_ms,
+                require_all_sources_advanced=self.require_all_sources_advanced,
+                last_sent_generations=self.last_sent_generations,
+                last_sent_joint_header_stamps=self.last_sent_joint_header_stamps,
             )
-            if self.counters.consecutive_skips == 1 or skip_signature != self._last_skip_signature or (
-                self.print_every > 0 and self.counters.attempted % self.print_every == 0
-            ):
+            if snapshot.skip_reasons:
+                self._record_skip(snapshot.skip_reasons)
+                skip_signature = (
+                    snapshot.skip_reasons,
+                    snapshot.stale_sources,
+                    snapshot.not_advanced_sources,
+                    snapshot.skew_sources,
+                )
+                if self.counters.consecutive_skips == 1 or skip_signature != self._last_skip_signature or (
+                    self.print_every > 0 and self.counters.attempted % self.print_every == 0
+                ):
+                    self.printer(
+                        "[orin ros state udp bridge] "
+                        f"skip reasons={','.join(snapshot.skip_reasons)} {self._metrics_text(snapshot)}",
+                        flush=True,
+                    )
+                self._last_skip_signature = skip_signature
+                return False
+
+            assert snapshot.packet is not None and snapshot.source_timing is not None
+            payload = encode_state_packet(snapshot.packet)
+            if len(payload) > COMMON_IPV4_UDP_PAYLOAD_BYTES:
                 self.printer(
-                    "[orin ros state udp bridge] "
-                    f"skip reasons={','.join(snapshot.skip_reasons)} {self._metrics_text(snapshot)}",
+                    "[orin ros state udp bridge] WARNING "
+                    f"payload_bytes={len(payload)} exceeds_common_ipv4_udp_payload="
+                    f"{COMMON_IPV4_UDP_PAYLOAD_BYTES} seq={next_seq}",
                     flush=True,
                 )
-            self._last_skip_signature = skip_signature
-            return False
-
-        assert snapshot.packet is not None and snapshot.source_timing is not None
-        payload = encode_state_packet(snapshot.packet)
-        if len(payload) > COMMON_IPV4_UDP_PAYLOAD_BYTES:
+            if self.audit_sink is not None:
+                local_record_wall_ns = self._wall_time_ns()
+                local_record_monotonic_ns = self._monotonic_ns()
+                self.audit_sink(
+                    "state",
+                    {
+                        "packet": snapshot.packet,
+                        "udp_target_ip": self.target[0],
+                        "udp_target_port": self.target[1],
+                        "encoded_bytes": len(payload),
+                        "local_record_wall_ns": local_record_wall_ns,
+                        "local_record_monotonic_ns": local_record_monotonic_ns,
+                    },
+                )
+            self.counters.recorded += 1
+            self.last_sent_generations = snapshot.generations.copy()
+            for name, stamp in snapshot.joint_header_stamps.items():
+                if stamp is not None and stamp > 0:
+                    self.last_sent_joint_header_stamps[name] = stamp
+        try:
+            self.sock.sendto(payload, self.target)
+        except OSError as exc:
+            self.counters.network_errors += 1
             self.printer(
                 "[orin ros state udp bridge] WARNING "
-                f"payload_bytes={len(payload)} exceeds_common_ipv4_udp_payload="
-                f"{COMMON_IPV4_UDP_PAYLOAD_BYTES} seq={next_seq}",
+                f"local_recorded seq={next_seq} udp_delivery_failed={type(exc).__name__}: {exc}",
                 flush=True,
             )
-        self.sock.sendto(payload, self.target)
-        self._successful_send_times_ns.append(self._monotonic_ns())
+            if self.audit_sink is None:
+                raise
+            return True
+        send_completed_monotonic_ns = self._monotonic_ns()
+        self._successful_send_times_ns.append(send_completed_monotonic_ns)
         self.counters.sent += 1
-        self.last_sent_generations = snapshot.generations.copy()
-        for name, stamp in snapshot.joint_header_stamps.items():
-            if stamp is not None and stamp > 0:
-                self.last_sent_joint_header_stamps[name] = stamp
         recovered_after_skips = self.counters.consecutive_skips
         if (
             self.counters.sent == 1
@@ -547,7 +591,7 @@ class StateUdpSender:
         ):
             self.printer(
                 "[orin ros state udp bridge] "
-                f"sent seq={self.counters.sent} bytes={len(payload)} "
+                f"sent seq={next_seq} bytes={len(payload)} "
                 f"recovered_after_skips={recovered_after_skips} {self._metrics_text(snapshot)}",
                 flush=True,
             )
@@ -577,7 +621,7 @@ class StateUdpSender:
     ) -> None:
         start_ns = monotonic_ns()
         tick_index = 0
-        while not should_stop() and (count <= 0 or self.counters.sent < count):
+        while not should_stop() and (count <= 0 or self.counters.recorded < count):
             if health_check is not None:
                 health_check()
             next_tick_ns = start_ns + round(tick_index * NSEC_PER_SEC / self.hz)
@@ -806,6 +850,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-source-age-ms", type=_nonnegative_float, default=50.0)
     parser.add_argument("--max-source-skew-ms", type=_nonnegative_float, default=20.0)
     parser.add_argument(
+        "--audit-socket",
+        default=None,
+        help="Optional Orin Session Unix event socket. Delivery is required when configured.",
+    )
+    parser.add_argument(
+        "--ready-file",
+        default=None,
+        help="Optional atomic marker written only after all four State sources are ready.",
+    )
+    parser.add_argument("--event-gate-file")
+    parser.add_argument(
         "--require-all-sources-advanced",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -885,6 +940,21 @@ def main() -> int:
             require_all_sources_advanced=args.require_all_sources_advanced,
             print_every=args.print_every,
             monotonic_ns=time.monotonic_ns,
+            audit_sink=(
+                UnixEventClient(args.audit_socket, required=True).emit if args.audit_socket else None
+            ),
+            event_gate_path=args.event_gate_file,
+        )
+        publish_ready(
+            args.ready_file,
+            role="state_bridge",
+            details={
+                "target_ip": args.target_ip,
+                "target_port": args.target_port,
+                "hz": args.hz,
+                "source_count": len(SOURCE_NAMES),
+                "read_only": True,
+            },
         )
         sender.run(
             should_stop=lambda: STOP_REQUESTED,
@@ -895,6 +965,7 @@ def main() -> int:
             source_processes.raise_if_failed()
         return 0
     finally:
+        remove_ready(args.ready_file)
         if sock is not None:
             sock.close()
         source_processes.stop()
