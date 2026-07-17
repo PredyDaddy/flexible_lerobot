@@ -69,6 +69,7 @@ def build_robot_config(
     camera_stale_frame_timeout_ms: int = 1000,
     max_camera_state_receive_skew_ms: float = 100.0,
     state_advance_timeout_s: float = 0.1,
+    disable_joint_delta_checks: bool = False,
     calibration_dir: str | Path = DEFAULT_CALIBRATION_DIR,
 ) -> JZRobotPinTimedConfig:
     """Build the audited JZ PI0.5 live boundary without connecting it."""
@@ -92,8 +93,9 @@ def build_robot_config(
         send_action_execution=execution,
         require_armed_env=True,
         armed_env_var="JZ_ROBOT_PIN_ARMED",
-        max_initial_joint_delta_rad=0.02,
-        max_joint_step_rad=0.02,
+        max_initial_joint_delta_rad=0.0 if disable_joint_delta_checks else 0.02,
+        max_joint_step_rad=0.0 if disable_joint_delta_checks else 0.02,
+        allow_armed_joint_delta_bypass=disable_joint_delta_checks,
         gripper_width_min=0.0,
         gripper_width_max=100.0,
         gripper_force_min=0.0,

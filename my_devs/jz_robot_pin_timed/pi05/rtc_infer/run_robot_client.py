@@ -29,6 +29,7 @@ if REPO_ROOT.as_posix() not in sys.path:
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.client_runtime import (  # noqa: E402
     ClientRuntimeConfig,
     run_client_runtime,
+    run_inference_smoke,
 )
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.protocol import (  # noqa: E402
     PROTOCOL_VERSION,
@@ -69,6 +70,12 @@ EXPECTED_CAMERA_SHAPES = {
     "observation.images.camera_left": (3, 480, 640),
     "observation.images.camera_right": (3, 480, 640),
 }
+INTERMEDIATE_010470_CONFIRM_ENV = "JZ_PI05_INTERMEDIATE_010470_CONFIRMED"
+INTERMEDIATE_010470_CHECKPOINT_STEP = 10470
+INTERMEDIATE_010470_CONFIGURED_STEPS = 15705
+INTERMEDIATE_010470_FINGERPRINT = "d5c92207fb43100ed6f9758ec56b56f51a2b795b85baccbb5847c286f04bbb04"
+DISABLE_JOINT_DELTA_CHECKS_ENV = "JZ_PI05_DISABLE_JOINT_DELTA_CHECKS"
+JOINT_DELTA_BYPASS_ACK_ENV = "I_UNDERSTAND_JOINT_DELTA_CHECKS_ARE_DISABLED"
 
 
 def parse_bool(value: str | bool) -> bool:
@@ -85,6 +92,22 @@ def parse_bool(value: str | bool) -> bool:
 def env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     return default if value is None else parse_bool(value)
+
+
+def joint_delta_checks_disabled_from_env() -> bool:
+    disabled = os.getenv(DISABLE_JOINT_DELTA_CHECKS_ENV)
+    acknowledged = os.getenv(JOINT_DELTA_BYPASS_ACK_ENV)
+    if disabled not in {None, "", "0", "1"}:
+        raise ValueError(f"{DISABLE_JOINT_DELTA_CHECKS_ENV} must be exactly 0 or 1")
+    if acknowledged not in {None, "", "0", "1"}:
+        raise ValueError(f"{JOINT_DELTA_BYPASS_ACK_ENV} must be exactly 0 or 1")
+    if disabled == "1":
+        if acknowledged != "1":
+            raise RuntimeError(f"{DISABLE_JOINT_DELTA_CHECKS_ENV}=1 requires {JOINT_DELTA_BYPASS_ACK_ENV}=1")
+        return True
+    if acknowledged == "1":
+        raise RuntimeError(f"{JOINT_DELTA_BYPASS_ACK_ENV}=1 requires {DISABLE_JOINT_DELTA_CHECKS_ENV}=1")
+    return False
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -203,6 +226,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=env_bool("CONNECT_SMOKE"),
     )
     parser.add_argument(
+        "--inference-smoke",
+        type=parse_bool,
+        nargs="?",
+        const=True,
+        default=env_bool("INFERENCE_SMOKE"),
+        help="Run one live observation and policy inference without calling robot.send_action().",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path(os.getenv("OUTPUT_DIR", DEFAULT_OUTPUT_ROOT.as_posix())),
@@ -240,7 +271,12 @@ def validate_server_url_security(server_url: str, auth_token: str | None) -> Non
         raise ValueError("Non-loopback policy server requires JZ_PI05_SERVER_AUTH_TOKEN")
 
 
-def validate_server_health(health: dict[str, Any], *, mode: str) -> None:
+def validate_server_health(
+    health: dict[str, Any],
+    *,
+    mode: str,
+    expect_intermediate_010470: bool = False,
+) -> None:
     expected = {
         "ok": True,
         "protocol_version": PROTOCOL_VERSION,
@@ -250,7 +286,6 @@ def validate_server_health(health: dict[str, Any], *, mode: str) -> None:
         "wire_action_dim": 18,
         "schema_id": "jz_pin_opening16_v1",
         "schema_version": 1,
-        "complete_step": True,
     }
     mismatches = {
         key: {"expected": value, "actual": health.get(key)}
@@ -282,6 +317,42 @@ def validate_server_health(health: dict[str, Any], *, mode: str) -> None:
             "expected_contains": mode,
             "actual": health.get("supported_modes"),
         }
+    if expect_intermediate_010470:
+        intermediate_expected = {
+            "complete_step": False,
+            "checkpoint_step": INTERMEDIATE_010470_CHECKPOINT_STEP,
+            "configured_steps": INTERMEDIATE_010470_CONFIGURED_STEPS,
+            "checkpoint_fingerprint": INTERMEDIATE_010470_FINGERPRINT,
+        }
+        mismatches.update(
+            {
+                key: {"expected": value, "actual": health.get(key)}
+                for key, value in intermediate_expected.items()
+                if health.get(key) != value
+            }
+        )
+    else:
+        checkpoint_step = health.get("checkpoint_step")
+        configured_steps = health.get("configured_steps")
+        if health.get("complete_step") is not True:
+            mismatches["complete_step"] = {
+                "expected": True,
+                "actual": health.get("complete_step"),
+            }
+        if (
+            isinstance(checkpoint_step, bool)
+            or not isinstance(checkpoint_step, int)
+            or checkpoint_step <= 0
+            or isinstance(configured_steps, bool)
+            or not isinstance(configured_steps, int)
+            or configured_steps <= 0
+            or checkpoint_step != configured_steps
+        ):
+            mismatches["checkpoint_step"] = {
+                "expected": "same positive integer as configured_steps",
+                "actual": checkpoint_step,
+                "configured_steps": configured_steps,
+            }
     if mismatches:
         raise RuntimeError(f"Policy server health is incompatible with JZ PI0.5 client: {mismatches}")
 
@@ -308,9 +379,12 @@ def print_resolved_config(
         f"{LOG_PREFIX} sensor_fps={runtime_config.sensor_fps} "
         f"control_fps={runtime_config.control_fps} task={runtime_config.task!r}"
     )
+    print(f"{LOG_PREFIX} cameras=zmq://{args.orin_ip}:5555,5556,5557 schema=raw18->model16->raw18 force=80")
     print(
-        f"{LOG_PREFIX} cameras=zmq://{args.orin_ip}:5555,5556,5557 "
-        "schema=raw18->model16->raw18 force=80"
+        f"{LOG_PREFIX} joint_delta_checks="
+        f"{'disabled' if robot_config.allow_armed_joint_delta_bypass else 'enabled'} "
+        f"initial={robot_config.max_initial_joint_delta_rad} "
+        f"step={robot_config.max_joint_step_rad}"
     )
 
 
@@ -346,13 +420,29 @@ def resolve_local_output_dir(output_dir: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    disable_joint_delta_checks = joint_delta_checks_disabled_from_env()
+    if disable_joint_delta_checks and args.execution != ARMED_EXECUTION:
+        raise ValueError("joint delta checks may be disabled only for execution=armed")
+    intermediate_confirmation = os.getenv(INTERMEDIATE_010470_CONFIRM_ENV)
+    if intermediate_confirmation not in {None, "", "0", "1"}:
+        raise ValueError(f"{INTERMEDIATE_010470_CONFIRM_ENV} must be exactly 0 or 1")
+    expect_intermediate_010470 = intermediate_confirmation == "1"
     args.auth_token = None if args.auth_token is None else args.auth_token.strip() or None
     args.output_dir = resolve_local_output_dir(args.output_dir)
-    inspection_modes = sum(bool(value) for value in (args.config_only, args.health_only, args.connect_smoke))
+    inspection_modes = sum(
+        bool(value)
+        for value in (args.config_only, args.health_only, args.connect_smoke, args.inference_smoke)
+    )
     if inspection_modes > 1:
-        raise ValueError("config-only, health-only, and connect-smoke are mutually exclusive")
+        raise ValueError(
+            "config-only, health-only, connect-smoke, and inference-smoke are mutually exclusive"
+        )
     if args.connect_smoke and args.execution != DRY_RUN_EXECUTION:
         raise ValueError("connect-smoke is read-only and requires execution=dry_run")
+    if args.inference_smoke and args.execution != DRY_RUN_EXECUTION:
+        raise ValueError("inference-smoke is read-only and requires execution=dry_run")
+    if args.inference_smoke and args.mode != "single_step":
+        raise ValueError("inference-smoke requires mode=single_step")
 
     runtime_config = build_runtime_config(args)
     robot_config = build_robot_config(
@@ -364,6 +454,7 @@ def main(argv: list[str] | None = None) -> int:
         command_port=args.command_port,
         connect_timeout_s=args.connect_timeout_s,
         state_timeout_s=args.state_timeout_s,
+        disable_joint_delta_checks=disable_joint_delta_checks,
     )
     require_armed_confirmation(
         execution=args.execution,
@@ -396,11 +487,44 @@ def main(argv: list[str] | None = None) -> int:
         auth_token=args.auth_token,
     )
     health = remote_policy.health()
-    validate_server_health(health, mode=runtime_config.mode)
+    validate_server_health(
+        health,
+        mode=runtime_config.mode,
+        expect_intermediate_010470=expect_intermediate_010470,
+    )
     print(f"{LOG_PREFIX} server health PASS checkpoint={health.get('checkpoint_path')}")
     if args.health_only:
         print(f"{LOG_PREFIX} HEALTH_ONLY PASS; no robot connection was made")
         return 0
+
+    if args.inference_smoke:
+        from lerobot.robots import make_robot_from_config
+
+        robot = make_robot_from_config(robot_config)
+        try:
+            robot.connect()
+            print(f"{LOG_PREFIX} robot connected type={robot.robot_type}")
+            dataset_features, robot_action_processor, robot_observation_processor = build_dataset_artifacts(
+                robot
+            )
+            result = run_inference_smoke(
+                config=runtime_config,
+                remote_policy=remote_policy,
+                robot_io=SerializedRobotIO(robot),
+                dataset_features=dataset_features,
+                robot_action_processor=robot_action_processor,
+                robot_observation_processor=robot_observation_processor,
+                safety=ActionSafety(),
+            )
+            print(
+                f"{LOG_PREFIX} INFERENCE_SMOKE PASS send_action=not-called "
+                + json.dumps(result.to_dict(), sort_keys=True)
+            )
+            return 0
+        finally:
+            if getattr(robot, "is_connected", False):
+                robot.disconnect()
+                print(f"{LOG_PREFIX} robot disconnected")
 
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite an existing output-dir: {args.output_dir}")

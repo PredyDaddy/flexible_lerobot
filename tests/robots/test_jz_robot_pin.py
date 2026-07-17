@@ -133,6 +133,27 @@ def test_jz_robot_pin_armed_requires_enabled_joint_safety_limits(field: str) -> 
         make_config(send_action_execution=COMMAND_MODE_ARMED, **{field: 0.0})
 
 
+def test_jz_robot_pin_armed_joint_delta_bypass_requires_both_zero_limits() -> None:
+    cfg = make_config(
+        send_action_execution=COMMAND_MODE_ARMED,
+        max_initial_joint_delta_rad=0.0,
+        max_joint_step_rad=0.0,
+        allow_armed_joint_delta_bypass=True,
+    )
+
+    assert cfg.allow_armed_joint_delta_bypass is True
+    assert cfg.max_initial_joint_delta_rad == 0.0
+    assert cfg.max_joint_step_rad == 0.0
+
+    with pytest.raises(ValueError, match="both joint delta limits"):
+        make_config(
+            send_action_execution=COMMAND_MODE_ARMED,
+            max_initial_joint_delta_rad=0.0,
+            max_joint_step_rad=0.02,
+            allow_armed_joint_delta_bypass=True,
+        )
+
+
 def test_jz_robot_pin_armed_cannot_disable_environment_gate() -> None:
     with pytest.raises(ValueError, match="require_armed_env=true"):
         make_config(send_action_execution=COMMAND_MODE_ARMED, require_armed_env=False)
@@ -266,9 +287,7 @@ def test_jz_robot_pin_armed_rejects_nonadvancing_state_sequence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("JZ_ROBOT_PIN_ARMED", "1")
-    robot = JZRobotPin(
-        make_config(send_action_execution=COMMAND_MODE_ARMED, send_action_transport="local")
-    )
+    robot = JZRobotPin(make_config(send_action_execution=COMMAND_MODE_ARMED, send_action_transport="local"))
     robot._is_connected = True
     robot._state_cache.update(sample_state_packet(seq=7), sender=("192.168.1.81", 39010))
     robot.send_action(sample_action())
@@ -290,6 +309,36 @@ def test_jz_robot_pin_rejects_step_joint_delta_from_last_sent_action() -> None:
 
     with pytest.raises(ValueError, match="step joint delta"):
         robot.send_action(second)
+
+
+def test_joint_delta_bypass_keeps_fresh_state_and_gripper_clamp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("JZ_ROBOT_PIN_ARMED", "1")
+    robot = JZRobotPin(
+        make_config(
+            send_action_execution=COMMAND_MODE_ARMED,
+            send_action_transport="local",
+            max_initial_joint_delta_rad=0.0,
+            max_joint_step_rad=0.0,
+            allow_armed_joint_delta_bypass=True,
+            gripper_width_max=50.0,
+        )
+    )
+    robot._is_connected = True
+
+    with pytest.raises(TimeoutError, match="without a robot state packet"):
+        robot.send_action(sample_action())
+
+    robot._state_cache.update(sample_state_packet(), sender=("192.168.1.81", 39010))
+    action = sample_action()
+    action["left_left_joint1.pos"] += 10.0
+    action["left_gripper.width"] = 100.0
+
+    sent = robot.send_action(action)
+
+    assert sent["left_left_joint1.pos"] == action["left_left_joint1.pos"]
+    assert sent["left_gripper.width"] == 50.0
 
 
 def test_jz_robot_pin_clamps_gripper_limits() -> None:
@@ -321,8 +370,7 @@ def test_jz_robot_pin_target_action_teleop_is_registered_and_can_hold_current() 
     observation = {key: float(index) for index, key in enumerate(robot.action_features)}
 
     assert (
-        TeleoperatorConfig.get_choice_name(JZRobotPinTargetActionTeleopConfig)
-        == "jz_robot_pin_target_action"
+        TeleoperatorConfig.get_choice_name(JZRobotPinTargetActionTeleopConfig) == "jz_robot_pin_target_action"
     )
     assert teleop.action_features == robot.action_features
 
@@ -352,9 +400,7 @@ def test_jz_robot_pin_target_action_accepts_same_cached_packet_more_than_once() 
     cfg = JZRobotPinTargetActionTeleopConfig(target_action_port=0, stale_policy="raise")
     teleop = make_teleoperator_from_config(cfg)
     teleop._is_connected = True
-    teleop._target_action_cache.update(
-        sample_target_action_packet(seq=4), sender=("127.0.0.1", 39030)
-    )
+    teleop._target_action_cache.update(sample_target_action_packet(seq=4), sender=("127.0.0.1", 39030))
 
     first = teleop.get_action()
     second = teleop.get_action()
@@ -366,13 +412,9 @@ def test_jz_robot_pin_target_action_rejects_nonadvancing_sequence() -> None:
     cfg = JZRobotPinTargetActionTeleopConfig(target_action_port=0, stale_policy="raise")
     teleop = make_teleoperator_from_config(cfg)
     teleop._is_connected = True
-    teleop._target_action_cache.update(
-        sample_target_action_packet(seq=4), sender=("127.0.0.1", 39030)
-    )
+    teleop._target_action_cache.update(sample_target_action_packet(seq=4), sender=("127.0.0.1", 39030))
     teleop.get_action()
-    teleop._target_action_cache.update(
-        sample_target_action_packet(seq=3), sender=("127.0.0.1", 39030)
-    )
+    teleop._target_action_cache.update(sample_target_action_packet(seq=3), sender=("127.0.0.1", 39030))
 
     with pytest.raises(TimeoutError, match="sequence did not advance"):
         teleop.get_action()
@@ -400,9 +442,7 @@ def test_jz_robot_pin_target_action_rejects_replayed_old_stamp() -> None:
     ["packet_max_age_s", "packet_max_future_skew_s", "seq_reset_timeout_s"],
 )
 @pytest.mark.parametrize("value", [True, float("nan"), float("inf"), -0.01])
-def test_jz_robot_pin_target_action_rejects_invalid_packet_safety_config(
-    field: str, value: float
-) -> None:
+def test_jz_robot_pin_target_action_rejects_invalid_packet_safety_config(field: str, value: float) -> None:
     with pytest.raises(ValueError):
         JZRobotPinTargetActionTeleopConfig(**{field: value})
 
@@ -434,7 +474,7 @@ def test_jz_robot_pin_python_helpers_do_not_bypass_conda_with_python_override() 
     common = (PIN_ROOT / "lib/common.sh").read_text(encoding="utf-8")
     joystick = (PIN_ROOT / "x86/start_pin_joystick.sh").read_text(encoding="utf-8")
 
-    assert '${PYTHON:-}' not in common
+    assert "${PYTHON:-}" not in common
     assert "exec env -u PYTHON" in joystick
 
 
@@ -452,7 +492,7 @@ def test_jz_robot_pin_joystick_continuously_publishes_for_recording() -> None:
     assert 'VISUALIZE_WHOLE_ROBOT="${VISUALIZE_WHOLE_ROBOT}"' in script
     assert '--frequency "${VISUAL_FREQUENCY}"' in script
     assert '--display-every "${DISPLAY_EVERY}"' in script
-    assert 'ROBOT_VISUAL_ARGS=(--no-arm-meshes-only)' in script
+    assert "ROBOT_VISUAL_ARGS=(--no-arm-meshes-only)" in script
     assert '"${ROBOT_VISUAL_ARGS[@]}"' in script
     assert '"${VR_DEBUG_ARGS[@]}"' in script
     assert "unsupported VISUALIZE_WHOLE_ROBOT=" in script

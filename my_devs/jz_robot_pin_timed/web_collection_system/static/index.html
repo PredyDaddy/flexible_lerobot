@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JZ Timed 数采系统</title>
+    <link rel="stylesheet" href="/static/style.css?v=5" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-main">
+        <div class="brand-block">
+          <p class="eyebrow">JZ ROBOT PIN TIMED</p>
+          <h1 data-i18n="appTitle">数采系统</h1>
+        </div>
+        <div class="header-actions">
+          <div class="system-status" aria-label="系统状态" data-i18n-aria-label="systemStatusAria">
+            <div class="status-item">
+              <span id="visual-dot" class="status-dot"></span>
+              <span data-i18n="statusVisualization">可视化</span>
+              <strong id="visual-status" data-i18n="checking">检查中</strong>
+            </div>
+            <div class="status-item">
+              <span id="operation-dot" class="status-dot"></span>
+              <span data-i18n="statusOperation">任务</span>
+              <strong id="operation-status" data-i18n="checking">检查中</strong>
+            </div>
+            <div class="status-item">
+              <span id="armed-dot" class="status-dot"></span>
+              <span data-i18n="statusControl">控制</span>
+              <strong id="armed-status" data-i18n="checking">检查中</strong>
+            </div>
+          </div>
+          <button id="language-toggle" class="language-toggle" type="button"
+            title="Switch to English" aria-label="Switch to English"
+            data-i18n-title="languageToggleTitle" data-i18n-aria-label="languageToggleTitle">
+            <span class="language-icon" aria-hidden="true">文/A</span>
+            <span data-i18n="languageToggleLabel">English</span>
+          </button>
+        </div>
+      </div>
+      <div id="mode-banner" class="mode-banner" role="status"></div>
+    </header>
+
+    <main class="app-shell">
+      <nav class="tabs" aria-label="数采系统视图" data-i18n-aria-label="tabsAria">
+        <button class="tab active" type="button" data-tab="visualization" aria-selected="true" data-i18n="tabVisualization">可视化</button>
+        <button class="tab" type="button" data-tab="record" aria-selected="false" data-i18n="tabRecord">录制</button>
+        <button class="tab" type="button" data-tab="replay" aria-selected="false" data-i18n="tabReplay">回放</button>
+        <button class="tab" type="button" data-tab="logs" aria-selected="false" data-i18n="tabLogs">运行日志</button>
+      </nav>
+
+      <section id="tab-visualization" class="tab-panel active">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">VR / IK / MESHCAT</p>
+            <h2 data-i18n="visualizationTitle">整机可视化</h2>
+          </div>
+          <span id="visual-state-badge" class="state-badge" data-i18n="stopped">已停止</span>
+        </div>
+
+        <div class="visual-layout">
+          <div class="visual-viewport">
+            <div class="viewport-grid" aria-hidden="true"></div>
+            <div class="viewport-center">
+              <div class="robot-mark">JZ</div>
+              <span id="viewport-state" data-i18n="waitingStart">等待启动</span>
+            </div>
+          </div>
+          <div class="control-column">
+            <dl class="detail-list">
+              <div>
+                <dt data-i18n="meshcatAddress">Meshcat 地址</dt>
+                <dd><a id="visual-url" href="http://10.1.42.3:7000/static/" target="_blank" rel="noreferrer">10.1.42.3:7000/static/</a></dd>
+              </div>
+              <div><dt data-i18n="targetAction">目标动作</dt><dd>UDP 39030</dd></div>
+              <div><dt data-i18n="publishMode">发布模式</dt><dd>VR + IK + Meshcat</dd></div>
+            </dl>
+            <div class="button-row">
+              <button id="visual-start" class="button primary" type="button"><span aria-hidden="true">▶</span><span data-i18n="start">启动</span></button>
+              <button id="visual-stop" class="button danger-outline" type="button"><span aria-hidden="true">■</span><span data-i18n="stop">停止</span></button>
+              <button id="visual-open" class="button" type="button" title="在新窗口打开 Meshcat" data-i18n-title="openMeshcatTitle"><span aria-hidden="true">↗</span><span data-i18n="openPage">打开页面</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-record" class="tab-panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker" data-i18n="flexibleEpisodeCount">FLEXIBLE EPISODE COUNT</p>
+            <h2 data-i18n="recordTitle">正式数据录制</h2>
+          </div>
+          <span id="record-state-badge" class="state-badge" data-i18n="standby">待命</span>
+        </div>
+
+        <div class="primary-form">
+          <label for="record-root" data-i18n="recordRootLabel">完整数据集保存路径</label>
+          <div class="input-action">
+            <input id="record-root" type="text" autocomplete="off" spellcheck="false" placeholder="/absolute/path/jz_robot_pin_timed_real_Neps_YYYYMMDD_HHMMSS" />
+            <button id="record-suggest" class="icon-button" type="button" title="生成默认时间戳路径" aria-label="生成默认时间戳路径" data-i18n-title="suggestPath" data-i18n-aria-label="suggestPath">↻</button>
+          </div>
+          <div id="record-path-status" class="field-status" data-i18n="recordPathRequired">必须填写绝对路径，目标目录不能已经存在</div>
+        </div>
+
+        <div class="episode-count-form">
+          <label for="record-episodes" data-i18n="episodeCountLabel">本次采集条数</label>
+          <input id="record-episodes" type="number" min="1" step="1" value="10" inputmode="numeric" />
+          <div id="record-episodes-status" class="field-status" data-i18n="episodeCountHint">可填写任意正整数；全部采集完成后统一编码</div>
+        </div>
+
+        <div class="parameter-grid" aria-label="录制固定参数" data-i18n-aria-label="recordParamsAria">
+          <div><span data-i18n="count">数量</span><strong id="record-summary-count">10 条</strong></div>
+          <div><span data-i18n="episodeDuration">单条时长</span><strong id="record-summary-time">10 秒</strong></div>
+          <div><span data-i18n="frameRate">帧率</span><strong id="record-summary-fps">20 FPS</strong></div>
+          <div><span data-i18n="video">视频</span><strong id="record-summary-video">H.264 / CRF18</strong></div>
+        </div>
+
+        <details class="advanced">
+          <summary data-i18n="advanced">高级参数</summary>
+          <div class="advanced-grid">
+            <label><span data-i18n="episodeDurationSeconds">单条时长（秒）</span><input id="record-episode-time" type="number" min="1" step="1" value="10" /></label>
+            <label><span data-i18n="resetWaitSeconds">复位等待（秒）</span><input id="record-reset-time" type="number" min="0" step="1" value="5" /></label>
+            <label><span data-i18n="recordFps">录制 FPS</span><input id="record-fps" type="number" min="1" step="1" value="20" /></label>
+            <label><span data-i18n="videoCrf">视频 CRF</span><input id="record-crf" type="number" min="0" step="1" value="18" /></label>
+            <label><span data-i18n="stateAdvanceWaitSeconds">State 推进等待（秒）</span><input id="record-state-timeout" type="number" min="0" step="0.01" value="0.1" /></label>
+            <label><span data-i18n="cameraStateSkewMs">相机/State 对齐上限（毫秒）</span><input id="record-camera-skew" type="number" min="1" step="1" value="200" /></label>
+            <label><span data-i18n="initialDeltaRad">首帧角度差（rad）</span><input id="record-initial-delta" type="number" min="0" step="0.01" value="10.0" /></label>
+            <label><span data-i18n="stepDeltaRad">单步角度差（rad）</span><input id="record-step-delta" type="number" min="0" step="0.01" value="10.0" /></label>
+          </div>
+        </details>
+
+        <div class="action-bar">
+          <div><span class="action-label" data-i18n="output">输出</span><strong id="record-output-preview" data-i18n="noPathSelected">尚未选择路径</strong></div>
+          <div class="button-row compact">
+            <button id="record-stop" class="button danger-outline" type="button"><span aria-hidden="true">■</span><span data-i18n="stop">停止</span></button>
+            <button id="record-start" class="button primary" type="button"><span aria-hidden="true">●</span><span data-i18n="startRecord">开始录制</span></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-replay" class="tab-panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">SELECT DATASET + EPISODE</p>
+            <h2 data-i18n="replayTitle">数据回放</h2>
+          </div>
+          <span id="replay-state-badge" class="state-badge" data-i18n="standby">待命</span>
+        </div>
+
+        <div class="replay-selector">
+          <label for="replay-dataset" data-i18n="discoveredDatasetPath">已发现的数据集</label>
+          <div class="input-action">
+            <select id="replay-dataset"><option value="" data-i18n="loadingDatasets">正在读取数据集…</option></select>
+            <button id="datasets-refresh" class="icon-button" type="button" title="刷新数据集" aria-label="刷新数据集" data-i18n-title="refreshDatasets" data-i18n-aria-label="refreshDatasets">↻</button>
+          </div>
+          <div id="replay-dataset-meta" class="field-status" data-i18n="selectTimedDataset">请选择一个 timed 数据集</div>
+        </div>
+
+        <div class="custom-replay-selector">
+          <label for="replay-custom-root" data-i18n="customDatasetPath">自定义数据集绝对路径</label>
+          <div class="path-load-row">
+            <input id="replay-custom-root" type="text" autocomplete="off" spellcheck="false"
+              placeholder="/home/luzhuang/cqy/aaa/flexible_lerobot/data/collection_system_vaertify/test1" />
+            <button id="replay-custom-load" class="button" type="button" data-i18n="loadDatasetPath">加载并校验</button>
+          </div>
+          <div id="replay-custom-status" class="field-status" data-i18n="customDatasetHint">可以加载 tests/outputs 之外、格式一致的 timed 数据集</div>
+        </div>
+
+        <div class="episode-row">
+          <label for="replay-episode" data-i18n="replayEpisode">回放条目</label>
+          <select id="replay-episode" disabled><option value="" data-i18n="selectDatasetFirst">先选择数据集</option></select>
+        </div>
+
+        <details class="advanced">
+          <summary data-i18n="advanced">高级参数</summary>
+          <div class="advanced-grid">
+            <label><span data-i18n="replayFps">回放 FPS</span><input id="replay-fps" type="number" min="1" step="1" value="20" /></label>
+            <label><span data-i18n="initialDeltaRad">首帧角度差（rad）</span><input id="replay-initial-delta" type="number" min="0" step="0.01" value="0.5" /></label>
+            <label><span data-i18n="stepDeltaRad">单步角度差（rad）</span><input id="replay-step-delta" type="number" min="0" step="0.01" value="0.05" /></label>
+            <label><span data-i18n="sounds">声音</span><select id="replay-sounds"><option value="true" data-i18n="enabled">开启</option><option value="false" data-i18n="disabled">关闭</option></select></label>
+          </div>
+        </details>
+
+        <div class="action-bar">
+          <div><span class="action-label" data-i18n="selection">选择</span><strong id="replay-selection-preview" data-i18n="noDatasetSelected">尚未选择数据集</strong></div>
+          <div class="button-row compact">
+            <button id="replay-stop" class="button danger-outline" type="button"><span aria-hidden="true">■</span><span data-i18n="stop">停止</span></button>
+            <button id="replay-start" class="button primary" type="button"><span aria-hidden="true">▶</span><span data-i18n="startReplay">开始回放</span></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-logs" class="tab-panel">
+        <div class="section-heading">
+          <div><p class="section-kicker">PROCESS OUTPUT</p><h2 data-i18n="runtimeLogs">运行日志</h2></div>
+          <button id="logs-clear-view" class="button small" type="button" data-i18n="clearView">清空视图</button>
+        </div>
+        <div class="log-toolbar"><span id="log-job-name" data-i18n="noCurrentTask">当前没有任务</span><span id="log-return-code">returncode —</span></div>
+        <pre id="runtime-logs" class="terminal-output" data-i18n="waitingTask">等待任务启动</pre>
+        <details class="command-preview"><summary data-i18n="recentCommand">最近生成的命令</summary><pre id="command-output" data-i18n="noCommand">尚未生成命令</pre></details>
+      </section>
+    </main>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+    <dialog id="confirm-dialog" class="confirm-dialog">
+      <form method="dialog">
+        <div class="dialog-icon" aria-hidden="true">!</div>
+        <h2 id="confirm-title" data-i18n="confirmStart">确认开始</h2>
+        <p id="confirm-message" data-i18n="confirmSiteStatus">请确认现场状态。</p>
+        <label class="confirm-check">
+          <input id="confirm-checkbox" type="checkbox" />
+          <span data-i18n="safetyConfirmation">Orin armed executor 已启动，急停可用，机器人工作区安全</span>
+        </label>
+        <div class="button-row dialog-actions">
+          <button id="confirm-cancel" class="button" value="cancel" data-i18n="cancel">取消</button>
+          <button id="confirm-submit" class="button danger" type="button" disabled data-i18n="confirmExecute">确认并执行</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/static/app.js?v=5" defer></script>
+  </body>
+</html>

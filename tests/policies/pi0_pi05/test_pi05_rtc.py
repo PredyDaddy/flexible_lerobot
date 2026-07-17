@@ -247,8 +247,10 @@ def test_pi05_rtc_inference_without_prev_chunk():
         actions_without_rtc = policy.predict_action_chunk(batch, noise=noise.clone())
         policy.config.rtc_config.enabled = True
 
-    # Without previous chunk, RTC should have no effect
-    assert torch.allclose(actions_with_rtc_no_prev, actions_without_rtc, rtol=1e-5)
+    # Without a previous chunk, RTC calls the same denoiser as the non-RTC path.
+    # Separate CUDA forwards of this randomly initialized 2B model still show
+    # sub-milliscale numerical drift, including when repeating the same path.
+    assert torch.allclose(actions_with_rtc_no_prev, actions_without_rtc, rtol=1e-3, atol=1e-3)
 
     print("✓ PI0.5 RTC inference without prev_chunk: Test passed")
 

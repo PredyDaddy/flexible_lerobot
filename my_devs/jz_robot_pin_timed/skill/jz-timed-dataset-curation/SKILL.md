@@ -21,6 +21,9 @@ armed recorder, replay, ROS services, or robot commands during curation.
 - Do not use generic `split_dataset` or `delete_episodes` on shared MP4 files without separately
   proving the output codec. The current partial-video path can re-encode to AV1 while metadata still
   describes the source codec.
+- For a partially valid saved source, use this skill's `merge_valid_datasets.py --source-episodes`
+  staging path. It filters Parquet/meta/timing but copies every referenced source MP4 byte-for-byte;
+  do not replace it with generic split/delete.
 - Do not use `LeRobotDataset(..., episodes=...)` directly with `merge_datasets`; the merge API reloads
   the full root and ignores the in-memory episode subset.
 
@@ -112,6 +115,7 @@ PYTHONPATH=src conda run --no-capture-output -n lerobot_flex python \
   my_devs/jz_robot_pin_timed/skill/jz-timed-dataset-curation/scripts/merge_valid_datasets.py \
   --source-root <accepted-root-1> \
   --source-root <accepted-root-2> \
+  --source-episodes <partially-valid-root>=0-1,4,7-9 \
   --output-root <new-output-root> \
   --output-repo-id local/<output-name> \
   --expected-codec h264 --expected-crf 18 \
@@ -124,6 +128,11 @@ Proceed only on `PREFLIGHT_PASS`. Remove `--preflight-only` and `--report-json` 
 The script invokes repository `merge_datasets`, then restores/reindexes timing sidecars, writes the
 explicit training schema and curation episode map, restores verified `video_encoding`, runs ffprobe,
 and decodes three frames per episode/camera. It refuses an existing output directory.
+
+Omit `--source-episodes` for complete sources. The option is repeatable and uses inclusive ranges.
+For shared MP4 files, selected staging preserves the original H.264 bytes and keeps only the selected
+episode timestamp references. A physically unreferenced tail can remain in the copied file; record it
+as a warning, but reject the selection if any selected episode lacks an exact video reference.
 
 ## 5. Validate the merged dataset
 
@@ -155,3 +164,7 @@ diagnostic RTSP data.
 
 For the 2026-07-13 curation performed with this workflow, read
 [references/current-curation.md](references/current-curation.md).
+
+For the 2026-07-15 `data/` curation and the canonical interrupted-recording decision guide, read
+[`../../data_check/DATASET_INTEGRITY_AND_CURATION.md`](../../data_check/DATASET_INTEGRITY_AND_CURATION.md)
+and [references/current-curation-20260715.md](references/current-curation-20260715.md).

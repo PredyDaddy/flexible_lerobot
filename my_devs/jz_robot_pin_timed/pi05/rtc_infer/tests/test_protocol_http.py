@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import http.client
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Iterator
 
 import numpy as np
 import pytest
 
+from my_devs.jz_robot_pin_timed.pi05.rtc_infer import run_robot_client
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime import http_server
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.http_server import make_server
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.protocol import (
     CONTENT_TYPE,
+    MAX_ACTION_CHUNK_STEPS,
     PROTOCOL_VERSION,
+    WIRE_PICKLE_PROTOCOL,
     InferenceRequest,
     InferenceResponse,
     dumps_payload,
@@ -22,7 +25,6 @@ from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.protocol import (
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.remote_client import (
     RemotePolicyClient,
 )
-from my_devs.jz_robot_pin_timed.pi05.rtc_infer import run_robot_client
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.run_robot_client import (
     validate_server_health,
 )
@@ -124,6 +126,9 @@ def _http_request(
 def test_protocol_pickle_roundtrip_preserves_numpy_payload() -> None:
     request = _request(mode="rtc")
     request.prev_chunk_left_over = np.arange(32, dtype=np.float32).reshape(2, 16)
+    request.observation_frame["observation.images.camera_head"] = np.arange(
+        3 * 4 * 5, dtype=np.uint8
+    ).reshape(3, 4, 5)
 
     decoded = loads_payload(dumps_payload(request))
 
@@ -131,7 +136,25 @@ def test_protocol_pickle_roundtrip_preserves_numpy_payload() -> None:
     assert decoded.request_id == request.request_id
     assert decoded.mode == "rtc"
     np.testing.assert_array_equal(decoded.prev_chunk_left_over, request.prev_chunk_left_over)
+    np.testing.assert_array_equal(
+        decoded.observation_frame["observation.images.camera_head"],
+        request.observation_frame["observation.images.camera_head"],
+    )
     decoded.validate()
+
+
+def test_protocol_uses_fixed_pickle_version_and_rejects_unlisted_globals() -> None:
+    encoded = dumps_payload(_request())
+    assert encoded[:2] == bytes((0x80, WIRE_PICKLE_PROTOCOL))
+
+    import pickle
+
+    malicious = pickle.dumps(
+        {"version": PROTOCOL_VERSION, "payload": eval},
+        protocol=WIRE_PICKLE_PROTOCOL,
+    )
+    with pytest.raises(pickle.UnpicklingError, match="builtins.eval"):
+        loads_payload(malicious)
 
 
 def test_robot_entrypoint_uses_canonical_protocol_package_for_pickle() -> None:
@@ -151,6 +174,31 @@ def test_protocol_rejects_invalid_request_and_response_modes() -> None:
     response = _response(_request())
     response.mode = "streaming"  # type: ignore[assignment]
     with pytest.raises(ValueError, match="Unsupported response mode"):
+        response.validate()
+
+
+def test_protocol_caps_rtc_temporal_inputs_and_outputs() -> None:
+    request = _request(mode="rtc")
+    request.execution_horizon = MAX_ACTION_CHUNK_STEPS + 1
+    with pytest.raises(ValueError, match="execution_horizon must not exceed"):
+        request.validate()
+
+    request = _request(mode="rtc")
+    request.predicted_delay_steps = MAX_ACTION_CHUNK_STEPS + 1
+    with pytest.raises(ValueError, match="predicted_delay_steps must not exceed"):
+        request.validate()
+
+    request = _request(mode="rtc")
+    request.prev_chunk_left_over = np.zeros((MAX_ACTION_CHUNK_STEPS + 1, 16), dtype=np.float32)
+    with pytest.raises(ValueError, match="temporal length"):
+        request.validate()
+
+    response = _response(_request())
+    response.raw_actions = np.zeros((MAX_ACTION_CHUNK_STEPS + 1, 16), dtype=np.float32)
+    response.processed_actions = np.zeros((MAX_ACTION_CHUNK_STEPS + 1, 18), dtype=np.float32)
+    response.raw_action_shape = response.raw_actions.shape
+    response.processed_action_shape = response.processed_actions.shape
+    with pytest.raises(ValueError, match="response temporal length"):
         response.validate()
 
 
@@ -289,6 +337,9 @@ def _compatible_health() -> dict[str, object]:
         "schema_id": "jz_pin_opening16_v1",
         "schema_version": 1,
         "complete_step": True,
+        "checkpoint_step": 15705,
+        "configured_steps": 15705,
+        "checkpoint_fingerprint": "final-test-fingerprint",
         "camera_keys": [
             "observation.images.camera_head",
             "observation.images.camera_left",
@@ -306,6 +357,70 @@ def _compatible_health() -> dict[str, object]:
 def test_client_health_handshake_accepts_exact_jz_contract() -> None:
     validate_server_health(_compatible_health(), mode="single_step")
     validate_server_health(_compatible_health(), mode="rtc")
+
+
+def _compatible_intermediate_010470_health() -> dict[str, object]:
+    health = _compatible_health()
+    health.update(
+        {
+            "complete_step": False,
+            "checkpoint_step": run_robot_client.INTERMEDIATE_010470_CHECKPOINT_STEP,
+            "configured_steps": run_robot_client.INTERMEDIATE_010470_CONFIGURED_STEPS,
+            "checkpoint_fingerprint": run_robot_client.INTERMEDIATE_010470_FINGERPRINT,
+        }
+    )
+    return health
+
+
+def test_client_health_accepts_only_explicitly_expected_010470() -> None:
+    health = _compatible_intermediate_010470_health()
+
+    with pytest.raises(RuntimeError, match="complete_step"):
+        validate_server_health(health, mode="single_step")
+
+    validate_server_health(
+        health,
+        mode="single_step",
+        expect_intermediate_010470=True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("complete_step", True),
+        ("checkpoint_step", 10469),
+        ("configured_steps", 15704),
+        ("checkpoint_fingerprint", "wrong-fingerprint"),
+    ],
+)
+def test_client_health_rejects_any_other_incomplete_checkpoint(field: str, value: object) -> None:
+    health = _compatible_intermediate_010470_health()
+    health[field] = value
+
+    with pytest.raises(RuntimeError, match=field):
+        validate_server_health(
+            health,
+            mode="single_step",
+            expect_intermediate_010470=True,
+        )
+
+
+def test_client_health_rejects_inconsistent_final_step_metadata() -> None:
+    health = _compatible_health()
+    health["checkpoint_step"] = 10470
+
+    with pytest.raises(RuntimeError, match="checkpoint_step"):
+        validate_server_health(health, mode="single_step")
+
+
+def test_client_health_rejects_non_positive_final_step_metadata() -> None:
+    health = _compatible_health()
+    health["checkpoint_step"] = 0
+    health["configured_steps"] = 0
+
+    with pytest.raises(RuntimeError, match="checkpoint_step"):
+        validate_server_health(health, mode="single_step")
 
 
 def test_client_health_handshake_rejects_dimension_or_camera_mismatch() -> None:

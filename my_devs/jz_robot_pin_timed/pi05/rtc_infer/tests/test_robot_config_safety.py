@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import pytest
+import torch
 
-from my_devs.jz_robot_pin_timed.pi05.rtc_infer.run_robot_client import (
-    SCRIPT_DIR,
-    resolve_local_output_dir,
-)
+from lerobot.robots.jz_robot_pin_timed.training_schema import RAW_FEATURE_NAMES
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.robot_builder import (
     CAMERA_SPECS,
     build_robot_config,
@@ -16,7 +14,15 @@ from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.safety import (
     DRY_RUN_EXECUTION,
     LOCAL_TRANSPORT,
     UDP_TRANSPORT,
+    ActionSafety,
     require_armed_confirmation,
+)
+from my_devs.jz_robot_pin_timed.pi05.rtc_infer.run_robot_client import (
+    DISABLE_JOINT_DELTA_CHECKS_ENV,
+    JOINT_DELTA_BYPASS_ACK_ENV,
+    SCRIPT_DIR,
+    joint_delta_checks_disabled_from_env,
+    resolve_local_output_dir,
 )
 
 
@@ -32,6 +38,7 @@ def test_build_robot_config_is_side_effect_free_and_matches_live_contract() -> N
     assert config.send_action_execution == DRY_RUN_EXECUTION
     assert config.max_initial_joint_delta_rad == pytest.approx(0.02)
     assert config.max_joint_step_rad == pytest.approx(0.02)
+    assert config.allow_armed_joint_delta_bypass is False
     assert config.left_gripper_training_command_force == pytest.approx(80.0)
     assert config.right_gripper_training_command_force == pytest.approx(80.0)
 
@@ -44,10 +51,25 @@ def test_build_robot_config_is_side_effect_free_and_matches_live_contract() -> N
         assert camera.height == height
 
 
-def test_client_output_directory_cannot_escape_rtc_infer(tmp_path) -> None:
-    assert resolve_local_output_dir(SCRIPT_DIR / "outputs" / "test") == (
-        SCRIPT_DIR / "outputs" / "test"
+def test_build_robot_config_can_explicitly_disable_only_joint_delta_checks() -> None:
+    config = build_robot_config(
+        execution=ARMED_EXECUTION,
+        disable_joint_delta_checks=True,
     )
+
+    assert config.max_initial_joint_delta_rad == 0.0
+    assert config.max_joint_step_rad == 0.0
+    assert config.allow_armed_joint_delta_bypass is True
+    assert config.require_armed_env is True
+    assert config.state_timeout_s == pytest.approx(1.0)
+    assert config.gripper_width_min == pytest.approx(0.0)
+    assert config.gripper_width_max == pytest.approx(100.0)
+    assert config.gripper_force_min == pytest.approx(0.0)
+    assert config.gripper_force_max == pytest.approx(100.0)
+
+
+def test_client_output_directory_cannot_escape_rtc_infer(tmp_path) -> None:
+    assert resolve_local_output_dir(SCRIPT_DIR / "outputs" / "test") == (SCRIPT_DIR / "outputs" / "test")
     with pytest.raises(ValueError, match="must stay inside"):
         resolve_local_output_dir(tmp_path / "outside")
 
@@ -69,7 +91,7 @@ def test_dry_run_gate_requires_local_transport_but_no_armed_environment() -> Non
 
 @pytest.mark.parametrize("missing_name", ARMED_CONFIRMATION_ENV_VARS)
 def test_armed_gate_requires_every_confirmation(missing_name: str) -> None:
-    environ = {name: "1" for name in ARMED_CONFIRMATION_ENV_VARS}
+    environ = dict.fromkeys(ARMED_CONFIRMATION_ENV_VARS, "1")
     del environ[missing_name]
 
     with pytest.raises(RuntimeError, match=missing_name):
@@ -84,5 +106,79 @@ def test_armed_gate_accepts_only_explicit_three_way_confirmation() -> None:
     require_armed_confirmation(
         execution=ARMED_EXECUTION,
         transport=UDP_TRANSPORT,
-        environ={name: "1" for name in ARMED_CONFIRMATION_ENV_VARS},
+        environ=dict.fromkeys(ARMED_CONFIRMATION_ENV_VARS, "1"),
     )
+
+
+def test_joint_delta_bypass_python_gate_requires_both_exact_confirmations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(DISABLE_JOINT_DELTA_CHECKS_ENV, "1")
+    monkeypatch.delenv(JOINT_DELTA_BYPASS_ACK_ENV, raising=False)
+    with pytest.raises(RuntimeError, match=JOINT_DELTA_BYPASS_ACK_ENV):
+        joint_delta_checks_disabled_from_env()
+
+    monkeypatch.setenv(JOINT_DELTA_BYPASS_ACK_ENV, "1")
+    assert joint_delta_checks_disabled_from_env() is True
+
+    monkeypatch.setenv(DISABLE_JOINT_DELTA_CHECKS_ENV, "0")
+    with pytest.raises(RuntimeError, match=DISABLE_JOINT_DELTA_CHECKS_ENV):
+        joint_delta_checks_disabled_from_env()
+
+
+def _valid_raw18() -> torch.Tensor:
+    action = torch.zeros(18, dtype=torch.float32)
+    action[15] = 80.0
+    action[17] = 80.0
+    return action
+
+
+def test_action_safety_accepts_only_finite_raw18_with_fixed_force() -> None:
+    safety = ActionSafety()
+
+    checked = safety.check_tensor(_valid_raw18())
+
+    assert checked.shape == (18,)
+    assert checked[15].item() == pytest.approx(80.0)
+    assert checked[17].item() == pytest.approx(80.0)
+
+    with pytest.raises(ValueError, match="raw18"):
+        safety.check_tensor(torch.zeros(16))
+
+    non_finite = _valid_raw18()
+    non_finite[3] = torch.nan
+    with pytest.raises(ValueError, match="non-finite"):
+        safety.check_tensor(non_finite)
+
+    wrong_force = _valid_raw18()
+    wrong_force[15] = 0.0
+    with pytest.raises(ValueError, match="left_gripper.force"):
+        safety.check_tensor(wrong_force)
+
+
+def test_action_safety_validates_robot_action_keys_and_values() -> None:
+    safety = ActionSafety()
+    action = {
+        name: float(value)
+        for name, value in zip(
+            RAW_FEATURE_NAMES,
+            _valid_raw18(),
+            strict=True,
+        )
+    }
+    safety.check_robot_action(action)
+
+    missing = dict(action)
+    missing.pop(next(iter(missing)))
+    with pytest.raises(ValueError, match="missing"):
+        safety.check_robot_action(missing)
+
+    boolean = dict(action)
+    boolean[next(iter(boolean))] = True
+    with pytest.raises(ValueError, match="not bool"):
+        safety.check_robot_action(boolean)
+
+    non_finite = dict(action)
+    non_finite[next(iter(non_finite))] = float("inf")
+    with pytest.raises(ValueError, match="finite"):
+        safety.check_robot_action(non_finite)

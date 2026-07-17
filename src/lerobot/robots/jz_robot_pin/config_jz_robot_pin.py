@@ -34,6 +34,7 @@ class JZRobotPinConfig(JZRobotUDPConfig):
 
     max_initial_joint_delta_rad: float = 0.02
     max_joint_step_rad: float = 0.02
+    allow_armed_joint_delta_bypass: bool = False
     state_seq_reset_timeout_s: float = 1.0
     gripper_width_min: float | None = None
     gripper_width_max: float | None = None
@@ -54,16 +55,22 @@ class JZRobotPinConfig(JZRobotUDPConfig):
             raise ValueError("armed_env_var must be a non-empty string")
         self._validate_nonnegative_finite("max_initial_joint_delta_rad", self.max_initial_joint_delta_rad)
         self._validate_nonnegative_finite("max_joint_step_rad", self.max_joint_step_rad)
+        if not isinstance(self.allow_armed_joint_delta_bypass, bool):
+            raise ValueError("allow_armed_joint_delta_bypass must be a boolean")
         self._validate_nonnegative_finite("state_seq_reset_timeout_s", self.state_seq_reset_timeout_s)
         if self.state_seq_reset_timeout_s <= 0:
             raise ValueError("state_seq_reset_timeout_s must be positive")
         if self.send_action_execution == COMMAND_MODE_ARMED:
             if not self.require_armed_env:
                 raise ValueError("armed JZRobotPin requires require_armed_env=true")
-            if self.max_initial_joint_delta_rad <= 0:
-                raise ValueError("armed JZRobotPin requires max_initial_joint_delta_rad > 0")
-            if self.max_joint_step_rad <= 0:
-                raise ValueError("armed JZRobotPin requires max_joint_step_rad > 0")
+            if self.allow_armed_joint_delta_bypass:
+                if self.max_initial_joint_delta_rad != 0 or self.max_joint_step_rad != 0:
+                    raise ValueError("armed joint delta bypass requires both joint delta limits to equal 0")
+            else:
+                if self.max_initial_joint_delta_rad <= 0:
+                    raise ValueError("armed JZRobotPin requires max_initial_joint_delta_rad > 0")
+                if self.max_joint_step_rad <= 0:
+                    raise ValueError("armed JZRobotPin requires max_joint_step_rad > 0")
         self._validate_optional_range("gripper_width", self.gripper_width_min, self.gripper_width_max)
         self._validate_optional_range("gripper_force", self.gripper_force_min, self.gripper_force_max)
 

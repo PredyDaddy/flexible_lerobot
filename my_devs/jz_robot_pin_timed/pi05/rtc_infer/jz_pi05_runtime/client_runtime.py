@@ -153,10 +153,23 @@ class ClientRuntimeState:
         self.inference_requests = 0
         self.fully_stale_chunks_in_a_row = 0
         self._lock = threading.RLock()
+        self._actuation_lock = threading.Lock()
 
     @property
     def running(self) -> bool:
         return not self.stop_event.is_set()
+
+    def call_if_running(self, callback: Callable[[], Any]) -> tuple[bool, Any | None]:
+        """Gate a new actuator call without delaying a concurrent stop request.
+
+        An already-running transport call cannot be cancelled here, but once the
+        stop event is set no subsequent callback may begin.
+        """
+
+        with self._actuation_lock:
+            if self.stop_event.is_set():
+                return False, None
+            return True, callback()
 
     def request_stop(self, reason: str) -> None:
         with self._lock:
@@ -251,6 +264,23 @@ class ClientRuntimeResult:
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         return payload
+
+
+@dataclass(frozen=True, slots=True)
+class InferenceSmokeResult:
+    request_id: int
+    observation_sequence_id: int
+    model_steps: int
+    raw_action_shape: tuple[int, ...]
+    processed_action_shape: tuple[int, ...]
+    dropped_steps: int
+    selected_action_index: int
+    server_latency_s: float
+    model_latency_s: float
+    robot_action_keys: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 def build_live_observation_frame(
@@ -350,6 +380,86 @@ def response_to_chunk(
     )
 
 
+def run_inference_smoke(
+    *,
+    config: ClientRuntimeConfig,
+    remote_policy: RemotePolicyClient,
+    robot_io: SerializedRobotIO,
+    dataset_features: dict[str, dict[str, Any]],
+    robot_action_processor: Callable[[tuple[dict[str, float], Any]], Any] | None,
+    robot_observation_processor: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None,
+    safety: ActionSafety,
+    perf_counter: Callable[[], float] = time.perf_counter,
+) -> InferenceSmokeResult:
+    """Validate one live observation and policy response without sending an action."""
+
+    if config.mode != "single_step":
+        raise ValueError("inference smoke requires mode=single_step")
+
+    raw_observation = robot_io.get_observation()
+    observation_timestamp_s = perf_counter()
+    snapshot = FrameSnapshot(
+        raw_observation=copy.deepcopy(raw_observation),
+        observation_frame=build_live_observation_frame(
+            raw_observation=raw_observation,
+            dataset_features=dataset_features,
+            robot_observation_processor=robot_observation_processor,
+        ),
+        timestamp_s=observation_timestamp_s,
+        sequence_id=1,
+    )
+    request_id = 1
+    request = make_request(
+        request_id=request_id,
+        mode="single_step",
+        snapshot=snapshot,
+        task=config.task,
+        robot_type=robot_io.robot_type,
+        predicted_delay_steps=0,
+        prev_chunk_left_over=None,
+        execution_horizon=config.rtc_execution_horizon,
+    )
+    response = remote_policy.infer(request)
+    ready_timestamp_s = perf_counter()
+    chunk = response_to_chunk(
+        response=response,
+        request_id=request_id,
+        snapshot=snapshot,
+        ready_timestamp_s=ready_timestamp_s,
+        control_dt_s=config.control_dt_s,
+        predicted_delay_steps=0,
+        safety=safety,
+    )
+    selection = select_single_step(chunk)
+    if selection.processed_action is None:
+        raise RuntimeError(
+            "Inference smoke response was fully stale before validation; "
+            f"dropped={selection.dropped_steps} steps={selection.input_steps}"
+        )
+
+    # Build and validate the exact robot-facing dictionary, but deliberately do
+    # not call robot_io.send_action(). This is the smoke mode's hard no-motion boundary.
+    robot_action = build_robot_action(
+        action=selection.processed_action,
+        dataset_features=dataset_features,
+        robot_action_processor=robot_action_processor,
+        observation=snapshot.raw_observation,
+        safety=safety,
+    )
+    return InferenceSmokeResult(
+        request_id=request_id,
+        observation_sequence_id=snapshot.sequence_id,
+        model_steps=int(chunk.raw_actions.shape[0]),
+        raw_action_shape=tuple(chunk.raw_actions.shape),
+        processed_action_shape=tuple(chunk.processed_actions.shape),
+        dropped_steps=selection.dropped_steps,
+        selected_action_index=selection.dropped_steps,
+        server_latency_s=float(getattr(response, "server_latency_s", 0.0)),
+        model_latency_s=float(getattr(response, "model_latency_s", 0.0)),
+        robot_action_keys=tuple(sorted(robot_action)),
+    )
+
+
 def run_single_step_runtime(
     *,
     config: ClientRuntimeConfig,
@@ -441,7 +551,11 @@ def run_single_step_runtime(
                     observation=snapshot.raw_observation,
                     safety=safety,
                 )
-                sent_action = robot_io.send_action(robot_action)
+                did_send, sent_action = state.call_if_running(
+                    lambda action=robot_action: robot_io.send_action(action)
+                )
+                if not did_send:
+                    break
                 if isinstance(sent_action, Mapping):
                     safety.check_robot_action(sent_action)
                 with state._lock:
@@ -619,7 +733,11 @@ def run_actor_loop(
                         observation=observation,
                         safety=safety,
                     )
-                    sent_action = robot_io.send_action(robot_action)
+                    did_send, sent_action = state.call_if_running(
+                        lambda action=robot_action: robot_io.send_action(action)
+                    )
+                    if not did_send:
+                        break
                     if isinstance(sent_action, Mapping):
                         safety.check_robot_action(sent_action)
                     with state._lock:
@@ -876,6 +994,7 @@ __all__ = [
     "ClientRuntimeState",
     "FrameBuffer",
     "FrameSnapshot",
+    "InferenceSmokeResult",
     "build_live_observation_frame",
     "build_robot_action",
     "format_runtime_metrics",
@@ -885,6 +1004,7 @@ __all__ = [
     "response_to_chunk",
     "run_actor_loop",
     "run_client_runtime",
+    "run_inference_smoke",
     "run_producer_loop",
     "run_rtc_runtime",
     "run_sensor_loop",

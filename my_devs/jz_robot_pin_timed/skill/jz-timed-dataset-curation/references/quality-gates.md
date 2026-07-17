@@ -60,5 +60,7 @@
 
 If a saved episode itself fails but shares an MP4 with good episodes, do not use the current generic
 split/delete implementation without a codec-preservation patch and dedicated tests. It may re-encode
-the partial file to AV1. Either exclude the full source or implement a staging dataset that copies the
-source MP4 whole and keeps only valid timestamp references. Never guess missing metadata/video maps.
+the partial file to AV1. Use `merge_valid_datasets.py --source-episodes ROOT=SPEC`, whose temporary
+staging dataset copies the source MP4 whole and keeps only exact selected timestamp references, or
+exclude the full source. The copied file may contain an unreferenced physical tail, but selected
+episode ownership must remain exact. Never guess missing metadata/video maps.

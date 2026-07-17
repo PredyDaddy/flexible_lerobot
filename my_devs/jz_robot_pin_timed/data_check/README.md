@@ -1,5 +1,10 @@
 # jz_robot_pin_timed 三条录制与时序检查
 
+完整的录制中断保存语义、PASS/WARN/FAIL 判定、200 ms 采集容错与 100 ms 训练质量门、部分源精选合并
+以及 2026-07-15 当前数据整理结果，统一记录在
+[`DATASET_INTEGRITY_AND_CURATION.md`](DATASET_INTEGRITY_AND_CURATION.md)。后续智能体在删除、修复、
+合并或训练任何 JZ timed 数据前，应先阅读该文档。
+
 本目录用于连续录制 3 个 episode，并在录制结束后执行三类离线检查：
 
 - `check_3_episodes.py`：复用 `jz_robot_pin` 的 18 维 action/state、episode、视频文件和跟随延迟检查，默认要求 `robot_type=jz_robot_pin_timed`。

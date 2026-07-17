@@ -117,6 +117,30 @@ SERVER_URL=http://<policy-server-ip>:8088 \
   bash my_devs/jz_robot_pin_timed/pi05/rtc_infer/run_rtc_dry_run.sh
 ```
 
+## 上机只读 inference smoke
+
+policy server 的 `/health` 通过后，先运行一次只读 smoke。该入口会连接现场 state 与三路相机、读取一帧
+observation、构造正常 PI0.5 请求、完成一次真实推理，并检查 model16/raw18 shape、有限值、动作键集合和
+两路 force=80。它不会调用 `robot.send_action()`，因此不会使用 command UDP；即使当前 shell 已设置 armed
+环境变量，该入口也强制 `single_step + dry_run`。
+
+```bash
+SERVER_AUTH_TOKEN='<与 server 相同的值>' \
+SERVER_URL=http://<policy-server-ip>:8088 \
+  bash my_devs/jz_robot_pin_timed/pi05/rtc_infer/run_inference_smoke.sh
+```
+
+默认 smoke sensor/control 都为 5 FPS，且只发一个推理请求。可在 1..10 范围内覆盖：
+
+```bash
+SMOKE_SENSOR_FPS=5 SMOKE_CONTROL_FPS=5 \
+SERVER_AUTH_TOKEN='<与 server 相同的值>' \
+SERVER_URL=http://<policy-server-ip>:8088 \
+  bash my_devs/jz_robot_pin_timed/pi05/rtc_infer/run_inference_smoke.sh
+```
+
+只有日志明确出现 `INFERENCE_SMOKE PASS send_action=not-called`，才进入后续 dry-run 或现场 armed 验收。
+
 ## 上机侧 dry-run
 
 `dry_run` 会读取现场 state/相机并请求策略，但 robot action 固定走 `local + dry_run`，不会向 Orin
@@ -174,8 +198,12 @@ I_UNDERSTAND_JZ_ROBOT_PIN_MOVES_ROBOT=1 \
 JZ_POLICY_INFERENCE_ARMED=1 \
 SERVER_AUTH_TOKEN='<与 server 相同的值>' \
 SERVER_URL=http://<policy-server-ip>:8088 \
+SENSOR_FPS=5 CONTROL_FPS=5 RUN_TIME_S=1 \
   bash my_devs/jz_robot_pin_timed/pi05/rtc_infer/run_single_step_armed.sh
 ```
+
+这条首轮 armed 命令故意只使用 5 FPS、1 秒；通常只会产生极少量 single-step 请求。PI0.5 数据按
+20 FPS 训练，因此低频只用于最初的现场动作方向与通信验收，不作为最终 RTC 运行频率。
 
 只有单步验收、物理急停、初始姿态和 action delta 均确认后，才考虑短时 RTC：
 
@@ -185,7 +213,7 @@ I_UNDERSTAND_JZ_ROBOT_PIN_MOVES_ROBOT=1 \
 JZ_POLICY_INFERENCE_ARMED=1 \
 SERVER_AUTH_TOKEN='<与 server 相同的值>' \
 SERVER_URL=http://<policy-server-ip>:8088 \
-RUN_TIME_S=10 \
+SENSOR_FPS=20 CONTROL_FPS=20 RUN_TIME_S=10 \
   bash my_devs/jz_robot_pin_timed/pi05/rtc_infer/run_rtc_armed.sh
 ```
 

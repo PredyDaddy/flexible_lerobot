@@ -169,8 +169,9 @@ wandb/
 # Dev scripts
 .dev/
 
-# Data folders
-data/
+# Data folders. Keep the read-only integrity checker versioned, but ignore every dataset/artifact.
+data/*
+!data/check_data.py
 outputs/
 
 # Translations
@@ -217,3 +218,6 @@ my_devs/train
 udp_test/server_bash/orin_arm/pids/
 
 my_devs/orin_session
+
+
+pi05_jz_robot_pin_timed_curated_42eps_20260713_e15_b8_20260714_202432

@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import importlib
+import io
 import pickle
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 
 import numpy as np
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
+WIRE_PICKLE_PROTOCOL = 5
 CONTENT_TYPE = "application/x-python-pickle"
 SINGLE_STEP_MODE = "single_step"
 RTC_MODE = "rtc"
 SUPPORTED_MODES = (SINGLE_STEP_MODE, RTC_MODE)
 MODEL_ACTION_DIM = 16
 WIRE_ACTION_DIM = 18
+MAX_ACTION_CHUNK_STEPS = 50
 
 InferenceMode: TypeAlias = Literal["single_step", "rtc"]
 
@@ -46,19 +50,25 @@ class InferenceRequest:
             raise ValueError("predicted_delay_steps must be an integer")
         if self.predicted_delay_steps < 0:
             raise ValueError("predicted_delay_steps must be non-negative")
+        if self.predicted_delay_steps > MAX_ACTION_CHUNK_STEPS:
+            raise ValueError(f"predicted_delay_steps must not exceed {MAX_ACTION_CHUNK_STEPS}")
         if isinstance(self.execution_horizon, bool) or not isinstance(self.execution_horizon, int):
             raise ValueError("execution_horizon must be an integer")
         if self.execution_horizon <= 0:
             raise ValueError("execution_horizon must be positive")
+        if self.execution_horizon > MAX_ACTION_CHUNK_STEPS:
+            raise ValueError(f"execution_horizon must not exceed {MAX_ACTION_CHUNK_STEPS}")
 
         if self.mode == SINGLE_STEP_MODE and self.prev_chunk_left_over is not None:
             raise ValueError("single_step requests must not include prev_chunk_left_over")
         if self.prev_chunk_left_over is not None:
             leftover = np.asarray(self.prev_chunk_left_over)
             if leftover.ndim != 2 or leftover.shape[1] != MODEL_ACTION_DIM:
+                raise ValueError(f"prev_chunk_left_over must have shape (T,16), got {tuple(leftover.shape)}")
+            if not 1 <= leftover.shape[0] <= MAX_ACTION_CHUNK_STEPS:
                 raise ValueError(
-                    "prev_chunk_left_over must have shape (T,16), "
-                    f"got {tuple(leftover.shape)}"
+                    "prev_chunk_left_over temporal length must be in "
+                    f"1..{MAX_ACTION_CHUNK_STEPS}, got {leftover.shape[0]}"
                 )
             if not np.isfinite(leftover).all():
                 raise ValueError("prev_chunk_left_over contains non-finite values")
@@ -96,6 +106,11 @@ class InferenceResponse:
                 "raw_actions and processed_actions must have the same temporal length, "
                 f"got {raw.shape[0]} and {processed.shape[0]}"
             )
+        if not 1 <= raw.shape[0] <= MAX_ACTION_CHUNK_STEPS:
+            raise ValueError(
+                f"Inference response temporal length must be in 1..{MAX_ACTION_CHUNK_STEPS}, "
+                f"got {raw.shape[0]}"
+            )
         if tuple(raw.shape) != tuple(self.raw_action_shape):
             raise ValueError("raw_action_shape does not match raw_actions")
         if tuple(processed.shape) != tuple(self.processed_action_shape):
@@ -106,13 +121,40 @@ class InferenceResponse:
 
 def dumps_payload(payload: Any) -> bytes:
     envelope = {"version": PROTOCOL_VERSION, "payload": payload}
-    return pickle.dumps(envelope, protocol=pickle.HIGHEST_PROTOCOL)
+    return pickle.dumps(envelope, protocol=WIRE_PICKLE_PROTOCOL)
+
+
+class _RestrictedUnpickler(pickle.Unpickler):
+    """Allow only the explicit protocol dataclasses and NumPy array machinery."""
+
+    _PROTOCOL_GLOBALS = {
+        (InferenceRequest.__module__, InferenceRequest.__name__): InferenceRequest,
+        (InferenceResponse.__module__, InferenceResponse.__name__): InferenceResponse,
+    }
+    _NUMPY_GLOBALS = {
+        ("numpy", "dtype"),
+        ("numpy", "ndarray"),
+        ("numpy._core.numeric", "_frombuffer"),
+        ("numpy.core.numeric", "_frombuffer"),
+        ("numpy._core.multiarray", "_reconstruct"),
+        ("numpy.core.multiarray", "_reconstruct"),
+        ("numpy._core.multiarray", "scalar"),
+        ("numpy.core.multiarray", "scalar"),
+    }
+
+    def find_class(self, module: str, name: str) -> Any:
+        protocol_global = self._PROTOCOL_GLOBALS.get((module, name))
+        if protocol_global is not None:
+            return protocol_global
+        if (module, name) in self._NUMPY_GLOBALS:
+            return getattr(importlib.import_module(module), name)
+        raise pickle.UnpicklingError(f"Protocol pickle global is not allowed: {module}.{name}")
 
 
 def loads_payload(data: bytes) -> Any:
     if not isinstance(data, bytes | bytearray | memoryview):
         raise TypeError("Protocol payload must be bytes-like")
-    envelope = pickle.loads(data)
+    envelope = _RestrictedUnpickler(io.BytesIO(bytes(data))).load()
     if not isinstance(envelope, dict):
         raise ValueError(f"Invalid protocol envelope type: {type(envelope)}")
     version = envelope.get("version")

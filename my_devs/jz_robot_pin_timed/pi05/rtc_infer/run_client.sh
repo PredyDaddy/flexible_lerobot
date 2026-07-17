@@ -22,6 +22,7 @@ done
 CONFIG_ONLY="$(rtc_normalize_bool CONFIG_ONLY "${CONFIG_ONLY:-false}")"
 HEALTH_ONLY="$(rtc_normalize_bool HEALTH_ONLY "${HEALTH_ONLY:-false}")"
 CONNECT_SMOKE="$(rtc_normalize_bool CONNECT_SMOKE "${CONNECT_SMOKE:-false}")"
+INFERENCE_SMOKE="$(rtc_normalize_bool INFERENCE_SMOKE "${INFERENCE_SMOKE:-false}")"
 if [[ "${EXECUTION}" == "armed" ]]; then
   rtc_require_armed_confirmation
 fi
@@ -92,6 +93,7 @@ COMMAND=(
   "--config-only=${CONFIG_ONLY}"
   "--health-only=${HEALTH_ONLY}"
   "--connect-smoke=${CONNECT_SMOKE}"
+  "--inference-smoke=${INFERENCE_SMOKE}"
   "--output-dir=${CLIENT_OUTPUT_DIR}"
 )
 
@@ -100,4 +102,7 @@ echo "[jz/pi05/rtc_infer] mode=${MODE} execution=${EXECUTION} server=${SERVER_UR
 echo "[jz/pi05/rtc_infer] state=udp://${STATE_BIND_IP}:${STATE_PORT} allowed_source=${ORIN_IP}"
 echo "[jz/pi05/rtc_infer] command_target=udp://${ORIN_IP}:${COMMAND_PORT}"
 echo "[jz/pi05/rtc_infer] output=${CLIENT_OUTPUT_DIR}"
+if [[ "${INFERENCE_SMOKE}" == "true" ]]; then
+  echo "[jz/pi05/rtc_infer] inference_smoke=read-only send_action=disabled"
+fi
 rtc_run_or_print client "${COMMAND[@]}" "$@"

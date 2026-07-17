@@ -96,3 +96,11 @@ conda run --no-capture-output -n lerobot python udp_test/local_test/get_pic.py
         --max-joint-delta 0.02 \
 
 ros2 service call /robot1/choreographer/execute multi_robot_choreographer_interfaces/srv/ExecuteChoreography "{choreography_name: 'VR_inital_no_waist'}"
+
+
+cd /home/luzhuang/cqy/aaa/flexible_lerobot
+
+JZ_WEB_ARMED_ACTIONS=1 \
+HOST=0.0.0.0 \
+PORT=8010 \
+bash my_devs/jz_robot_pin_timed/web_collection_system/start_web.sh
