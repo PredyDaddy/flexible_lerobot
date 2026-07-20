@@ -12,6 +12,22 @@ RTC_INFER_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = RTC_INFER_DIR.parents[3]
 SERVER_SCRIPT = RTC_INFER_DIR / "run_onboard_policy_server.sh"
 CLIENT_SCRIPT = RTC_INFER_DIR / "run_onboard_robot_client.sh"
+PROFILE_SCRIPTS = {
+    "all_170": (
+        RTC_INFER_DIR / "run_onboard_policy_server_all_170.sh",
+        RTC_INFER_DIR / "run_onboard_robot_client_all_170.sh",
+        "JZ_PI05_ALL_170_047320_CONFIRMED",
+        "all_170_047320",
+        "047320",
+    ),
+    "all_200": (
+        RTC_INFER_DIR / "run_onboard_policy_server_all_200.sh",
+        RTC_INFER_DIR / "run_onboard_robot_client_all_200.sh",
+        "JZ_PI05_ALL_200_007320_CONFIRMED",
+        "all_200_007320",
+        "007320",
+    ),
+}
 RUN_NAME = "pi05_jz_robot_pin_timed_curated_42eps_20260713_e15_b8_20260714_202432"
 ARMED_ENV_VARS = (
     "JZ_ROBOT_PIN_ARMED",
@@ -50,6 +66,8 @@ def _server_env(**updates: str) -> dict[str, str]:
         "SERVER_AUTH_TOKEN",
         "JZ_PI05_SERVER_AUTH_TOKEN",
         "JZ_PI05_INTERMEDIATE_010470_CONFIRMED",
+        "JZ_PI05_ALL_170_047320_CONFIRMED",
+        "JZ_PI05_ALL_200_007320_CONFIRMED",
         "TOKENIZER_PATH",
     ):
         env.pop(name, None)
@@ -86,6 +104,13 @@ def _client_env(**updates: str) -> dict[str, str]:
         "TASK",
         "JZ_PI05_SINGLE_STEP_ARMED_PASSED",
         "JZ_PI05_INTERMEDIATE_010470_CONFIRMED",
+        "JZ_PI05_ALL_170_047320_CONFIRMED",
+        "JZ_PI05_ALL_200_007320_CONFIRMED",
+        "JZ_PI05_EXPECTED_CHECKPOINT_STEP",
+        "JZ_PI05_EXPECTED_CONFIGURED_STEPS",
+        "JZ_PI05_EXPECTED_CHECKPOINT_FINGERPRINT",
+        "JZ_PI05_EXPECTED_CHECKPOINT_PATH",
+        "JZ_PI05_EXPECTED_COMPLETE_STEP",
         "JZ_PI05_DISABLE_JOINT_DELTA_CHECKS",
         "I_UNDERSTAND_JOINT_DELTA_CHECKS_ARE_DISABLED",
     ):
@@ -148,7 +173,14 @@ def _make_intermediate_checkpoint(
     return policy_path
 
 
-@pytest.mark.parametrize("script", [SERVER_SCRIPT, CLIENT_SCRIPT])
+@pytest.mark.parametrize(
+    "script",
+    [
+        SERVER_SCRIPT,
+        CLIENT_SCRIPT,
+        *(script for profile in PROFILE_SCRIPTS.values() for script in profile[:2]),
+    ],
+)
 def test_onboard_launchers_are_executable_and_have_valid_bash_syntax(script: Path) -> None:
     assert script.is_file()
     assert os.access(script, os.X_OK)
@@ -542,7 +574,7 @@ def test_client_rejects_invalid_onboard_mode() -> None:
     )
 
     assert completed.returncode == 2
-    assert "ONBOARD_MODE must be one of [single_step rtc]" in completed.stderr
+    assert "ONBOARD_MODE must be one of [single_step async_single_step rtc]" in completed.stderr
 
 
 @pytest.mark.parametrize("missing_name", ARMED_ENV_VARS)
@@ -563,6 +595,67 @@ def test_rtc_requires_separate_single_step_confirmation() -> None:
 
     assert completed.returncode == 2
     assert "JZ_PI05_SINGLE_STEP_ARMED_PASSED=1" in completed.stderr
+
+
+def test_async_single_step_uses_async_launcher_configuration() -> None:
+    completed = _run_script(
+        CLIENT_SCRIPT,
+        env=_client_env(
+            ONBOARD_MODE="async_single_step",
+            JZ_PI05_SINGLE_STEP_ARMED_PASSED="1",
+            ONBOARD_SENSOR_FPS="17",
+            ONBOARD_CONTROL_FPS="19",
+            ONBOARD_RUN_TIME_S="23",
+        ),
+    )
+    output = _output(completed)
+
+    assert completed.returncode == 0, output
+    assert "REAL ROBOT ARMED mode=async_single_step" in output
+    assert "--mode=async_single_step" in output
+    assert "--sensor-fps=17" in output
+    assert "--control-fps=19" in output
+    assert "--run-time-s=23" in output
+
+
+@pytest.mark.parametrize(
+    ("server_script", "client_script", "confirmation", "profile", "checkpoint_dir"),
+    PROFILE_SCRIPTS.values(),
+)
+def test_new_weight_wrappers_lock_profile_and_only_print(
+    server_script: Path,
+    client_script: Path,
+    confirmation: str,
+    profile: str,
+    checkpoint_dir: str,
+) -> None:
+    missing_confirmation = _run_script(server_script, env=_server_env())
+    assert missing_confirmation.returncode == 2
+    assert confirmation in missing_confirmation.stderr
+
+    server = _run_script(server_script, env=_server_env(**{confirmation: "1"}))
+    server_output = _output(server)
+    assert server.returncode == 0, server_output
+    assert f"checkpoint_mode={profile}" in server_output
+    assert f"/checkpoints/{checkpoint_dir}/pretrained_model" in server_output
+    assert "--require-complete-step=false" in server_output
+    assert "nothing was started" in server_output
+
+    client = _run_script(
+        client_script,
+        env=_client_env(
+            **{
+                confirmation: "1",
+                "ONBOARD_MODE": "rtc",
+                "JZ_PI05_SINGLE_STEP_ARMED_PASSED": "1",
+            }
+        ),
+    )
+    client_output = _output(client)
+    assert client.returncode == 0, client_output
+    assert f"checkpoint={profile}" in client_output
+    assert "--mode=rtc" in client_output
+    assert "nothing was started" in client_output
 
 
 def test_rtc_uses_fixed_short_20_hz_queue_configuration() -> None:

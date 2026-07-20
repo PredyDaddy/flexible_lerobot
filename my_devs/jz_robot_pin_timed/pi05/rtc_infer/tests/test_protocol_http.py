@@ -356,7 +356,46 @@ def _compatible_health() -> dict[str, object]:
 
 def test_client_health_handshake_accepts_exact_jz_contract() -> None:
     validate_server_health(_compatible_health(), mode="single_step")
+    validate_server_health(_compatible_health(), mode="async_single_step")
     validate_server_health(_compatible_health(), mode="rtc")
+
+
+def test_custom_checkpoint_health_contract_is_exact_and_cross_weight_safe() -> None:
+    expected = run_robot_client.ExpectedCheckpoint(
+        checkpoint_step=47320,
+        configured_steps=70980,
+        checkpoint_fingerprint="a" * 64,
+        checkpoint_path="/repo/outputs/all_170/checkpoints/047320/pretrained_model",
+        complete_step=False,
+    )
+    health = _compatible_health()
+    health.update(
+        {
+            "checkpoint_step": expected.checkpoint_step,
+            "configured_steps": expected.configured_steps,
+            "checkpoint_fingerprint": expected.checkpoint_fingerprint,
+            "checkpoint_path": expected.checkpoint_path,
+            "complete_step": expected.complete_step,
+        }
+    )
+
+    validate_server_health(health, mode="async_single_step", expected_checkpoint=expected)
+
+    for health_field, wrong_value in (
+        ("checkpoint_step", 7320),
+        ("configured_steps", 21960),
+        ("checkpoint_fingerprint", "b" * 64),
+        ("checkpoint_path", "/repo/outputs/all_200/checkpoints/007320/pretrained_model"),
+        ("complete_step", True),
+    ):
+        mismatched = dict(health)
+        mismatched[health_field] = wrong_value
+        with pytest.raises(RuntimeError, match=health_field):
+            validate_server_health(
+                mismatched,
+                mode="async_single_step",
+                expected_checkpoint=expected,
+            )
 
 
 def _compatible_intermediate_010470_health() -> dict[str, object]:

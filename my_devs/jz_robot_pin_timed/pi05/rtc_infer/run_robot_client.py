@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -76,6 +76,22 @@ INTERMEDIATE_010470_CONFIGURED_STEPS = 15705
 INTERMEDIATE_010470_FINGERPRINT = "d5c92207fb43100ed6f9758ec56b56f51a2b795b85baccbb5847c286f04bbb04"
 DISABLE_JOINT_DELTA_CHECKS_ENV = "JZ_PI05_DISABLE_JOINT_DELTA_CHECKS"
 JOINT_DELTA_BYPASS_ACK_ENV = "I_UNDERSTAND_JOINT_DELTA_CHECKS_ARE_DISABLED"
+EXPECTED_CHECKPOINT_ENV = {
+    "checkpoint_step": "JZ_PI05_EXPECTED_CHECKPOINT_STEP",
+    "configured_steps": "JZ_PI05_EXPECTED_CONFIGURED_STEPS",
+    "checkpoint_fingerprint": "JZ_PI05_EXPECTED_CHECKPOINT_FINGERPRINT",
+    "checkpoint_path": "JZ_PI05_EXPECTED_CHECKPOINT_PATH",
+    "complete_step": "JZ_PI05_EXPECTED_COMPLETE_STEP",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedCheckpoint:
+    checkpoint_step: int
+    configured_steps: int
+    checkpoint_fingerprint: str
+    checkpoint_path: str
+    complete_step: bool
 
 
 def parse_bool(value: str | bool) -> bool:
@@ -92,6 +108,40 @@ def parse_bool(value: str | bool) -> bool:
 def env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     return default if value is None else parse_bool(value)
+
+
+def expected_checkpoint_from_env() -> ExpectedCheckpoint | None:
+    values = {key: os.getenv(name) for key, name in EXPECTED_CHECKPOINT_ENV.items()}
+    present = {key for key, value in values.items() if value not in {None, ""}}
+    if not present:
+        return None
+    if present != set(values):
+        missing = sorted(EXPECTED_CHECKPOINT_ENV[key] for key in set(values) - present)
+        raise ValueError(f"custom checkpoint contract is incomplete; missing {missing}")
+
+    try:
+        checkpoint_step = int(values["checkpoint_step"])
+        configured_steps = int(values["configured_steps"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("custom checkpoint steps must be integers") from exc
+    if checkpoint_step <= 0 or configured_steps <= 0:
+        raise ValueError("custom checkpoint steps must be positive")
+    fingerprint = str(values["checkpoint_fingerprint"])
+    if len(fingerprint) != 64 or any(character not in "0123456789abcdef" for character in fingerprint):
+        raise ValueError("custom checkpoint fingerprint must be a lowercase SHA-256 hex digest")
+    complete_raw = str(values["complete_step"]).strip().lower()
+    if complete_raw not in {"true", "false"}:
+        raise ValueError("JZ_PI05_EXPECTED_COMPLETE_STEP must be exactly true or false")
+    checkpoint_path = Path(str(values["checkpoint_path"])).expanduser()
+    if not checkpoint_path.is_absolute():
+        raise ValueError("JZ_PI05_EXPECTED_CHECKPOINT_PATH must be absolute")
+    return ExpectedCheckpoint(
+        checkpoint_step=checkpoint_step,
+        configured_steps=configured_steps,
+        checkpoint_fingerprint=fingerprint,
+        checkpoint_path=checkpoint_path.resolve(strict=False).as_posix(),
+        complete_step=complete_raw == "true",
+    )
 
 
 def joint_delta_checks_disabled_from_env() -> bool:
@@ -120,7 +170,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.getenv("JZ_PI05_SERVER_AUTH_TOKEN"),
         help="Bearer token; prefer JZ_PI05_SERVER_AUTH_TOKEN so it is absent from process arguments.",
     )
-    parser.add_argument("--mode", choices=("single_step", "rtc"), default=os.getenv("MODE", "rtc"))
+    parser.add_argument(
+        "--mode",
+        choices=("single_step", "async_single_step", "rtc"),
+        default=os.getenv("MODE", "rtc"),
+    )
     parser.add_argument(
         "--execution",
         choices=(DRY_RUN_EXECUTION, ARMED_EXECUTION),
@@ -276,6 +330,7 @@ def validate_server_health(
     *,
     mode: str,
     expect_intermediate_010470: bool = False,
+    expected_checkpoint: ExpectedCheckpoint | None = None,
 ) -> None:
     expected = {
         "ok": True,
@@ -312,12 +367,22 @@ def validate_server_health(
             "expected": {key: list(value) for key, value in EXPECTED_CAMERA_SHAPES.items()},
             "actual": actual_camera_shapes,
         }
-    if mode not in health.get("supported_modes", ()):
+    wire_mode = "single_step" if mode == "async_single_step" else mode
+    if wire_mode not in health.get("supported_modes", ()):
         mismatches["supported_modes"] = {
-            "expected_contains": mode,
+            "expected_contains": wire_mode,
             "actual": health.get("supported_modes"),
         }
-    if expect_intermediate_010470:
+    if expected_checkpoint is not None:
+        checkpoint_expected = asdict(expected_checkpoint)
+        mismatches.update(
+            {
+                key: {"expected": value, "actual": health.get(key)}
+                for key, value in checkpoint_expected.items()
+                if health.get(key) != value
+            }
+        )
+    elif expect_intermediate_010470:
         intermediate_expected = {
             "complete_step": False,
             "checkpoint_step": INTERMEDIATE_010470_CHECKPOINT_STEP,
@@ -427,6 +492,9 @@ def main(argv: list[str] | None = None) -> int:
     if intermediate_confirmation not in {None, "", "0", "1"}:
         raise ValueError(f"{INTERMEDIATE_010470_CONFIRM_ENV} must be exactly 0 or 1")
     expect_intermediate_010470 = intermediate_confirmation == "1"
+    expected_checkpoint = expected_checkpoint_from_env()
+    if expect_intermediate_010470 and expected_checkpoint is not None:
+        raise ValueError("010470 confirmation cannot be combined with a custom checkpoint contract")
     args.auth_token = None if args.auth_token is None else args.auth_token.strip() or None
     args.output_dir = resolve_local_output_dir(args.output_dir)
     inspection_modes = sum(
@@ -491,6 +559,7 @@ def main(argv: list[str] | None = None) -> int:
         health,
         mode=runtime_config.mode,
         expect_intermediate_010470=expect_intermediate_010470,
+        expected_checkpoint=expected_checkpoint,
     )
     print(f"{LOG_PREFIX} server health PASS checkpoint={health.get('checkpoint_path')}")
     if args.health_only:

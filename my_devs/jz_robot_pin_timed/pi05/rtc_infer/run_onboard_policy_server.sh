@@ -16,6 +16,12 @@ INTERMEDIATE_STEP=10470
 INTERMEDIATE_CHECKPOINT_DIR=010470
 ROOT_CHECKPOINT="${REPO_ROOT}/${RUN_NAME}/checkpoints/${FINAL_CHECKPOINT_DIR}/pretrained_model"
 OUTPUT_CHECKPOINT="${PI05_DIR}/outputs/${RUN_NAME}/checkpoints/${FINAL_CHECKPOINT_DIR}/pretrained_model"
+ALL_170_RUN_NAME="pi05_jz_robot_pin_timed_all_170eps_20260717_e15_b8_20260717_134540"
+ALL_170_POLICY_PATH="${REPO_ROOT}/outputs/pi05_output/${ALL_170_RUN_NAME}/checkpoints/047320/pretrained_model"
+ALL_170_FINGERPRINT="aab77fc595dab01c12afdc681e9fb96627b01c32f69698bf2b5d891694bd6d0d"
+ALL_200_RUN_NAME="pi05_jz_robot_pin_timed_all_200eps_20260719_e15_b32_20260719_134823"
+ALL_200_POLICY_PATH="${REPO_ROOT}/outputs/pi05_output/${ALL_200_RUN_NAME}/checkpoints/007320/pretrained_model"
+ALL_200_FINGERPRINT="2e12eb2c67f6a11875aac24018d50c2cbcd6e52a962c82f346be1b698a63748c"
 
 if [[ -n "${POLICY_PATH:-}" ]]; then
   SELECTED_POLICY_PATH="${POLICY_PATH}"
@@ -53,6 +59,8 @@ case "${POLICY_PATH}" in
   */"${RUN_NAME}"/checkpoints/015705/pretrained_model)
     CHECKPOINT_MODE=final_015705
     EXPECTED_CHECKPOINT_STEP="${FINAL_STEP}"
+    EXPECTED_CONFIGURED_STEPS="${FINAL_STEP}"
+    EXPECTED_CHECKPOINT_FINGERPRINT=""
     REQUIRE_COMPLETE_STEP="$(rtc_normalize_bool REQUIRE_COMPLETE_STEP "${REQUIRE_COMPLETE_STEP:-true}")"
     [[ "${REQUIRE_COMPLETE_STEP}" == "true" ]] \
       || rtc_die "the final onboard checkpoint requires REQUIRE_COMPLETE_STEP=true"
@@ -68,11 +76,43 @@ case "${POLICY_PATH}" in
     fi
     CHECKPOINT_MODE=intermediate_010470
     EXPECTED_CHECKPOINT_STEP="${INTERMEDIATE_STEP}"
+    EXPECTED_CONFIGURED_STEPS="${FINAL_STEP}"
+    EXPECTED_CHECKPOINT_FINGERPRINT=""
+    REQUIRE_COMPLETE_STEP=false
+    ;;
+  "${ALL_170_POLICY_PATH}")
+    [[ "${JZ_PI05_ALL_170_047320_CONFIRMED:-}" == "1" ]] \
+      || rtc_die "checkpoint all_170_047320 requires JZ_PI05_ALL_170_047320_CONFIRMED=1"
+    if [[ -n "${REQUIRE_COMPLETE_STEP:-}" ]]; then
+      REQUIRE_COMPLETE_STEP="$(rtc_normalize_bool REQUIRE_COMPLETE_STEP "${REQUIRE_COMPLETE_STEP}")"
+      [[ "${REQUIRE_COMPLETE_STEP}" == "false" ]] \
+        || rtc_die "checkpoint all_170_047320 requires REQUIRE_COMPLETE_STEP=false"
+    fi
+    RUN_NAME="${ALL_170_RUN_NAME}"
+    CHECKPOINT_MODE=all_170_047320
+    EXPECTED_CHECKPOINT_STEP=47320
+    EXPECTED_CONFIGURED_STEPS=70980
+    EXPECTED_CHECKPOINT_FINGERPRINT="${ALL_170_FINGERPRINT}"
+    REQUIRE_COMPLETE_STEP=false
+    ;;
+  "${ALL_200_POLICY_PATH}")
+    [[ "${JZ_PI05_ALL_200_007320_CONFIRMED:-}" == "1" ]] \
+      || rtc_die "checkpoint all_200_007320 requires JZ_PI05_ALL_200_007320_CONFIRMED=1"
+    if [[ -n "${REQUIRE_COMPLETE_STEP:-}" ]]; then
+      REQUIRE_COMPLETE_STEP="$(rtc_normalize_bool REQUIRE_COMPLETE_STEP "${REQUIRE_COMPLETE_STEP}")"
+      [[ "${REQUIRE_COMPLETE_STEP}" == "false" ]] \
+        || rtc_die "checkpoint all_200_007320 requires REQUIRE_COMPLETE_STEP=false"
+    fi
+    RUN_NAME="${ALL_200_RUN_NAME}"
+    CHECKPOINT_MODE=all_200_007320
+    EXPECTED_CHECKPOINT_STEP=7320
+    EXPECTED_CONFIGURED_STEPS=21960
+    EXPECTED_CHECKPOINT_FINGERPRINT="${ALL_200_FINGERPRINT}"
     REQUIRE_COMPLETE_STEP=false
     ;;
   *)
     rtc_die \
-      "POLICY_PATH must select ${RUN_NAME}/checkpoints/015705/pretrained_model or the explicitly confirmed 010470 checkpoint; got ${POLICY_PATH}"
+      "POLICY_PATH must select an audited onboard checkpoint (015705, 010470, all_170_047320, or all_200_007320); got ${POLICY_PATH}"
     ;;
 esac
 
@@ -81,14 +121,18 @@ export CONFIG_ONLY CHECK_POLICY_LOAD PRINT_COMMAND_ONLY REQUIRE_COMPLETE_STEP
 validate_checkpoint_metadata() {
   local policy_path="$1"
   local expected_checkpoint_step="$2"
+  local expected_configured_steps="$3"
+  local expected_checkpoint_fingerprint="$4"
   local validation_error
 
   rtc_require_executable "${CONDA_PYTHON}"
   if ! validation_error="$("${CONDA_PYTHON}" - \
-    "${policy_path}" "${FINAL_STEP}" "${expected_checkpoint_step}" 2>&1 <<'PY'
+    "${policy_path}" "${expected_configured_steps}" "${expected_checkpoint_step}" \
+    "${expected_checkpoint_fingerprint}" 2>&1 <<'PY'
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -96,6 +140,7 @@ from pathlib import Path
 policy_path = Path(sys.argv[1])
 configured_step = int(sys.argv[2])
 expected_checkpoint_step = int(sys.argv[3])
+expected_checkpoint_fingerprint = sys.argv[4]
 train_config_path = policy_path / "train_config.json"
 training_step_path = policy_path.parent / "training_state" / "training_step.json"
 
@@ -127,6 +172,36 @@ require_exact_step(
     label="training_state.step",
     expected=expected_checkpoint_step,
 )
+
+if expected_checkpoint_fingerprint:
+    schema_fingerprint = "14eec46e01b980a6a5766a85efb00566502595b5c3cacf46ca15fbca108b92a5"
+    weight_file = "adapter_model.safetensors" if (policy_path / "adapter_config.json").is_file() else "model.safetensors"
+    digest = hashlib.sha256()
+    digest.update(schema_fingerprint.encode("ascii"))
+    for filename in (
+        "config.json",
+        "policy_preprocessor.json",
+        "policy_postprocessor.json",
+        "train_config.json",
+    ):
+        path = policy_path / filename
+        if not path.is_file():
+            raise SystemExit(f"required checkpoint fingerprint input is missing: {path}")
+        digest.update(filename.encode("utf-8"))
+        digest.update(path.read_bytes())
+    weight_path = policy_path / weight_file
+    if not weight_path.is_file():
+        raise SystemExit(f"required checkpoint weight is missing: {weight_path}")
+    digest.update(weight_file.encode("utf-8"))
+    digest.update(str(weight_path.stat().st_size).encode("ascii"))
+    with weight_path.open("rb") as stream:
+        digest.update(stream.read(1024 * 1024))
+    actual_fingerprint = digest.hexdigest()
+    if actual_fingerprint != expected_checkpoint_fingerprint:
+        raise SystemExit(
+            "checkpoint fingerprint mismatch: "
+            f"expected {expected_checkpoint_fingerprint}, got {actual_fingerprint}"
+        )
 PY
   )"; then
     rtc_die "${validation_error}"
@@ -138,7 +213,11 @@ if [[ -e "${POLICY_PATH}" && ! -d "${POLICY_PATH}" ]]; then
 fi
 
 if [[ -d "${POLICY_PATH}" ]]; then
-  validate_checkpoint_metadata "${POLICY_PATH}" "${EXPECTED_CHECKPOINT_STEP}"
+  validate_checkpoint_metadata \
+    "${POLICY_PATH}" \
+    "${EXPECTED_CHECKPOINT_STEP}" \
+    "${EXPECTED_CONFIGURED_STEPS}" \
+    "${EXPECTED_CHECKPOINT_FINGERPRINT}"
 elif [[ "${CONFIG_ONLY}" == "true" || "${PRINT_COMMAND_ONLY}" == "true" ]]; then
   echo "[jz/pi05/onboard/server] selected checkpoint is not present; configuration output only"
 else
@@ -152,7 +231,7 @@ if [[ "${CONFIG_ONLY}" != "true" && "${PRINT_COMMAND_ONLY}" != "true" ]]; then
 fi
 
 echo "[jz/pi05/onboard/server] run=${RUN_NAME} checkpoint_mode=${CHECKPOINT_MODE}"
-echo "[jz/pi05/onboard/server] checkpoint_step=${EXPECTED_CHECKPOINT_STEP} configured_steps=${FINAL_STEP}"
+echo "[jz/pi05/onboard/server] checkpoint_step=${EXPECTED_CHECKPOINT_STEP} configured_steps=${EXPECTED_CONFIGURED_STEPS}"
 echo "[jz/pi05/onboard/server] policy=${POLICY_PATH}"
 echo "[jz/pi05/onboard/server] tokenizer=${TOKENIZER_PATH}"
 echo "[jz/pi05/onboard/server] endpoint=http://${SERVER_HOST}:${SERVER_PORT}"

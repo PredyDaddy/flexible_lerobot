@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Real-machine armed client launcher. The default is one short, low-rate
-# single-step run against a final checkpoint. The known 010470 checkpoint and
-# RTC each require their own explicit confirmation.
+# single-step run against a final checkpoint. Intermediate/custom checkpoints
+# and asynchronous modes each require their own explicit confirmation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -17,9 +17,11 @@ source "${SCRIPT_DIR}/common.sh"
   || rtc_die "run_onboard_robot_client.sh accepts no CLI arguments; configure it with environment variables"
 
 ONBOARD_MODE="${ONBOARD_MODE:-single_step}"
-rtc_require_choice ONBOARD_MODE "${ONBOARD_MODE}" single_step rtc
+rtc_require_choice ONBOARD_MODE "${ONBOARD_MODE}" single_step async_single_step rtc
 ONBOARD_CHECKPOINT="${ONBOARD_CHECKPOINT:-015705}"
-rtc_require_choice ONBOARD_CHECKPOINT "${ONBOARD_CHECKPOINT}" 015705 010470
+rtc_require_choice \
+  ONBOARD_CHECKPOINT "${ONBOARD_CHECKPOINT}" \
+  015705 010470 all_170_047320 all_200_007320
 rtc_require_armed_confirmation
 
 DISABLE_JOINT_DELTA_CHECKS="${JZ_PI05_DISABLE_JOINT_DELTA_CHECKS:-0}"
@@ -36,19 +38,58 @@ else
   JOINT_DELTA_CHECK_LABEL=enabled
 fi
 
-if [[ "${ONBOARD_CHECKPOINT}" == "010470" ]]; then
-  [[ "${JZ_PI05_INTERMEDIATE_010470_CONFIRMED:-}" == "1" ]] \
-    || rtc_die \
-      "checkpoint 010470 requires JZ_PI05_INTERMEDIATE_010470_CONFIRMED=1"
-  INTERMEDIATE_010470_CONFIRMED=1
-  CHECKPOINT_LABEL=intermediate_010470
-else
-  [[ "${JZ_PI05_INTERMEDIATE_010470_CONFIRMED:-0}" != "1" ]] \
-    || rtc_die \
-      "JZ_PI05_INTERMEDIATE_010470_CONFIRMED=1 requires ONBOARD_CHECKPOINT=010470"
-  INTERMEDIATE_010470_CONFIRMED=0
-  CHECKPOINT_LABEL=final_015705
-fi
+INTERMEDIATE_010470_CONFIRMED="${JZ_PI05_INTERMEDIATE_010470_CONFIRMED:-0}"
+ALL_170_047320_CONFIRMED="${JZ_PI05_ALL_170_047320_CONFIRMED:-0}"
+ALL_200_007320_CONFIRMED="${JZ_PI05_ALL_200_007320_CONFIRMED:-0}"
+rtc_require_choice JZ_PI05_INTERMEDIATE_010470_CONFIRMED "${INTERMEDIATE_010470_CONFIRMED}" 0 1
+rtc_require_choice JZ_PI05_ALL_170_047320_CONFIRMED "${ALL_170_047320_CONFIRMED}" 0 1
+rtc_require_choice JZ_PI05_ALL_200_007320_CONFIRMED "${ALL_200_007320_CONFIRMED}" 0 1
+
+EXPECTED_CHECKPOINT_STEP=""
+EXPECTED_CONFIGURED_STEPS=""
+EXPECTED_CHECKPOINT_FINGERPRINT=""
+EXPECTED_CHECKPOINT_PATH=""
+EXPECTED_COMPLETE_STEP=""
+case "${ONBOARD_CHECKPOINT}" in
+  010470)
+    [[ "${INTERMEDIATE_010470_CONFIRMED}" == "1" ]] \
+      || rtc_die "checkpoint 010470 requires JZ_PI05_INTERMEDIATE_010470_CONFIRMED=1"
+    [[ "${ALL_170_047320_CONFIRMED}" == "0" && "${ALL_200_007320_CONFIRMED}" == "0" ]] \
+      || rtc_die "new-weight confirmation does not match ONBOARD_CHECKPOINT=010470"
+    CHECKPOINT_LABEL=intermediate_010470
+    ;;
+  015705)
+    [[ "${INTERMEDIATE_010470_CONFIRMED}" == "0" ]] \
+      || rtc_die "JZ_PI05_INTERMEDIATE_010470_CONFIRMED=1 requires ONBOARD_CHECKPOINT=010470"
+    [[ "${ALL_170_047320_CONFIRMED}" == "0" && "${ALL_200_007320_CONFIRMED}" == "0" ]] \
+      || rtc_die "new-weight confirmation requires its matching ONBOARD_CHECKPOINT"
+    CHECKPOINT_LABEL=final_015705
+    ;;
+  all_170_047320)
+    [[ "${ALL_170_047320_CONFIRMED}" == "1" ]] \
+      || rtc_die "checkpoint all_170_047320 requires JZ_PI05_ALL_170_047320_CONFIRMED=1"
+    [[ "${INTERMEDIATE_010470_CONFIRMED}" == "0" && "${ALL_200_007320_CONFIRMED}" == "0" ]] \
+      || rtc_die "checkpoint confirmations do not match ONBOARD_CHECKPOINT=all_170_047320"
+    CHECKPOINT_LABEL=all_170_047320
+    EXPECTED_CHECKPOINT_STEP=47320
+    EXPECTED_CONFIGURED_STEPS=70980
+    EXPECTED_CHECKPOINT_FINGERPRINT=aab77fc595dab01c12afdc681e9fb96627b01c32f69698bf2b5d891694bd6d0d
+    EXPECTED_CHECKPOINT_PATH="${REPO_ROOT}/outputs/pi05_output/pi05_jz_robot_pin_timed_all_170eps_20260717_e15_b8_20260717_134540/checkpoints/047320/pretrained_model"
+    EXPECTED_COMPLETE_STEP=false
+    ;;
+  all_200_007320)
+    [[ "${ALL_200_007320_CONFIRMED}" == "1" ]] \
+      || rtc_die "checkpoint all_200_007320 requires JZ_PI05_ALL_200_007320_CONFIRMED=1"
+    [[ "${INTERMEDIATE_010470_CONFIRMED}" == "0" && "${ALL_170_047320_CONFIRMED}" == "0" ]] \
+      || rtc_die "checkpoint confirmations do not match ONBOARD_CHECKPOINT=all_200_007320"
+    CHECKPOINT_LABEL=all_200_007320
+    EXPECTED_CHECKPOINT_STEP=7320
+    EXPECTED_CONFIGURED_STEPS=21960
+    EXPECTED_CHECKPOINT_FINGERPRINT=2e12eb2c67f6a11875aac24018d50c2cbcd6e52a962c82f346be1b698a63748c
+    EXPECTED_CHECKPOINT_PATH="${REPO_ROOT}/outputs/pi05_output/pi05_jz_robot_pin_timed_all_200eps_20260719_e15_b32_20260719_134823/checkpoints/007320/pretrained_model"
+    EXPECTED_COMPLETE_STEP=false
+    ;;
+esac
 
 SERVER_URL="${SERVER_URL:-http://127.0.0.1:8088}"
 ORIN_IP="${ORIN_IP:-192.168.1.81}"
@@ -84,7 +125,7 @@ if [[ "${ONBOARD_MODE}" == "single_step" ]]; then
   RTC_EXECUTION_HORIZON=10
 else
   [[ "${JZ_PI05_SINGLE_STEP_ARMED_PASSED:-}" == "1" ]] \
-    || rtc_die "RTC onboard inference requires JZ_PI05_SINGLE_STEP_ARMED_PASSED=1 after the armed single-step check"
+    || rtc_die "asynchronous onboard inference requires JZ_PI05_SINGLE_STEP_ARMED_PASSED=1 after the armed single-step check"
   SENSOR_FPS="${ONBOARD_SENSOR_FPS:-20}"
   CONTROL_FPS="${ONBOARD_CONTROL_FPS:-20}"
   RUN_TIME_S="${ONBOARD_RUN_TIME_S:-10}"
@@ -112,6 +153,11 @@ CLIENT_ENV=(
   "CONNECT_SMOKE=false"
   "INFERENCE_SMOKE=false"
   "JZ_PI05_INTERMEDIATE_010470_CONFIRMED=${INTERMEDIATE_010470_CONFIRMED}"
+  "JZ_PI05_EXPECTED_CHECKPOINT_STEP=${EXPECTED_CHECKPOINT_STEP}"
+  "JZ_PI05_EXPECTED_CONFIGURED_STEPS=${EXPECTED_CONFIGURED_STEPS}"
+  "JZ_PI05_EXPECTED_CHECKPOINT_FINGERPRINT=${EXPECTED_CHECKPOINT_FINGERPRINT}"
+  "JZ_PI05_EXPECTED_CHECKPOINT_PATH=${EXPECTED_CHECKPOINT_PATH}"
+  "JZ_PI05_EXPECTED_COMPLETE_STEP=${EXPECTED_COMPLETE_STEP}"
   "JZ_PI05_DISABLE_JOINT_DELTA_CHECKS=${DISABLE_JOINT_DELTA_CHECKS}"
   "I_UNDERSTAND_JOINT_DELTA_CHECKS_ARE_DISABLED=${I_UNDERSTAND_JOINT_DELTA_CHECKS_ARE_DISABLED:-0}"
   "SERVER_URL=${SERVER_URL}"

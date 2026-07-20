@@ -4,6 +4,9 @@
 server，上机侧运行 robot client。它复用 LeRobot 的 Real-Time Chunking（RTC），但**不包含 TensorRT
 后端**。
 
+完整架构、三种运行模式、checkpoint profile、安全边界和验证结果见
+[`INFERENCE_MODULE_REPORT.md`](INFERENCE_MODULE_REPORT.md)。
+
 当前只完成代码与非硬件配置入口。本目录的脚本不会启动、停止或修改 Orin state/camera/command
 服务，不包含自动 reset、回零、编舞或急停替代逻辑。未经现场授权不要运行 armed 脚本。
 
@@ -225,7 +228,7 @@ initial joint delta、per-step joint delta 和 gripper clamp 检查。
 四个便捷脚本最终都调用：
 
 ```bash
-MODE=single_step|rtc \
+MODE=single_step|async_single_step|rtc \
 EXECUTION=dry_run|armed \
 SERVER_AUTH_TOKEN='<远程 server 的共享 token>' \
 SERVER_URL=http://<policy-server-ip>:8088 \

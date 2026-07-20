@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 import torch
 
@@ -12,14 +13,21 @@ from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.action_queue impo
     ActionChunkQueue,
     select_single_step,
 )
+from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.client_runtime import (
+    ClientMetrics,
+    ClientRuntimeConfig,
+    ClientRuntimeResult,
+    ClientRuntimeState,
+    FrameBuffer,
+    MetricsSnapshot,
+    raise_for_runtime_error,
+    run_producer_loop,
+)
 from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.policy_service import (
     postprocess_action_chunk,
 )
-from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.client_runtime import (
-    ClientRuntimeResult,
-    MetricsSnapshot,
-    raise_for_runtime_error,
-)
+from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.protocol import InferenceResponse
+from my_devs.jz_robot_pin_timed.pi05.rtc_infer.jz_pi05_runtime.safety import ActionSafety
 
 
 def _chunk(*, steps: int = 4, drop_steps: int = 0) -> ActionChunk:
@@ -101,6 +109,81 @@ def test_single_step_reports_fully_stale_chunk() -> None:
     assert selection.dropped_all is True
     assert selection.raw_action is None
     assert selection.processed_action is None
+
+
+@pytest.mark.parametrize(
+    ("runtime_mode", "wire_mode", "expected_delay", "expects_leftover"),
+    [
+        ("async_single_step", "single_step", 0, False),
+        ("rtc", "rtc", 2, True),
+    ],
+)
+def test_async_producer_preserves_single_step_or_rtc_wire_contract(
+    runtime_mode: str,
+    wire_mode: str,
+    expected_delay: int,
+    expects_leftover: bool,
+) -> None:
+    config = ClientRuntimeConfig(
+        task="jz robot pin timed vr teleoperation",
+        mode=runtime_mode,  # type: ignore[arg-type]
+        sensor_fps=20,
+        control_fps=20,
+        empty_queue_strategy="skip_send",
+    )
+    state = ClientRuntimeState()
+    metrics = ClientMetrics()
+    metrics.record_request(total_s=0.1, server_s=0.08, drop_steps=0, predicted_delay_steps=0)
+    frame_buffer = FrameBuffer()
+    frame_buffer.update(
+        raw_observation={"raw": 1},
+        observation_frame={"observation.state": np.zeros(18, dtype=np.float32)},
+        timestamp_s=0.0,
+    )
+    action_queue = ActionChunkQueue(max_queue_size=50, empty_queue_strategy="skip_send")
+    action_queue.merge_rtc(_chunk(steps=3))
+
+    class OneRequestPolicy:
+        def __init__(self) -> None:
+            self.request = None
+
+        def infer(self, request: object) -> InferenceResponse:
+            self.request = request
+            state.request_stop("test complete")
+            processed = np.zeros((4, 18), dtype=np.float32)
+            processed[:, 15] = 80.0
+            processed[:, 17] = 80.0
+            return InferenceResponse(
+                request_id=request.request_id,  # type: ignore[attr-defined]
+                mode=request.mode,  # type: ignore[attr-defined]
+                raw_actions=np.zeros((4, 16), dtype=np.float32),
+                processed_actions=processed,
+                server_latency_s=0.08,
+                model_latency_s=0.07,
+                raw_action_shape=(4, 16),
+                processed_action_shape=(4, 18),
+            )
+
+    policy = OneRequestPolicy()
+    clock = iter((0.0, 0.1))
+    requests = run_producer_loop(
+        config=config,
+        state=state,
+        metrics=metrics,
+        remote_policy=policy,  # type: ignore[arg-type]
+        frame_buffer=frame_buffer,
+        action_queue=action_queue,
+        robot_type="jz_robot_pin_timed",
+        safety=ActionSafety(),
+        perf_counter=lambda: next(clock),
+        sleep_fn=lambda _seconds: None,
+    )
+
+    assert requests == 1
+    assert policy.request is not None
+    assert policy.request.mode == wire_mode
+    assert policy.request.predicted_delay_steps == expected_delay
+    assert (policy.request.prev_chunk_left_over is not None) is expects_leftover
 
 
 def test_postprocess_fallback_flattens_chunk_and_restores_actual_raw18_dimension() -> None:

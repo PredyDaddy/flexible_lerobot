@@ -20,12 +20,12 @@ from lerobot.utils.constants import OBS_STR
 from lerobot.utils.robot_utils import precise_sleep
 
 from .action_queue import ActionChunk, ActionChunkQueue, QueueSnapshot, select_single_step
-from .protocol import InferenceRequest
+from .protocol import InferenceMode, InferenceRequest
 from .remote_client import RemotePolicyClient
 from .robot_io import SerializedRobotIO
 from .safety import ActionSafety
 
-RuntimeMode = Literal["single_step", "rtc"]
+RuntimeMode = Literal["single_step", "async_single_step", "rtc"]
 
 
 @dataclass(slots=True)
@@ -49,8 +49,8 @@ class ClientRuntimeConfig:
         self.server_url = self.server_url.rstrip("/")
         if not self.task.strip():
             raise ValueError("task must be non-empty")
-        if self.mode not in {"single_step", "rtc"}:
-            raise ValueError("mode must be single_step or rtc")
+        if self.mode not in {"single_step", "async_single_step", "rtc"}:
+            raise ValueError("mode must be single_step, async_single_step, or rtc")
         if self.sensor_fps <= 0 or self.control_fps <= 0:
             raise ValueError("sensor_fps and control_fps must be positive")
         if self.run_time_s < 0:
@@ -316,7 +316,7 @@ def build_robot_action(
 def make_request(
     *,
     request_id: int,
-    mode: RuntimeMode,
+    mode: InferenceMode,
     snapshot: FrameSnapshot,
     task: str,
     robot_type: str,
@@ -633,6 +633,8 @@ def run_producer_loop(
     perf_counter: Callable[[], float] = time.perf_counter,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> int:
+    if config.mode not in {"async_single_step", "rtc"}:
+        raise ValueError("run_producer_loop requires mode=async_single_step or rtc")
     requests = 0
     request_id = 0
     last_observation_sequence_id = 0
@@ -650,15 +652,18 @@ def run_producer_loop(
         last_observation_sequence_id = snapshot.sequence_id
 
         request_id += 1
-        predicted_delay_steps = metrics.predicted_delay_steps(control_dt_s=config.control_dt_s)
+        rtc_enabled = config.mode == "rtc"
+        predicted_delay_steps = (
+            metrics.predicted_delay_steps(control_dt_s=config.control_dt_s) if rtc_enabled else 0
+        )
         request = make_request(
             request_id=request_id,
-            mode="rtc",
+            mode="rtc" if rtc_enabled else "single_step",
             snapshot=snapshot,
             task=config.task,
             robot_type=robot_type,
             predicted_delay_steps=predicted_delay_steps,
-            prev_chunk_left_over=action_queue.get_raw_leftover(),
+            prev_chunk_left_over=action_queue.get_raw_leftover() if rtc_enabled else None,
             execution_horizon=config.rtc_execution_horizon,
         )
         request_started_s = perf_counter()
@@ -717,7 +722,7 @@ def run_actor_loop(
         if _duration_elapsed(config, state, now_s):
             break
         if not state.first_chunk_ready.is_set() and now_s >= first_chunk_deadline_s:
-            state.request_stop(f"first RTC chunk timeout after {config.first_chunk_timeout_s:.3f}s")
+            state.request_stop(f"first action chunk timeout after {config.first_chunk_timeout_s:.3f}s")
             break
 
         try:
@@ -769,8 +774,8 @@ def run_rtc_runtime(
     safety: ActionSafety,
     log_fn: Callable[[str], None] | None = print,
 ) -> ClientRuntimeResult:
-    if config.mode != "rtc":
-        raise ValueError("run_rtc_runtime requires mode=rtc")
+    if config.mode not in {"async_single_step", "rtc"}:
+        raise ValueError("run_rtc_runtime requires mode=async_single_step or rtc")
     state = ClientRuntimeState()
     metrics = ClientMetrics()
     frame_buffer = FrameBuffer()
@@ -837,14 +842,14 @@ def run_rtc_runtime(
     except KeyboardInterrupt:
         state.request_stop("KeyboardInterrupt")
     finally:
-        state.request_stop(state.stop_reason or "RTC client runtime exiting")
+        state.request_stop(state.stop_reason or f"{config.mode} client runtime exiting")
         for thread in threads:
             thread.join(timeout=5.0)
         alive = [thread.name for thread in threads if thread.is_alive()]
         if alive and state.last_error is None:
             state.record_error("run_rtc_runtime", RuntimeError(f"threads did not stop: {alive}"))
 
-    return _runtime_result(mode="rtc", state=state, metrics=metrics, queue=action_queue)
+    return _runtime_result(mode=config.mode, state=state, metrics=metrics, queue=action_queue)
 
 
 def run_client_runtime(
@@ -972,7 +977,13 @@ def _runtime_result(
         raise RuntimeError(state.last_error.traceback_text)
     if state.stop_reason is not None and not (
         state.stop_reason.startswith("run_time_s elapsed")
-        or state.stop_reason in {"KeyboardInterrupt", "RTC client runtime exiting"}
+        or state.stop_reason
+        in {
+            "KeyboardInterrupt",
+            "RTC client runtime exiting",
+            "async_single_step client runtime exiting",
+            "rtc client runtime exiting",
+        }
     ):
         raise RuntimeError(state.stop_reason)
     return ClientRuntimeResult(

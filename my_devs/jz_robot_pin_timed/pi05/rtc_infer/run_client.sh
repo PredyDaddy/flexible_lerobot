@@ -6,7 +6,7 @@ source "${SCRIPT_DIR}/common.sh"
 
 MODE="${MODE:-rtc}"
 EXECUTION="${EXECUTION:-dry_run}"
-rtc_require_choice MODE "${MODE}" single_step rtc
+rtc_require_choice MODE "${MODE}" single_step async_single_step rtc
 rtc_require_choice EXECUTION "${EXECUTION}" dry_run armed
 for argument in "$@"; do
   case "${argument}" in
